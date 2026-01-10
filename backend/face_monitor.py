@@ -17,6 +17,7 @@ SHOW_DEBUG_VIDEO = True  # Toggle debug window
 
 # --- STABILITY SETTINGS ---
 FACE_CACHE_DURATION = 2.0  # Seconds to keep face in memory (prevents flicker)
+GREETING_COOLDOWN = 60.0   # Seconds before re-greeting same person (1 minute)
 # --------------------------
 
 class FaceMonitor:
@@ -81,9 +82,9 @@ class FaceMonitor:
             # Use fresh (most recent) detection, not cached stable
             arrivals = list(self.fresh_people - self.previous_people)
             
-            # Filter out people we greeted recently (5 seconds)
+            # Filter out people we greeted recently (60 seconds cooldown)
             arrivals = [p for p in arrivals 
-                       if current_time - self.last_greeted.get(p, 0) > 5.0]
+                       if current_time - self.last_greeted.get(p, 0) > GREETING_COOLDOWN]
             
             # Update previous to fresh (consume the event)
             self.previous_people = self.fresh_people.copy()
@@ -91,7 +92,7 @@ class FaceMonitor:
             return arrivals
     
     def mark_greeted(self, name: str):
-        """Mark a person as greeted (prevents re-greeting for 5 seconds)"""
+        """Mark a person as greeted (prevents re-greeting for GREETING_COOLDOWN seconds)"""
         with self.lock:
             self.last_greeted[name] = time.time()
     
