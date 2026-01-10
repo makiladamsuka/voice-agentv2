@@ -1,32 +1,47 @@
 """
 Continuous Face Monitor
 Background service that monitors webcam and tracks who's present.
+Supports multi-person tracking with stability cache.
 """
 
 import cv2
 import face_recognition
 import threading
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 from object_detector import ObjectDetector
 
 # --- DEBUG SETTINGS ---
 SHOW_DEBUG_VIDEO = True  # Toggle debug window
 # ----------------------
 
+# --- STABILITY SETTINGS ---
+FACE_CACHE_DURATION = 2.0  # Seconds to keep face in memory (prevents flicker)
+# --------------------------
+
 class FaceMonitor:
-    """Background face monitoring service"""
+    """Background face monitoring service with multi-person tracking"""
     
     def __init__(self, known_faces: Dict[str, List]):
         self.known_faces = known_faces
+        
+        # Multi-person tracking (stable, from cache)
+        self.current_people: Set[str] = set()    # Who's currently visible (stable)
+        self.previous_people: Set[str] = set()   # For detecting arrivals/departures
+        
+        # Legacy single-person API (for backwards compatibility)
         self.current_person: Optional[str] = None
-        self.previous_person: Optional[str] = None  # Track changes
+        self.previous_person: Optional[str] = None
+        
         self.people_count = 0
         self.current_frame = None
         self.is_running = False
         self.thread: Optional[threading.Thread] = None
         self.lock = threading.Lock()
         self.video_capture = None
+        
+        # Face cache for stability (prevents flickering)
+        self.face_cache: List[tuple] = []  # List of (timestamp, Set[names])
         
         # Object detection cache (last 5 seconds)
         self.object_cache = []  # List of (timestamp, detections)
@@ -40,6 +55,62 @@ class FaceMonitor:
         except Exception as e:
             print(f"⚠️ YOLO init failed: {e}")
             self.yolo_active = False
+    
+    # ==================== NEW MULTI-PERSON API ====================
+    
+    def get_current_people(self) -> Set[str]:
+        """Get all people currently visible (stable, from cache)"""
+        with self.lock:
+            return self.current_people.copy()
+    
+    def get_new_arrivals(self) -> List[str]:
+        """Get people who just appeared (weren't in previous check).
+        Consumes the change - next call returns empty unless new people arrive."""
+        with self.lock:
+            arrivals = list(self.current_people - self.previous_people)
+            # Update previous to current (consume the event)
+            self.previous_people = self.current_people.copy()
+            return arrivals
+    
+    def get_departures(self) -> List[str]:
+        """Get people who left (were in previous, not in current).
+        Note: Only triggers after FACE_CACHE_DURATION (2s) of absence."""
+        with self.lock:
+            departures = list(self.previous_people - self.current_people)
+            return departures
+    
+    def _update_face_cache(self, detected_names: Set[str]):
+        """Add face detections to cache and compute stable current_people"""
+        current_time = time.time()
+        
+        # Add new detection
+        self.face_cache.append((current_time, detected_names))
+        
+        # Remove old entries (> FACE_CACHE_DURATION)
+        cutoff_time = current_time - FACE_CACHE_DURATION
+        self.face_cache = [(t, names) for t, names in self.face_cache if t > cutoff_time]
+        
+        # Compute stable set (anyone seen in last 2 seconds)
+        stable_people = set()
+        for _, names in self.face_cache:
+            stable_people.update(names)
+        
+        self.current_people = stable_people
+        
+        # Update legacy single-person field for backwards compatibility
+        if len(stable_people) == 0:
+            self.current_person = None
+        elif len(stable_people) == 1:
+            self.current_person = list(stable_people)[0]
+        else:
+            # Multiple people - could be mix of known/unknown
+            known = [p for p in stable_people if p != "Unknown"]
+            if known:
+                self.current_person = known[0]  # First known person
+            else:
+                self.current_person = "Multiple"
+    
+    # ==================== LEGACY API (backwards compatible) ====================
     
     def get_current_person(self) -> Optional[str]:
         with self.lock:
@@ -62,22 +133,18 @@ class FaceMonitor:
         """Check if someone just appeared (was None, now someone).
         Does NOT consume the change - use person_changed() for that."""
         with self.lock:
-            # Detect transition from nobody to somebody
             was_nobody = self.previous_person is None
             is_somebody = self.current_person is not None
             return was_nobody and is_somebody
     
+    # ==================== OBJECT CACHE ====================
+    
     def _update_object_cache(self, detections: List[Dict]):
         """Add detections to cache with timestamp"""
         current_time = time.time()
-        
-        # Add new detection (lock already held by caller)
         self.object_cache.append((current_time, detections))
-        
-        # Remove old detections (> cache_duration)
         cutoff_time = current_time - self.cache_duration
-        self.object_cache = [(t, d) for t, d in self.object_cache 
-                            if t > cutoff_time]
+        self.object_cache = [(t, d) for t, d in self.object_cache if t > cutoff_time]
     
     def get_recent_objects(self, seconds: float = 5.0) -> List[Dict]:
         """Get all unique objects detected in last N seconds"""
@@ -85,14 +152,11 @@ class FaceMonitor:
         cutoff_time = current_time - seconds
         
         with self.lock:
-            # Collect all recent detections
             recent = []
             for timestamp, detections in self.object_cache:
                 if timestamp > cutoff_time:
                     recent.extend(detections)
             
-            # Return unique objects (by class name)
-            # Keep highest confidence for each class
             unique_objects = {}
             for det in recent:
                 class_name = det['class']
@@ -102,13 +166,15 @@ class FaceMonitor:
                     unique_objects[class_name] = det
             
             return list(unique_objects.values())
+    
+    # ==================== LIFECYCLE ====================
         
     def start(self):
         if self.is_running: return
         self.is_running = True
         self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.thread.start()
-        print("🎥 Face monitor started")
+        print("🎥 Face monitor started (multi-person mode)")
     
     def stop(self):
         self.is_running = False
@@ -156,22 +222,21 @@ class FaceMonitor:
             if frame_count % 5 == 0:
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
-                # Face Detection
+                # Face Detection - now tracks ALL faces
                 face_locs = face_recognition.face_locations(rgb_frame)
-                current_name = None
+                detected_names: Set[str] = set()
                 
-                if len(face_locs) == 1:
+                if len(face_locs) > 0:
                     encs = face_recognition.face_encodings(rgb_frame, face_locs)
-                    if encs:
+                    
+                    for i, enc in enumerate(encs):
                         match_name = "Unknown"
                         for kname, kencs in self.known_faces.items():
-                            matches = face_recognition.compare_faces(kencs, encs[0], tolerance=0.5)
+                            matches = face_recognition.compare_faces(kencs, enc, tolerance=0.5)
                             if True in matches: 
                                 match_name = kname
                                 break
-                        current_name = match_name
-                elif len(face_locs) > 1:
-                    current_name = "Multiple"
+                        detected_names.add(match_name)
                 
                 # YOLO Detection (for debug view)
                 yolo_dets = []
@@ -181,24 +246,27 @@ class FaceMonitor:
                     p_count = sum(1 for d in yolo_dets if d['class'] == 'person')
                 
                 with self.lock:
-                    self.current_person = current_name
+                    # Update face cache (handles stability)
+                    self._update_face_cache(detected_names)
+                    
                     self.people_count = p_count
                     self._last_face_locs = face_locs
-                    self._last_name = current_name
+                    self._last_detected_names = detected_names
                     self._last_yolo_dets = yolo_dets
             
             # Debug Display
             if SHOW_DEBUG_VIDEO:
                 display = frame.copy()
                 flocs = getattr(self, '_last_face_locs', [])
-                fname = getattr(self, '_last_name', None)
+                detected = getattr(self, '_last_detected_names', set())
                 ydets = getattr(self, '_last_yolo_dets', [])
                 
-                # Draw faces
-                for t, r, b, l in flocs:
+                # Draw faces with their names
+                names_list = list(detected) if detected else []
+                for i, (t, r, b, l) in enumerate(flocs):
                     cv2.rectangle(display, (l, t), (r, b), (255, 0, 0), 2)
-                    if fname:
-                        cv2.putText(display, fname, (l, b+25), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255,0,0), 2)
+                    name = names_list[i] if i < len(names_list) else "?"
+                    cv2.putText(display, name, (l, b+25), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255,0,0), 2)
                 
                 # Draw YOLO
                 for det in ydets:
@@ -208,57 +276,20 @@ class FaceMonitor:
                     cv2.rectangle(display, (x1, y1), (x2, y2), clr, 2)
                     cv2.putText(display, lbl, (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, clr, 2)
                 
-                # YOLO detection every 5th frame for debug display
-                if self.yolo_active and frame_count % 5 == 0:
-                    yolo_detections = self.detector.detect_objects(frame)
-                    
-                    # Update people count
-                    people = [d for d in yolo_detections if d['class'] == 'person']
-                    self.people_count = len(people)
-                    
-                    # Store for debug display
-                    for det in yolo_detections:
-                        bbox = [int(x) for x in det['bbox']]
-                        label = f"{det['class']} {int(det['confidence']*100)}%"
-                        
-                        # Draw bounding box
-                        cv2.rectangle(display, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
-                        cv2.putText(display, label, (bbox[0], bbox[1]-10), 
-                                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                
-                # Update object cache every 10 frames (~0.3s) for continuous tracking
+                # Update object cache every 10 frames
                 if self.yolo_active and frame_count % 10 == 0:
                     cache_detections = self.detector.detect_objects(frame)
-                    with self.lock: # Ensure thread safety for cache update
+                    with self.lock:
                         self._update_object_cache(cache_detections)
                 
-                # Status
-                status = f"Face: {fname or 'None'} | People: {len([d for d in ydets if d['class']=='person'])}"
-                cv2.putText(display, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                # Status - show stable people
+                stable_str = ", ".join(self.current_people) if self.current_people else "None"
+                status = f"Stable: [{stable_str}] | YOLO People: {len([d for d in ydets if d['class']=='person'])}"
+                cv2.putText(display, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
                 
-                # Show cached objects (last 5 seconds)
-                recent_objs = self.get_recent_objects(seconds=5.0)
-                
-                # Show title
-                cv2.putText(display, "Cached Objects (5s):", (10, 60), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
-                
-                if recent_objs:
-                    # Show objects (exclude person, limit to 8)
-                    non_person_objs = [obj for obj in recent_objs if obj['class'] != 'person'][:8]
-                    y_offset = 85
-                    for obj in non_person_objs:
-                        obj_text = f"  {obj['class']} ({int(obj['confidence']*100)}%)"
-                        cv2.putText(display, obj_text, (10, y_offset), 
-                                   cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
-                        y_offset += 20
-                else:
-                    cv2.putText(display, "  (none)", (10, 85), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.45, (150, 150, 150), 1)
-                
-                
-                cv2.imshow("Debug View", display)
-                
+                # Show face cache info
+                cache_info = f"Face cache: {len(self.face_cache)} entries, {FACE_CACHE_DURATION}s window"
+                cv2.putText(display, cache_info, (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 0), 1)
                 
                 cv2.imshow("Debug View", display)
                 cv2.waitKey(1)

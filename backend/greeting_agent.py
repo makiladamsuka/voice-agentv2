@@ -53,53 +53,45 @@ class CampusGreetingAgent(Agent):
 CRITICAL CAPABILITY:
 I can ALWAYS see who is in front of me. Their name appears in system messages.
 
+AUTO-ENROLLMENT (VERY IMPORTANT):
+When someone introduces themselves (says "I'm [Name]" or "My name is [Name]"):
+1. IMMEDIATELY call enroll_new_face(their_name) to remember them
+2. Then respond warmly like "Nice to meet you, [Name]! I'll remember you now."
+3. Example: User says "I'm Alex" → call enroll_new_face("Alex") → "Great to meet you Alex!"
+
 NAME USAGE RULES (MUST FOLLOW):
 1. Use the person's name OCCASIONALLY and NATURALLY
    - Like in real conversations - NOT in every single response
    - Use it when being emphatic, personal, or friendly
-   - Good: "Great question, Makila!" then "Let me check..." then "Here you go!"
-   - Bad: "Let me check, Makila!" "Here it is, Makila!" "Anything else, Makila?"
    - IMPORTANT: You know who you're talking to, just don't overuse their name
 
-2. When to use names:
-   - First response in a conversation
-   - Being emphatic or enthusiastic
-   - Being personal or warm
-   - After a pause in conversation
-   - When you want to get their attention
-   - NOT in every single response
+2. For UNKNOWN people:
+   - Ask: "Hi there! I don't think we've met. What's your name?"
+   - When they tell you, ALWAYS use enroll_new_face(name) to remember them
 
-3. For UNKNOWN people:
-   - Say: "I don't recognize you yet. What's your name?"
-   - DON'T pretend you know them
-   - After they introduce themselves, use enroll_new_face(their_name)
-
-4. Check system messages for who you're talking to
-   - You always know who's there
-   - Just use the name naturally, not constantly
+3. For KNOWN people:
+   - Greet them by name: "Hey [Name]! Good to see you!"
 
 GREETING STYLE:
 - Be warm and natural
 - Keep it brief (1-2 sentences max)
-- Vary your greetings (don't repeat the same words)
 - Be casual like greeting a friend
 
 CONVERSATION STYLE:
 - Short, clear sentences
-- Friendly tone with occasional emojis (😊 🔍 👍)
-- Always acknowledge who you're talking to
+- Friendly tone
 - Be helpful and responsive
 
 AVAILABLE TOOLS:
 - identify_color - detect colors
 - identify_object(name) - find specific objects
 - count_people_in_room - count visible people
-- describe_environment - describe surroundings
+- describe_environment - describe surroundings  
 - show_event_poster - display event images
 - show_location_map - show campus maps
-- enroll_new_face(name) - remember new people
+- enroll_new_face(name) - ALWAYS USE when someone introduces themselves!
 
-Remember: You know who you're talking to, but be natural - don't use their name constantly!"""
+Remember: Auto-enroll new people when they introduce themselves!"""
         )
     
     @property
@@ -515,64 +507,70 @@ async def entrypoint(ctx: agents.JobContext):
         nonlocal greeted_in_session
         
         await asyncio.sleep(5)  # Wait for session to be fully running
-        print("🔄 Background greeting monitor started (session-based)")
+        print("🔄 Background greeting monitor started (multi-person mode)")
         
-        last_logged = None
         while ctx.room.connection_state == rtc.ConnectionState.CONN_CONNECTED:
             try:
-                current = agent.face_monitor.get_current_person()
+                # Get new arrivals since last check
+                arrivals = agent.face_monitor.get_new_arrivals()
                 
-                # Debug log (only when status changes)
-                if current != last_logged:
-                    print(f"👁️ Monitor sees: '{current}' (greeted: {greeted_in_session})")
-                    last_logged = current
-                
-                changed = agent.face_monitor.person_changed()
-                
-                if changed and current:
-                    print(f"🔍 Person changed to: '{current}'")
+                if arrivals:
+                    # Filter out already-greeted people
+                    new_arrivals = [p for p in arrivals if p not in greeted_in_session]
                     
-                    # Check if we've already greeted this person in this session
-                    if current not in greeted_in_session:
-                        print(f"👋 NEW person in session: {current}")
-                        greeted_in_session.add(current)
+                    if new_arrivals:
+                        print(f"👋 New arrivals: {new_arrivals}")
                         
-                        # Greet based on person type
-                        if current not in ["Unknown", "Multiple"]:
-                            # Known person by name
-                            print(f"✅ Greeting known person: {current}")
-                            try:
-                                await session.generate_reply(
-                                    instructions=f"You just saw {current} appear. Say a brief, natural greeting - be warm and casual like greeting a friend, not formal."
-                                )
-                            except RuntimeError:
-                                # Session is closing, stop trying to greet
-                                print("⚠️ Session closing, stopping greetings")
-                                break
+                        # Categorize arrivals
+                        known_people = [p for p in new_arrivals if p != "Unknown"]
+                        unknown_count = new_arrivals.count("Unknown")
+                        
+                        # Mark all as greeted
+                        for p in new_arrivals:
+                            greeted_in_session.add(p)
+                        
+                        # Build greeting instruction based on who arrived
+                        try:
+                            if len(known_people) > 0 and unknown_count == 0:
+                                # Only known people
+                                if len(known_people) == 1:
+                                    name = known_people[0]
+                                    print(f"✅ Greeting known person: {name}")
+                                    await session.generate_reply(
+                                        instructions=f"{name} just appeared! Greet them warmly by name - be casual and friendly."
+                                    )
+                                else:
+                                    names = ", ".join(known_people)
+                                    print(f"✅ Greeting multiple known people: {names}")
+                                    await session.generate_reply(
+                                        instructions=f"{names} just appeared! Greet them all by name briefly."
+                                    )
                             
-                        elif current == "Unknown":
-                            # Unknown person - ask for introduction
-                            print("🤔 Asking unknown person for introduction")
-                            try:
+                            elif known_people and unknown_count > 0:
+                                # Mix of known and unknown
+                                names = ", ".join(known_people)
+                                print(f"🤔 Greeting mix: {names} + {unknown_count} unknown")
                                 await session.generate_reply(
-                                    instructions="You see someone you don't recognize yet. Ask who they are in a friendly, casual way."
+                                    instructions=f"{names} appeared with someone new! Greet {names} by name and ask the new person to introduce themselves."
                                 )
-                            except RuntimeError:
-                                print("⚠️ Session closing, stopping greetings")
-                                break
                             
-                        elif current == "Multiple":
-                            # Multiple people - generic group greeting
-                            print("👥 Greeting multiple people")
-                            try:
+                            elif unknown_count == 1:
+                                # Single unknown person
+                                print("🤔 Asking single unknown person for introduction")
                                 await session.generate_reply(
-                                    instructions="You see multiple people have arrived. Say a brief, friendly group greeting."
+                                    instructions="Someone new appeared! Ask who they are in a friendly way. When they tell you their name, remember to use enroll_new_face() to save them."
                                 )
-                            except RuntimeError:
-                                print("⚠️ Session closing, stopping greetings")
-                                break
-                    else:
-                        print(f"ℹ️ Already greeted {current} in this session")
+                            
+                            else:
+                                # Multiple unknown people
+                                print(f"👥 Greeting {unknown_count} unknown people as group")
+                                await session.generate_reply(
+                                    instructions="A group of new people appeared! Give a brief friendly group greeting like 'Hey everyone!'"
+                                )
+                                
+                        except RuntimeError:
+                            print("⚠️ Session closing, stopping greetings")
+                            break
                         
             except Exception as e:
                 print(f"⚠️ Greeting error: {e}")
@@ -587,45 +585,57 @@ async def entrypoint(ctx: agents.JobContext):
         
         # Wait for face detection to stabilize (up to 5 seconds)
         print("⏳ Waiting for face detection to stabilize...")
-        current_person = None
+        people = set()
         for _ in range(10):  # Try for 5 seconds (10 x 0.5s)
             await asyncio.sleep(0.5)
-            current_person = agent.face_monitor.get_current_person()
-            if current_person:
-                print(f"✅ Face detected: {current_person}")
+            people = agent.face_monitor.get_current_people()
+            if people:
+                print(f"✅ Faces detected: {people}")
                 break
         else:
-            print("⚠️ No face detected after 5 seconds")
+            print("⚠️ No faces detected after 5 seconds")
         
-        # Initial greeting - let LLM generate personalized greeting based on who's present
+        # Initial greeting based on who's present
         try:
+            known_people = [p for p in people if p != "Unknown"]
+            unknown_count = sum(1 for p in people if p == "Unknown")
             
-            if current_person and current_person not in ["Unknown", "Multiple", None]:
-                # Known person - greet by name with LLM-generated response
-                print(f"👋 Initial greeting for: {current_person}")
-                greeted_in_session.add(current_person)  # Mark as greeted in session
+            # Mark everyone as greeted
+            for p in people:
+                greeted_in_session.add(p)
+            
+            if known_people and not unknown_count:
+                # All known people
+                names = ", ".join(known_people)
+                print(f"👋 Initial greeting for: {names}")
                 await session.generate_reply(
-                    instructions=f"You just saw {current_person} appear. Say a brief, natural greeting - be warm and casual like greeting a friend, not formal."
+                    instructions=f"{names} is here! Greet them warmly by name."
                 )
-            elif current_person == "Unknown":
+            elif known_people and unknown_count:
+                # Mix of known and unknown
+                names = ", ".join(known_people)
+                print(f"👋 Initial greeting for: {names} + {unknown_count} unknown")
+                await session.generate_reply(
+                    instructions=f"{names} is here with someone new! Greet {names} and ask the new person to introduce themselves."
+                )
+            elif unknown_count == 1:
+                # Single unknown person
                 print("🤔 Initial greeting for unknown person")
-                greeted_in_session.add(current_person)  # Mark as greeted
                 await session.generate_reply(
-                    instructions="You see someone you don't recognize yet. Ask who they are in a friendly, casual way."
+                    instructions="Someone you don't recognize is here. Greet them and ask for their name."
                 )
-            elif current_person == "Multiple":
-                print("👥 Initial greeting for multiple people")
-                greeted_in_session.add(current_person)  # Mark as greeted
+            elif unknown_count > 1:
+                # Multiple unknown people
+                print(f"👥 Initial greeting for {unknown_count} unknown people")
                 await session.generate_reply(
-                    instructions="You see multiple people have arrived. Say a brief, friendly group greeting."
+                    instructions="A group of new people is here! Give a friendly group greeting."
                 )
             else:
-                # No one visible yet - generic greeting
+                # No one visible
                 print("👋 No one detected - generic greeting")
                 await session.say("Hello! I'm your campus assistant. How can I help you today?")
                 
         except RuntimeError as e:
-            # Session might be closing - log but don't crash
             print(f"⚠️ Could not send initial greeting: {e}")
         
         # NOW start background greeting monitor after session is fully running
