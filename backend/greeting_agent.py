@@ -462,8 +462,8 @@ async def entrypoint(ctx: agents.JobContext):
     
     # Context Injection: LLM always knows who's in front
     async def inject_person_context(assistant: AgentSession, chat_ctx):
-        # Use FRESH people (most recent detection) not cached stable
-        fresh = agent.face_monitor.fresh_people if hasattr(agent.face_monitor, 'fresh_people') else set()
+        # Use thread-safe FRESH people getter (most recent detection)
+        fresh = agent.face_monitor.get_fresh_people()
         
         # Categorize
         known = [p for p in fresh if p != "Unknown"]
@@ -471,23 +471,26 @@ async def entrypoint(ctx: agents.JobContext):
         
         from livekit.agents.llm import ChatMessage, ChatRole
         
+        # Debug: log what we're injecting
+        print(f"🎯 Context injection - Fresh: {fresh}, Known: {known}")
+        
         if known:
-            # Known people - list their names
+            # Known people - list their names with STRONG emphasis
             names = ", ".join(known)
             if unknown_count:
                 context_msg = ChatMessage(
                     role=ChatRole.SYSTEM,
-                    content=f"You are talking to {names}. There's also someone you don't recognize. Use names naturally."
+                    content=f"CURRENT PERSON IN FRONT OF YOU: {names}. There's also someone you don't recognize. When asked 'who am I', answer with: {names}"
                 )
             else:
                 context_msg = ChatMessage(
                     role=ChatRole.SYSTEM,
-                    content=f"You are talking to {names}. Use their name naturally in responses."
+                    content=f"CURRENT PERSON IN FRONT OF YOU: {names}. When asked 'who am I', answer with: {names}"
                 )
         elif unknown_count:
             context_msg = ChatMessage(
                 role=ChatRole.SYSTEM,
-                content="You see someone you don't recognize. Ask for their name."
+                content="CURRENT: Unknown person. You don't recognize them. Ask for their name."
             )
         else:
             context_msg = ChatMessage(
@@ -528,41 +531,32 @@ async def entrypoint(ctx: agents.JobContext):
                     # Build greeting instruction based on who arrived
                     try:
                         if len(known_people) > 0 and unknown_count == 0:
-                            # Only known people
+                            # Only known people - use session.say() to bypass LLM
                             if len(known_people) == 1:
                                 name = known_people[0]
                                 print(f"✅ Greeting known person: {name}")
-                                await session.generate_reply(
-                                    instructions=f"{name} just appeared! Greet them warmly by name - be casual and friendly."
-                                )
+                                # Direct say - bypasses LLM conversation history!
+                                await session.say(f"Hey {name}! Good to see you!")
                             else:
-                                names = ", ".join(known_people)
+                                names = " and ".join(known_people)
                                 print(f"✅ Greeting multiple known people: {names}")
-                                await session.generate_reply(
-                                    instructions=f"{names} just appeared! Greet them all by name briefly."
-                                )
+                                await session.say(f"Hey {names}! Good to see you all!")
                         
                         elif known_people and unknown_count > 0:
                             # Mix of known and unknown
-                            names = ", ".join(known_people)
+                            names = " and ".join(known_people)
                             print(f"🤔 Greeting mix: {names} + {unknown_count} unknown")
-                            await session.generate_reply(
-                                instructions=f"{names} is here with someone I don't recognize. Greet {names} by name, then ask: What's your name?"
-                            )
+                            await session.say(f"Hey {names}! And hello to the new person - what's your name?")
                         
                         elif unknown_count == 1:
-                            # Single unknown person - DIRECTLY ask for name
+                            # Single unknown person - ask for name
                             print("🤔 Asking single unknown person: What's your name?")
-                            await session.generate_reply(
-                                instructions="I see someone I don't recognize. Say: Hi! I don't think we've met - what's your name?"
-                            )
+                            await session.say("Hi there! I don't think we've met - what's your name?")
                         
                         else:
                             # Multiple unknown people
                             print(f"👥 Greeting {unknown_count} unknown people as group")
-                            await session.generate_reply(
-                                instructions="A group of new people appeared! Give a friendly group greeting."
-                            )
+                            await session.say("Hey everyone! Nice to see you all!")
                             
                     except RuntimeError:
                         print("⚠️ Session closing, stopping greetings")
@@ -607,31 +601,23 @@ async def entrypoint(ctx: agents.JobContext):
                 agent.face_monitor.mark_greeted(p)
             
             if known_people and not unknown_count:
-                # All known people
-                names = ", ".join(known_people)
+                # All known people - direct greeting
+                names = " and ".join(known_people)
                 print(f"👋 Initial greeting for: {names}")
-                await session.generate_reply(
-                    instructions=f"{names} is here! Greet them warmly by name."
-                )
+                await session.say(f"Hey {names}! Good to see you!")
             elif known_people and unknown_count:
                 # Mix of known and unknown
-                names = ", ".join(known_people)
+                names = " and ".join(known_people)
                 print(f"👋 Initial greeting for: {names} + {unknown_count} unknown")
-                await session.generate_reply(
-                    instructions=f"{names} is here with someone I don't recognize. Greet {names} by name, then ask the new person: What's your name?"
-                )
+                await session.say(f"Hey {names}! And hi to the new person - what's your name?")
             elif unknown_count == 1:
-                # Single unknown person - directly ask name
+                # Single unknown person
                 print("🤔 Initial greeting for unknown person")
-                await session.generate_reply(
-                    instructions="Someone I don't recognize is here. Say: Hi there! I don't think we've met - what's your name?"
-                )
+                await session.say("Hi there! I don't think we've met - what's your name?")
             elif unknown_count > 1:
                 # Multiple unknown people
                 print(f"👥 Initial greeting for {unknown_count} unknown people")
-                await session.generate_reply(
-                    instructions="A group of new people is here! Give a friendly group greeting."
-                )
+                await session.say("Hey everyone! Nice to meet you all!")
             else:
                 # No one visible
                 print("👋 No one detected - generic greeting")
