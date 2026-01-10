@@ -42,6 +42,8 @@ class FaceMonitor:
         
         # Face cache for stability (prevents flickering)
         self.face_cache: List[tuple] = []  # List of (timestamp, Set[names])
+        self.fresh_people: Set[str] = set()  # Most recent detection (not cached)
+        self.last_greeted: Dict[str, float] = {}  # Track when we greeted each person
         
         # Object detection cache (last 5 seconds)
         self.object_cache = []  # List of (timestamp, detections)
@@ -64,13 +66,28 @@ class FaceMonitor:
             return self.current_people.copy()
     
     def get_new_arrivals(self) -> List[str]:
-        """Get people who just appeared (weren't in previous check).
-        Consumes the change - next call returns empty unless new people arrive."""
+        """Get people who just appeared (in fresh detection, weren't in previous).
+        Uses fresh detection to avoid stale cache issues.
+        Also filters out people greeted in last 5 seconds."""
         with self.lock:
-            arrivals = list(self.current_people - self.previous_people)
-            # Update previous to current (consume the event)
-            self.previous_people = self.current_people.copy()
+            current_time = time.time()
+            
+            # Use fresh (most recent) detection, not cached stable
+            arrivals = list(self.fresh_people - self.previous_people)
+            
+            # Filter out people we greeted recently (5 seconds)
+            arrivals = [p for p in arrivals 
+                       if current_time - self.last_greeted.get(p, 0) > 5.0]
+            
+            # Update previous to fresh (consume the event)
+            self.previous_people = self.fresh_people.copy()
+            
             return arrivals
+    
+    def mark_greeted(self, name: str):
+        """Mark a person as greeted (prevents re-greeting for 5 seconds)"""
+        with self.lock:
+            self.last_greeted[name] = time.time()
     
     def get_departures(self) -> List[str]:
         """Get people who left (were in previous, not in current).
@@ -90,7 +107,10 @@ class FaceMonitor:
         cutoff_time = current_time - FACE_CACHE_DURATION
         self.face_cache = [(t, names) for t, names in self.face_cache if t > cutoff_time]
         
-        # Compute stable set (anyone seen in last 2 seconds)
+        # Fresh people = most recent detection only (for accurate arrivals)
+        self.fresh_people = detected_names.copy()
+        
+        # Stable people = anyone seen in last 2 seconds (prevents flicker)
         stable_people = set()
         for _, names in self.face_cache:
             stable_people.update(names)
