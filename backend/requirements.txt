@@ -1,0 +1,18 @@
+# Python 3.10 recommended for best compatibility
+
+# LiveKit components
+livekit
+livekit-agents
+livekit-plugins-openai
+livekit-plugins-deepgram
+livekit-plugins-silero
+
+# Computer vision
+opencv-python>=4.8.0
+face-recognition
+mediapipe>=0.10.0
+
+# Utilities
+python-dotenv
+numpy>=1.24.0
+ultralytics>=8.0.0
