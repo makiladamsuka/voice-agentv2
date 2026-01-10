@@ -462,31 +462,37 @@ async def entrypoint(ctx: agents.JobContext):
     
     # Context Injection: LLM always knows who's in front
     async def inject_person_context(assistant: AgentSession, chat_ctx):
-        person = agent.face_monitor.get_current_person()
+        # Use FRESH people (most recent detection) not cached stable
+        fresh = agent.face_monitor.fresh_people if hasattr(agent.face_monitor, 'fresh_people') else set()
         
-        # Inject at the beginning of context with STRONG directive
+        # Categorize
+        known = [p for p in fresh if p != "Unknown"]
+        unknown_count = sum(1 for p in fresh if p == "Unknown")
+        
         from livekit.agents.llm import ChatMessage, ChatRole
         
-        if person and person not in ["Unknown", "Multiple", None]:
-            # Known person - simple, direct message
+        if known:
+            # Known people - list their names
+            names = ", ".join(known)
+            if unknown_count:
+                context_msg = ChatMessage(
+                    role=ChatRole.SYSTEM,
+                    content=f"You are talking to {names}. There's also someone you don't recognize. Use names naturally."
+                )
+            else:
+                context_msg = ChatMessage(
+                    role=ChatRole.SYSTEM,
+                    content=f"You are talking to {names}. Use their name naturally in responses."
+                )
+        elif unknown_count:
             context_msg = ChatMessage(
                 role=ChatRole.SYSTEM,
-                content=f"You are talking to {person}. Always use their name naturally in your responses."
-            )
-        elif person == "Unknown":
-            context_msg = ChatMessage(
-                role=ChatRole.SYSTEM,
-                content="You see someone you don't recognize. Ask for their name politely."
-            )
-        elif person == "Multiple":
-            context_msg = ChatMessage(
-                role=ChatRole.SYSTEM,
-                content="You see multiple people in the camera. Greet them as a group."
+                content="You see someone you don't recognize. Ask for their name."
             )
         else:
             context_msg = ChatMessage(
                 role=ChatRole.SYSTEM,
-                content="No one is visible in the camera right now."
+                content="No one is visible right now."
             )
         
         chat_ctx.messages.insert(0, context_msg)
@@ -576,9 +582,15 @@ async def entrypoint(ctx: agents.JobContext):
         # Wait for face detection to stabilize (up to 5 seconds)
         print("⏳ Waiting for face detection to stabilize...")
         people = set()
-        for _ in range(10):  # Try for 5 seconds (10 x 0.5s)
+        for i in range(10):  # Try for 5 seconds (10 x 0.5s)
             await asyncio.sleep(0.5)
-            people = agent.face_monitor.get_current_people()
+            # Check both stable and fresh detection
+            stable = agent.face_monitor.get_current_people()
+            fresh = agent.face_monitor.fresh_people if hasattr(agent.face_monitor, 'fresh_people') else set()
+            print(f"  [{i+1}/10] Stable: {stable}, Fresh: {fresh}")
+            
+            # Use fresh if available, otherwise stable
+            people = fresh if fresh else stable
             if people:
                 print(f"✅ Faces detected: {people}")
                 break
