@@ -65,6 +65,12 @@ class FaceMonitor:
         with self.lock:
             return self.current_people.copy()
     
+    def get_fresh_people(self) -> Set[str]:
+        """Get people from the MOST RECENT detection (not cached).
+        Use this for real-time context injection to avoid stale names."""
+        with self.lock:
+            return self.fresh_people.copy()
+    
     def get_new_arrivals(self) -> List[str]:
         """Get people who just appeared (in fresh detection, weren't in previous).
         Uses fresh detection to avoid stale cache issues.
