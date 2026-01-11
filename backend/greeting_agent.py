@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Campus Greeting Robot - Voice Agent V2
-Combines face recognition, color detection, and image display capabilities.
-"""
-
 from dotenv import load_dotenv
 from livekit import agents, rtc
 from livekit.agents import Agent, AgentSession, RunContext
@@ -11,14 +5,19 @@ from livekit.agents.llm import function_tool
 from livekit.plugins import openai, deepgram, silero
 import os
 import cv2
-import face_recognition
 import pickle
 import json
+import asyncio
 from pathlib import Path
 from image_manager import ImageManager
 from image_server import ImageServer
 from face_monitor import FaceMonitor
 from object_detector import ObjectDetector
+from greetings import generate_greeting, generate_group_greeting
+
+# Import modular tools
+from tools.vision import VisionTools
+from tools.content import ContentTools
 
 # Load environment variables
 env_path = Path(__file__).parent / ".env"
@@ -30,11 +29,22 @@ class CampusGreetingAgent(Agent):
         assets_dir = Path(__file__).parent / "assets"
         self.image_manager = ImageManager(assets_dir)
         self.image_server = image_server
-        self.face_monitor = None  # Will be initialized when session starts
-        self._object_detector = None  # Lazy load to avoid init timeout
+        self.face_monitor = None
+        self._object_detector = None
         
-        # Room reference (will be set in entrypoint)
+        # Room reference
         self.room = None
+        
+        # Initialize tool helpers
+        self.vision_tools = VisionTools(
+            face_monitor=None,  # Will set later
+            object_detector_factory=self.get_object_detector
+        )
+        self.content_tools = ContentTools(
+            image_manager=self.image_manager,
+            image_server=self.image_server,
+            room_provider=lambda: self.room
+        )
         
         # Load known face encodings
         self.known_faces = {}
@@ -94,340 +104,74 @@ AVAILABLE TOOLS:
 Remember: Auto-enroll new people when they introduce themselves!"""
         )
     
-    @property
-    def object_detector(self):
-        """Lazy-load ObjectDetector to avoid timeout on init"""
+    def get_object_detector(self):
+        """Lazy-load ObjectDetector"""
         if self._object_detector is None:
             print("🔍 Loading YOLO model...")
             self._object_detector = ObjectDetector()
         return self._object_detector
-    
+
+    # --- Delegate to Tool Modules ---
+
     @function_tool
     async def recognize_face(self, context: RunContext) -> str:
-        """
-        Identifies who is currently in front of the webcam.
-        Use when user asks who is there or wants to be recognized.
-        """
-        print("🎥 Face recognition using continuous monitor!")
-        
-        # Use the continuous face monitor instead of opening new webcam
-        if not self.face_monitor:
-            return "Face monitoring is not active."
-        
-        current_person = self.face_monitor.get_current_person()
-        
-        if not current_person:
-            return "I don't see anyone right now."
-        elif current_person == "Unknown":
-            return "I see someone but don't recognize them. Would you like to enroll?"
-        elif current_person.startswith("Multiple"):
-            return "I see multiple people. Please make sure only one person is in frame."
-        else:
-            return f"Hello {current_person}! Nice to see you."
+        """Identifies who is currently in front of the webcam."""
+        print("🎥 [TOOL] recognize_face called")
+        self.vision_tools.face_monitor = self.face_monitor
+        return await self.vision_tools.recognize_face(context)
     
     @function_tool
     async def enroll_new_face(self, person_name: str, context: RunContext) -> str:
-        """
-        Enroll a new person's face for recognition.
-        Use when someone introduces themselves and you want to remember them.
-        
-        Args:
-            person_name: The person's name to save
-        """
-        print(f"📝 Enrolling: {person_name}")
-        
-        # Use current frame from face_monitor instead of opening new camera
-        if not self.face_monitor:
-            return "Face monitoring is not active."
-            
-        frame = self.face_monitor.get_current_frame()
-        
-        if frame is None:
-            return "I can't see anyone right now. Please make sure you're in front of the camera."
-        
-        import cv2
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
-        face_locs = face_recognition.face_locations(rgb_frame)
-        
-        if len(face_locs) == 0:
-            return "I don't see any faces. Please position yourself in front of the camera."
-        
-        if len(face_locs) > 1:
-            return "I see multiple faces. Please make sure only you are in the frame."
-        
-        encodings = face_recognition.face_encodings(rgb_frame, face_locs)
-        
-        if not encodings:
-            return "I couldn't get a clear face encoding. Please try again."
-        
-        # Save encoding
-        encodings_dir = Path(__file__).parent / "known_faces"
-        encodings_dir.mkdir(exist_ok=True)
-        encodings_path = encodings_dir / "encodings.pkl"
-        
-        # Load existing
-        if encodings_path.exists():
-            with open(encodings_path, 'rb') as f:
-                known_faces = pickle.load(f)
-        else:
-            known_faces = {}
-        
-        # Add new person
-        if person_name in known_faces:
-            known_faces[person_name].append(encodings[0])
-        else:
-            known_faces[person_name] = [encodings[0]]
-        
-        # Save
-        with open(encodings_path, 'wb') as f:
-            pickle.dump(known_faces, f)
-        
-        # Update runtime
-        self.known_faces = known_faces
-        if self.face_monitor:
-            self.face_monitor.known_faces = known_faces
-        
-        print(f"✅ Enrolled: {person_name}")
-        return f"Great! I'll remember you, {person_name}. Nice to meet you!"
+        """Enroll a new person's face for recognition."""
+        print(f"📝 [TOOL] enroll_new_face called for: {person_name}")
+        self.vision_tools.face_monitor = self.face_monitor
+        return await self.vision_tools.enroll_new_face(person_name, context)
 
     @function_tool
     async def identify_color(self, context: RunContext) -> str:
-        """
-        Identifies the dominant color in the camera view.
-        Use when user asks about colors they're wearing or showing.
-        """
-        print("🎨 Color detection using shared frame!")
-        
-        import numpy as np
-        from collections import Counter
-        
-        # Use shared frame from FaceMonitor
-        if not self.face_monitor:
-            return "Camera monitoring is not active."
-        
-        frame = self.face_monitor.get_current_frame()
-        if frame is None:
-            return "No camera frame available."
-        
-        # Process frame
-        small_frame = cv2.resize(frame, (150, 150))
-        pixels = small_frame.reshape(-1, 3)
-        pixels = np.float32(pixels)
-        
-        # K-means clustering
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        _, labels, centers = cv2.kmeans(pixels, 3, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-        
-        centers = np.uint8(centers)
-        label_counts = Counter(labels.flatten())
-        dominant_label = label_counts.most_common(1)[0][0]
-        dominant_color_bgr = centers[dominant_label]
-        dominant_color_rgb = dominant_color_bgr[::-1]
-        
-        color_name = self._get_color_name(dominant_color_rgb, np)
-        
-        return f"The dominant color I see is {color_name}."
+        """Identifies the dominant color in the camera view."""
+        print("🎨 [TOOL] identify_color called")
+        self.vision_tools.face_monitor = self.face_monitor
+        return await self.vision_tools.identify_color(context)
     
     @function_tool
     async def describe_environment(self, context: RunContext) -> str:
-        """
-        Describes the current environment - people count and visible objects.
-        Use when user asks what you see or about the surroundings.
-        """
-        print("👁️ Describing environment (using cache)")
-        
-        # Use cached detections for more accurate results
-        recent_objects = self.face_monitor.get_recent_objects(seconds=3.0)
-        
-        if not recent_objects:
-            return "I don't have any recent camera data."
-        
-        # Count people
-        people = [obj for obj in recent_objects if obj['class'] == 'person']
-        people_count = len(people)
-        
-        # Get non-person objects (top 3)
-        objects = [obj for obj in recent_objects if obj['class'] != 'person']
-        object_names = [obj['class'] for obj in objects[:3]]
-        
-        # Build natural description
-        response = []
-        
-        if people_count == 0:
-            response.append("I don't see anyone")
-        elif people_count == 1:
-            response.append("I see 1 person")
-        else:
-            response.append(f"I see {people_count} people")
-        
-        if object_names:
-            obj_list = ', '.join(object_names)
-            response.append(f"and {obj_list}")
-        
-        return '. '.join(response) if response else "I don't see much right now"
+        """Describes the current environment - people count and visible objects."""
+        print("👁️ [TOOL] describe_environment called")
+        self.vision_tools.face_monitor = self.face_monitor
+        return await self.vision_tools.describe_environment(context)
     
     @function_tool
     async def identify_object(self, object_name: str, context: RunContext) -> str:
-        """
-        Finds a specific object and describes it.
-        Use when user asks about a particular item (laptop, phone, cup, etc).
-        
-        Args:
-            object_name: The object to find (e.g., "laptop", "phone", "bottle")
-        """
-        print(f"🔍 Looking for: {object_name} (using cache)")
-        
-        # Use cached detections instead of fresh detection
-        recent_objects = self.face_monitor.get_recent_objects(seconds=5.0)
-        
-        if not recent_objects:
-            return "I don't have any recent camera data."
-        
-        # Find matching object
-        object_name_lower = object_name.lower()
-        matches = [obj for obj in recent_objects 
-                   if object_name_lower in obj['class'].lower()]
-        
-        if matches:
-            best_match = max(matches, key=lambda x: x['confidence'])
-            confidence = int(best_match['confidence'] * 100)
-            return f"Yes! I can see a {best_match['class']} ({confidence}% confidence)"
-        else:
-            return f"I haven't seen a {object_name} in the last few seconds"
+        """Finds a specific object and describes it."""
+        print(f"🔍 [TOOL] identify_object called for: {object_name}")
+        self.vision_tools.face_monitor = self.face_monitor
+        return await self.vision_tools.identify_object(object_name, context)
     
     @function_tool
     async def count_people_in_room(self, context: RunContext) -> str:
-        """
-        Counts how many people are visible in the camera view.
-        Use when user asks how many people are present.
-        """
-        print("👥 Counting people (using cache)")
-        
-        # Use cached detections
-        recent_objects = self.face_monitor.get_recent_objects(seconds=3.0)
-        
-        if not recent_objects:
-            return "I don't have any recent camera data."
-        
-        # Count people from cache
-        people = [obj for obj in recent_objects if obj['class'] == 'person']
-        count = len(people)
-        
-        if count == 0:
-            return "I don't see anyone right now"
-        elif count == 1:
-            return "I see 1 person"
-        else:
-            return f"I see {count} people"
-    
+        """Counts how many people are visible in the camera view."""
+        print("👥 [TOOL] count_people_in_room called")
+        self.vision_tools.face_monitor = self.face_monitor
+        return await self.vision_tools.count_people_in_room(context)
 
     @function_tool
     async def list_available_events(self, context: RunContext) -> str:
-        """
-        Lists all available events on campus.
-        Use when user asks what events are happening or what's available.
-        """
-        print("📋 Listing available events")
-        
-        event_names = self.image_manager.list_available_events()
-        
-        if not event_names:
-            return "There are no events scheduled at the moment."
-        
-        if len(event_names) == 1:
-            return f"We have {event_names[0]} happening on campus."
-        else:
-            # Format as a nice list
-            events_list = ", ".join(event_names[:-1]) + f" and {event_names[-1]}"
-            return f"We have {len(event_names)} events: {events_list}."
+        """Lists all available events on campus."""
+        print("📋 [TOOL] list_available_events called")
+        return await self.content_tools.list_available_events(context)
     
     @function_tool
     async def show_event_poster(self, event_description: str, context: RunContext) -> str:
-        """
-        Displays an event poster on the frontend.
-        Use when user asks about events, festivals, or programs.
-        
-        Args:
-            event_description: Natural language description of the event (e.g., "tech fest", "cultural night")
-        """
-        print(f"🎨 Showing event poster for: {event_description}")
-        
-        # Find matching image
-        image_path = self.image_manager.find_event_image(event_description)
-        
-        if image_path:
-            # Send image URL instead of base64
-            image_url = self.image_server.get_image_url("events", image_path.name)
-            
-            await self.room.local_participant.publish_data(
-                json.dumps({
-                    "type": "image",
-                    "category": "event",
-                    "url": image_url,
-                    "caption": f"Event: {event_description}"
-                }).encode()
-            )
-            
-            return f"I've displayed the {event_description} poster for you."
-        else:
-            # No image found - just return text message
-            return f"Sorry, I couldn't find a poster for '{event_description}'. We currently have posters for: {', '.join(self.image_manager.list_available_events())}."
+        """Displays an event poster on the frontend."""
+        print(f"🎨 [TOOL] show_event_poster called for: {event_description}")
+        return await self.content_tools.show_event_poster(event_description, context)
     
     @function_tool
     async def show_location_map(self, location_query: str, context: RunContext) -> str:
-        """
-        Displays a campus location map on the frontend.
-        Use when user asks for directions or where something is located.
-        
-        Args:
-            location_query: Natural language query about location (e.g., "DS lab", "library")
-        """
-        print(f"🗺️  Showing location map for: {location_query}")
-        
-        # Find matching map
-        image_path = self.image_manager.find_location_map(location_query)
-        
-        if image_path:
-            # Send image URL instead of base64
-            image_url = self.image_server.get_image_url("maps", image_path.name)
-            
-            await self.room.local_participant.publish_data(
-                json.dumps({
-                    "type": "image",
-                    "category": "map",
-                    "url": image_url,
-                    "caption": f"Location: {location_query}"
-                }).encode()
-            )
-            
-            return f"Here's the map to {location_query}."
-        else:
-            # No map found - just return text message  
-            return f"Sorry, I don't have a map for '{location_query}'. Try asking about specific campus buildings or landmarks."
-    
-    def _get_color_name(self, rgb, np):
-        """Convert RGB to color name using HSV"""
-        r, g, b = rgb
-        rgb_pixel = np.uint8([[[r, g, b]]])
-        hsv_pixel = cv2.cvtColor(rgb_pixel, cv2.COLOR_RGB2HSV)
-        h, s, v = hsv_pixel[0][0]
-        
-        if s < 30:
-            if v > 200: return "white"
-            elif v < 50: return "black"
-            else: return "gray"
-        
-        if v < 50: return "black"
-        
-        if (h <= 10) or (h >= 170): return "red"
-        elif h <= 25: return "orange"
-        elif h <= 34: return "yellow"
-        elif h <= 85: return "green"
-        elif h <= 100: return "cyan"
-        elif h <= 130: return "blue"
-        elif h <= 155: return "purple"
-        else: return "pink"
+        """Displays a campus location map on the frontend."""
+        print(f"🗺️ [TOOL] show_location_map called for: {location_query}")
+        return await self.content_tools.show_location_map(location_query, context)
 
 
 # Global image server (shared across all agent instances)
@@ -504,8 +248,6 @@ async def entrypoint(ctx: agents.JobContext):
     session.before_llm_cb = inject_person_context
     
     # Proactive Greeting Task: Watch for new people
-    import asyncio
-    import time
     
     async def monitor_and_greet():
         """Background task that greets people when they appear"""
@@ -531,32 +273,34 @@ async def entrypoint(ctx: agents.JobContext):
                     # Build greeting instruction based on who arrived
                     try:
                         if len(known_people) > 0 and unknown_count == 0:
-                            # Only known people - use session.say() to bypass LLM
+                            # Only known people
                             if len(known_people) == 1:
                                 name = known_people[0]
-                                print(f"✅ Greeting known person: {name}")
-                                # Direct say - bypasses LLM conversation history!
-                                await session.say(f"Hey {name}! Good to see you!")
+                                greeting = generate_greeting(name, is_known=True)
+                                print(f"✅ Greeting known person: {name} -> {greeting}")
+                                await session.say(greeting)
                             else:
-                                names = " and ".join(known_people)
-                                print(f"✅ Greeting multiple known people: {names}")
-                                await session.say(f"Hey {names}! Good to see you all!")
+                                greeting = generate_group_greeting(known_people, 0)
+                                print(f"✅ Greeting multiple known people -> {greeting}")
+                                await session.say(greeting)
                         
                         elif known_people and unknown_count > 0:
                             # Mix of known and unknown
-                            names = " and ".join(known_people)
-                            print(f"🤔 Greeting mix: {names} + {unknown_count} unknown")
-                            await session.say(f"Hey {names}! And hello to the new person - what's your name?")
+                            greeting = generate_group_greeting(known_people, unknown_count)
+                            print(f"🤔 Greeting mix -> {greeting}")
+                            await session.say(greeting)
                         
                         elif unknown_count == 1:
                             # Single unknown person - ask for name
-                            print("🤔 Asking single unknown person: What's your name?")
-                            await session.say("Hi there! I don't think we've met - what's your name?")
+                            greeting = generate_greeting("Unknown", is_known=False)
+                            print(f"🤔 Greeting unknown person -> {greeting}")
+                            await session.say(greeting)
                         
                         else:
                             # Multiple unknown people
-                            print(f"👥 Greeting {unknown_count} unknown people as group")
-                            await session.say("Hey everyone! Nice to see you all!")
+                            greeting = generate_group_greeting([], unknown_count)
+                            print(f"👥 Greeting {unknown_count} unknown people -> {greeting}")
+                            await session.say(greeting)
                             
                     except RuntimeError:
                         print("⚠️ Session closing, stopping greetings")
@@ -602,22 +346,27 @@ async def entrypoint(ctx: agents.JobContext):
             
             if known_people and not unknown_count:
                 # All known people - direct greeting
-                names = " and ".join(known_people)
-                print(f"👋 Initial greeting for: {names}")
-                await session.say(f"Hey {names}! Good to see you!")
+                if len(known_people) == 1:
+                    greeting = generate_greeting(known_people[0], is_known=True)
+                else:
+                    greeting = generate_group_greeting(known_people, 0)
+                print(f"👋 Initial greeting -> {greeting}")
+                await session.say(greeting)
             elif known_people and unknown_count:
                 # Mix of known and unknown
-                names = " and ".join(known_people)
-                print(f"👋 Initial greeting for: {names} + {unknown_count} unknown")
-                await session.say(f"Hey {names}! And hi to the new person - what's your name?")
+                greeting = generate_group_greeting(known_people, unknown_count)
+                print(f"👋 Initial greeting (mix) -> {greeting}")
+                await session.say(greeting)
             elif unknown_count == 1:
                 # Single unknown person
-                print("🤔 Initial greeting for unknown person")
-                await session.say("Hi there! I don't think we've met - what's your name?")
+                greeting = generate_greeting("Unknown", is_known=False)
+                print(f"🤔 Initial greeting (unknown) -> {greeting}")
+                await session.say(greeting)
             elif unknown_count > 1:
                 # Multiple unknown people
-                print(f"👥 Initial greeting for {unknown_count} unknown people")
-                await session.say("Hey everyone! Nice to meet you all!")
+                greeting = generate_group_greeting([], unknown_count)
+                print(f"👥 Initial greeting (unknowns) -> {greeting}")
+                await session.say(greeting)
             else:
                 # No one visible
                 print("👋 No one detected - generic greeting")
