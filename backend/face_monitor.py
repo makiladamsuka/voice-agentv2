@@ -280,6 +280,10 @@ class FaceMonitor:
                     self._last_face_locs = face_locs
                     self._last_detected_names = detected_names
                     self._last_yolo_dets = yolo_dets
+                    
+                    # Update object cache using same YOLO results (every frame we process)
+                    if self.yolo_active and yolo_dets:
+                        self._update_object_cache(yolo_dets)
             
             # Debug Display
             if SHOW_DEBUG_VIDEO:
@@ -303,12 +307,6 @@ class FaceMonitor:
                     cv2.rectangle(display, (x1, y1), (x2, y2), clr, 2)
                     cv2.putText(display, lbl, (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, clr, 2)
                 
-                # Update object cache every 10 frames
-                if self.yolo_active and frame_count % 10 == 0:
-                    cache_detections = self.detector.detect_objects(frame)
-                    with self.lock:
-                        self._update_object_cache(cache_detections)
-                
                 # Status - show stable people
                 stable_str = ", ".join(self.current_people) if self.current_people else "None"
                 status = f"Stable: [{stable_str}] | YOLO People: {len([d for d in ydets if d['class']=='person'])}"
@@ -317,6 +315,12 @@ class FaceMonitor:
                 # Show face cache info
                 cache_info = f"Face cache: {len(self.face_cache)} entries, {FACE_CACHE_DURATION}s window"
                 cv2.putText(display, cache_info, (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 0), 1)
+                
+                # Show object cache info
+                cached_objs = self.get_recent_objects(seconds=5.0)
+                obj_names = [o['class'] for o in cached_objs if o['class'] != 'person'][:5]
+                obj_cache_str = f"Object cache: {', '.join(obj_names) if obj_names else 'None'}"
+                cv2.putText(display, obj_cache_str, (10, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1)
                 
                 cv2.imshow("Debug View", display)
                 cv2.waitKey(1)
