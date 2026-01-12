@@ -14,6 +14,8 @@ A LiveKit-powered voice agent for campus assistance with face recognition, color
 
 ### Docker Setup (Recommended for Multi-Platform Support)
 
+**📦 For detailed Docker instructions, see [DOCKER.md](DOCKER.md)**
+
 Docker setup supports both x86 (standard PCs) and ARM architectures (Raspberry Pi).
 
 #### Prerequisites
