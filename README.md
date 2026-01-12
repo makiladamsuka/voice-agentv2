@@ -1,4 +1,4 @@
-·# Campus Greeting Robot - Voice Agent V2
+# Campus Greeting Robot - Voice Agent V2
 
 A LiveKit-powered voice agent for campus assistance with face recognition, color detection, and image display capabilities.
 
