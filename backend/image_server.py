@@ -57,6 +57,11 @@ class ImageServer:
         class CustomHandler(BaseHTTPRequestHandler):
             def do_GET(self):
                 """Handle GET requests"""
+                # Handle MJPEG video stream
+                if self.path == '/camera/stream':
+                    self._serve_mjpeg_stream()
+                    return
+                
                 # Handle camera frame endpoint
                 if self.path == '/camera/frame.jpg' or self.path == '/camera/frame':
                     self._serve_camera_frame()
@@ -69,6 +74,36 @@ class ImageServer:
                 
                 # Default: serve static files from assets directory
                 self._serve_static_file(parent_dir)
+            
+            def _serve_mjpeg_stream(self):
+                """Serve MJPEG video stream"""
+                import time
+                try:
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=frame')
+                    self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                    self.end_headers()
+                    
+                    while True:
+                        if server_instance.face_monitor:
+                            frame = server_instance.face_monitor.get_current_frame()
+                            if frame is not None:
+                                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                                jpg_bytes = buffer.tobytes()
+                                
+                                self.wfile.write(b'--frame\r\n')
+                                self.wfile.write(b'Content-Type: image/jpeg\r\n')
+                                self.wfile.write(f'Content-Length: {len(jpg_bytes)}\r\n'.encode())
+                                self.wfile.write(b'\r\n')
+                                self.wfile.write(jpg_bytes)
+                                self.wfile.write(b'\r\n')
+                        
+                        time.sleep(0.1)  # ~10 FPS
+                        
+                except (BrokenPipeError, ConnectionResetError):
+                    pass  # Client disconnected
+                except Exception as e:
+                    print(f"Stream error: {e}")
             
             def _serve_camera_frame(self):
                 """Serve the current camera frame as JPEG"""
@@ -122,7 +157,7 @@ class ImageServer:
         h1 {
             margin-top: 0;
         }
-        #frame {
+        #stream {
             border: 2px solid #444;
             max-width: 100%;
             height: auto;
@@ -132,67 +167,20 @@ class ImageServer:
             font-size: 12px;
             color: #888;
         }
-        .controls {
-            margin: 10px 0;
-        }
-        button {
-            background: #444;
-            color: #fff;
-            border: 1px solid #666;
-            padding: 8px 16px;
-            cursor: pointer;
-            margin-right: 10px;
-        }
-        button:hover {
-            background: #555;
+        .status {
+            color: #0f0;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <h1>📹 Camera Debug View</h1>
-    <div class="controls">
-        <button onclick="location.reload()">Refresh</button>
-        <button onclick="toggleAutoRefresh()" id="autoBtn">Auto-refresh: ON</button>
-    </div>
-    <img id="frame" src="/camera/frame.jpg" alt="Camera Frame">
+    <h1>📹 Camera Live Stream</h1>
+    <p class="status">🟢 Live video (~10 FPS)</p>
+    <img id="stream" src="/camera/stream" alt="Camera Stream">
     <div class="info">
-        <p>Frame updates every <span id="interval">2</span> seconds</p>
-        <p>Last update: <span id="lastUpdate">-</span></p>
+        <p>Direct frame: <a href="/camera/frame.jpg" style="color:#4af">/camera/frame.jpg</a></p>
+        <p>Stream URL: <a href="/camera/stream" style="color:#4af">/camera/stream</a></p>
     </div>
-    
-    <script>
-        let autoRefresh = true;
-        let interval = 2000;
-        
-        function toggleAutoRefresh() {
-            autoRefresh = !autoRefresh;
-            document.getElementById('autoBtn').textContent = 
-                'Auto-refresh: ' + (autoRefresh ? 'ON' : 'OFF');
-        }
-        
-        function updateFrame() {
-            const img = document.getElementById('frame');
-            const timestamp = new Date().toLocaleTimeString();
-            img.src = '/camera/frame.jpg?t=' + Date.now();
-            document.getElementById('lastUpdate').textContent = timestamp;
-        }
-        
-        // Update frame on load
-        updateFrame();
-        
-        // Auto-refresh
-        setInterval(() => {
-            if (autoRefresh) {
-                updateFrame();
-            }
-        }, interval);
-        
-        // Update timestamp periodically
-        setInterval(() => {
-            const now = new Date();
-            document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
-        }, 1000);
-    </script>
 </body>
 </html>
                 """
