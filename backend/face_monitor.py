@@ -286,16 +286,37 @@ class FaceMonitor:
                     face_locs = getattr(self, '_last_face_locs', [])
                     names = getattr(self, '_last_detected_names', [])
                     
-                    for i, (top, right, bottom, left) in enumerate(face_locs):
-                        cv2.rectangle(display, (left, top), (right, bottom), (0, 255, 0), 2)
-                        name = names[i] if i < len(names) else "?"
-                        cv2.putText(display, name, (left, bottom + 25), 
-                                   cv2.FONT_HERSHEY_DUPLEX, 0.8, (0, 255, 0), 2)
+                    recognized_count = 0
+                    unknown_count = 0
                     
-                    # Status text
-                    people_str = ", ".join(self.current_people) if self.current_people else "None"
-                    cv2.putText(display, f"People: {people_str}", (10, 30), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                    for i, (top, right, bottom, left) in enumerate(face_locs):
+                        name = names[i] if i < len(names) else "?"
+                        
+                        # Color: Green=recognized, Red=unknown
+                        if name != "Unknown" and name != "?":
+                            color = (0, 255, 0)  # Green - recognized
+                            recognized_count += 1
+                        else:
+                            color = (0, 0, 255)  # Red - unknown
+                            unknown_count += 1
+                        
+                        cv2.rectangle(display, (left, top), (right, bottom), color, 2)
+                        cv2.putText(display, name, (left, bottom + 25), 
+                                   cv2.FONT_HERSHEY_DUPLEX, 0.8, color, 2)
+                    
+                    # Status text - line 1: faces detected
+                    total_faces = len(face_locs)
+                    status1 = f"Faces: {total_faces} detected"
+                    if total_faces > 0:
+                        status1 += f" ({recognized_count} recognized, {unknown_count} unknown)"
+                    cv2.putText(display, status1, (10, 30), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                    
+                    # Status text - line 2: recognized names
+                    known_names = [n for n in names if n != "Unknown" and n != "?"]
+                    status2 = f"Known: {', '.join(known_names) if known_names else 'None'}"
+                    cv2.putText(display, status2, (10, 60), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                     
                     cv2.imshow("Face Monitor", display)
                     cv2.waitKey(1)
