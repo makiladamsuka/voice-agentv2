@@ -221,18 +221,52 @@ Remember: Auto-enroll new people when they introduce themselves!"""
         print("🧠 [TOOL] get_memory_usage called")
         return await self.system_tools.get_memory_usage(context)
 
-
 # Global image server (shared across all agent instances)
 _global_image_server = None
+_global_face_monitor = None
 
-async def entrypoint(ctx: agents.JobContext):
-    global _global_image_server
+def _load_known_faces():
+    """Load face encodings from file"""
+    known_faces = {}
+    encodings_path = Path(__file__).parent / "known_faces" / "encodings.pkl"
     
-    # Start HTTP image server once globally
+    if encodings_path.exists():
+        try:
+            with open(encodings_path, 'rb') as f:
+                known_faces = pickle.load(f)
+            print(f"✅ Loaded face encodings for {len(known_faces)} people: {list(known_faces.keys())}")
+        except Exception as e:
+            print(f"⚠️ Error loading face encodings: {e}")
+    else:
+        print("⚠️ No face encodings found.")
+    
+    return known_faces
+
+def _init_globals():
+    """Initialize global services (camera, image server) before any connection"""
+    global _global_image_server, _global_face_monitor
+    
     if _global_image_server is None:
         assets_dir = Path(__file__).parent / "assets"
         _global_image_server = ImageServer(assets_dir, port=8080)
         _global_image_server.start()
+    
+    if _global_face_monitor is None:
+        print("🎥 Starting camera early (before any connection)...")
+        known_faces = _load_known_faces()
+        _global_face_monitor = FaceMonitor(known_faces)
+        _global_face_monitor.start()
+        # Wait for camera to be ready
+        import time
+        time.sleep(1)
+        print("✅ Camera ready!")
+
+
+async def entrypoint(ctx: agents.JobContext):
+    global _global_image_server, _global_face_monitor
+    
+    # Initialize globals (camera, image server) ONCE before any connection
+    _init_globals()
     
     session = AgentSession(
         stt=deepgram.STT(model="nova-2"),
@@ -248,9 +282,9 @@ async def entrypoint(ctx: agents.JobContext):
     agent = CampusGreetingAgent(_global_image_server)
     agent.room = ctx.room
     
-    # Start face monitoring
-    agent.face_monitor = FaceMonitor(agent.known_faces)
-    agent.face_monitor.start()
+    # Use global face monitor (already running)
+    agent.face_monitor = _global_face_monitor
+    agent.known_faces = _global_face_monitor.known_faces
     
     # Context Injection: LLM always knows who's in front
     async def inject_person_context(assistant: AgentSession, chat_ctx):
