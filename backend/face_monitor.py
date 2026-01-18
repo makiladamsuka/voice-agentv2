@@ -320,6 +320,9 @@ class FaceMonitor:
                     
                     cv2.imshow("Face Monitor", display)
                     cv2.waitKey(1)
+                else:
+                    # Small delay when video disabled to prevent overwhelming picamera2
+                    time.sleep(0.03)  # ~30 FPS max
             
             except Exception as e:
                 print(f"⚠️ Frame processing error: {e}")
