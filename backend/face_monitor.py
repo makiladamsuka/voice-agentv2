@@ -13,6 +13,10 @@ from typing import Dict, List, Optional, Set
 from picamera2 import Picamera2
 from object_detector import ObjectDetector
 
+# --- DEBUG SETTINGS ---
+SHOW_DEBUG_VIDEO = True  # Set True to show camera window on HDMI display
+# -----------------------
+
 # --- STABILITY SETTINGS ---
 FACE_CACHE_DURATION = 2.0  # Seconds to keep face in memory (prevents flicker)
 GREETING_COOLDOWN = 60.0   # Seconds before re-greeting same person (1 minute)
@@ -204,6 +208,8 @@ class FaceMonitor:
                 self.picam2.stop()
             except:
                 pass
+        if SHOW_DEBUG_VIDEO:
+            cv2.destroyAllWindows()
         print("🛑 Face monitor stopped")
             
     def _monitor_loop(self):
@@ -269,6 +275,30 @@ class FaceMonitor:
                     with self.lock:
                         # Update face cache (handles stability)
                         self._update_face_cache(detected_names)
+                        self._last_face_locs = face_locs
+                        self._last_detected_names = list(detected_names)
+                
+                # Debug Display on HDMI
+                if SHOW_DEBUG_VIDEO:
+                    display = frame.copy()
+                    
+                    # Draw faces with names
+                    face_locs = getattr(self, '_last_face_locs', [])
+                    names = getattr(self, '_last_detected_names', [])
+                    
+                    for i, (top, right, bottom, left) in enumerate(face_locs):
+                        cv2.rectangle(display, (left, top), (right, bottom), (0, 255, 0), 2)
+                        name = names[i] if i < len(names) else "?"
+                        cv2.putText(display, name, (left, bottom + 25), 
+                                   cv2.FONT_HERSHEY_DUPLEX, 0.8, (0, 255, 0), 2)
+                    
+                    # Status text
+                    people_str = ", ".join(self.current_people) if self.current_people else "None"
+                    cv2.putText(display, f"People: {people_str}", (10, 30), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                    
+                    cv2.imshow("Face Monitor", display)
+                    cv2.waitKey(1)
             
             except Exception as e:
                 print(f"⚠️ Frame processing error: {e}")
