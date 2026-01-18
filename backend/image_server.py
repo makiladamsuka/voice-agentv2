@@ -63,7 +63,7 @@ class ImageServer:
                     return
                 
                 # Handle camera debug page
-                if self.path == '/camera/debug' or self.path == '/camera/':
+                if self.path in ['/camera', '/camera/', '/camera/debug']:
                     self._serve_camera_debug_page()
                     return
                 
