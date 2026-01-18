@@ -1,20 +1,15 @@
 """
 Simple HTTP server for serving event and map images.
 Runs alongside the LiveKit agent.
-Also serves camera frames for debugging.
 """
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 from pathlib import Path
-import os
 import socket
-import cv2
-import io
-from typing import Optional
 
 class ImageServer:
-    """Simple HTTP server to serve images from assets directory and camera frames"""
+    """Simple HTTP server to serve images from assets directory"""
     
     def __init__(self, assets_dir: Path, port: int = 8080, host: str = "0.0.0.0"):
         self.assets_dir = assets_dir
@@ -22,183 +17,45 @@ class ImageServer:
         self.host = host
         self.server = None
         self.thread = None
-        self._server_host = None  # Will be set to actual network IP or localhost
-        self.face_monitor = None  # Will be set by greeting_agent to provide camera frames
+        self._server_host = None
         
     def _get_local_ip(self):
         """Get the local network IP address"""
         try:
-            # Connect to external server to determine local IP
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
             ip = s.getsockname()[0]
             s.close()
             return ip
         except:
-            return "127.0.0.1"  # Fallback to localhost
+            return "127.0.0.1"
     
     def start(self):
         """Start the HTTP server in a background thread"""
-        # Don't start if already running - check both server and thread
         if self.server is not None and self.thread is not None and self.thread.is_alive():
             print(f"⚠️  Image server already running on port {self.port}")
             return
         
-        # Determine the server host for URL generation
         if self.host == "0.0.0.0":
             self._server_host = self._get_local_ip()
         else:
             self._server_host = self.host
         
-        # Store parent directory of assets
         parent_dir = self.assets_dir.parent
-        server_instance = self  # Capture self for use in handler
         
         class CustomHandler(BaseHTTPRequestHandler):
             def do_GET(self):
-                """Handle GET requests"""
-                # Handle MJPEG video stream
-                if self.path == '/camera/stream':
-                    self._serve_mjpeg_stream()
-                    return
-                
-                # Handle camera frame endpoint
-                if self.path == '/camera/frame.jpg' or self.path == '/camera/frame':
-                    self._serve_camera_frame()
-                    return
-                
-                # Handle camera debug page
-                if self.path in ['/camera', '/camera/', '/camera/debug']:
-                    self._serve_camera_debug_page()
-                    return
-                
-                # Default: serve static files from assets directory
+                """Handle GET requests - serve static files"""
                 self._serve_static_file(parent_dir)
-            
-            def _serve_mjpeg_stream(self):
-                """Serve MJPEG video stream"""
-                import time
-                try:
-                    self.send_response(200)
-                    self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=frame')
-                    self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
-                    self.end_headers()
-                    
-                    while True:
-                        if server_instance.face_monitor:
-                            frame = server_instance.face_monitor.get_current_frame()
-                            if frame is not None:
-                                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
-                                jpg_bytes = buffer.tobytes()
-                                
-                                self.wfile.write(b'--frame\r\n')
-                                self.wfile.write(b'Content-Type: image/jpeg\r\n')
-                                self.wfile.write(f'Content-Length: {len(jpg_bytes)}\r\n'.encode())
-                                self.wfile.write(b'\r\n')
-                                self.wfile.write(jpg_bytes)
-                                self.wfile.write(b'\r\n')
-                        
-                        time.sleep(0.1)  # ~10 FPS
-                        
-                except (BrokenPipeError, ConnectionResetError):
-                    pass  # Client disconnected
-                except Exception as e:
-                    print(f"Stream error: {e}")
-            
-            def _serve_camera_frame(self):
-                """Serve the current camera frame as JPEG"""
-                try:
-                    # Get current frame from face monitor
-                    if server_instance.face_monitor:
-                        frame = server_instance.face_monitor.get_current_frame()
-                        if frame is not None:
-                            # Encode frame as JPEG
-                            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
-                            jpg_bytes = buffer.tobytes()
-                            
-                            # Send response
-                            self.send_response(200)
-                            self.send_header('Content-Type', 'image/jpeg')
-                            self.send_header('Content-Length', str(len(jpg_bytes)))
-                            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
-                            self.send_header('Pragma', 'no-cache')
-                            self.send_header('Expires', '0')
-                            self.end_headers()
-                            self.wfile.write(jpg_bytes)
-                            return
-                    
-                    # No frame available
-                    self.send_response(503)
-                    self.send_header('Content-Type', 'text/plain')
-                    self.end_headers()
-                    self.wfile.write(b'Camera frame not available')
-                    
-                except Exception as e:
-                    self.send_response(500)
-                    self.send_header('Content-Type', 'text/plain')
-                    self.end_headers()
-                    self.wfile.write(f'Error: {str(e)}'.encode())
-            
-            def _serve_camera_debug_page(self):
-                """Serve an HTML page that auto-refreshes the camera frame"""
-                html = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Camera Debug View</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            background: #1a1a1a;
-            color: #fff;
-            font-family: monospace;
-        }
-        h1 {
-            margin-top: 0;
-        }
-        #stream {
-            border: 2px solid #444;
-            max-width: 100%;
-            height: auto;
-        }
-        .info {
-            margin-top: 10px;
-            font-size: 12px;
-            color: #888;
-        }
-        .status {
-            color: #0f0;
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body>
-    <h1>📹 Camera Live Stream</h1>
-    <p class="status">🟢 Live video (~10 FPS)</p>
-    <img id="stream" src="/camera/stream" alt="Camera Stream">
-    <div class="info">
-        <p>Direct frame: <a href="/camera/frame.jpg" style="color:#4af">/camera/frame.jpg</a></p>
-        <p>Stream URL: <a href="/camera/stream" style="color:#4af">/camera/stream</a></p>
-    </div>
-</body>
-</html>
-                """
-                self.send_response(200)
-                self.send_header('Content-Type', 'text/html')
-                self.end_headers()
-                self.wfile.write(html.encode())
             
             def _serve_static_file(self, base_dir):
                 """Serve static files from the base directory"""
                 try:
-                    # Map /assets/* to assets directory
                     if self.path.startswith('/assets/'):
-                        file_path = base_dir / self.path[1:]  # Remove leading /
+                        file_path = base_dir / self.path[1:]
                     else:
                         file_path = base_dir / self.path.lstrip('/')
                     
-                    # Security: ensure path is within base_dir
                     try:
                         file_path.resolve().relative_to(base_dir.resolve())
                     except ValueError:
@@ -207,8 +64,7 @@ class ImageServer:
                         return
                     
                     if file_path.is_file():
-                        # Determine content type
-                        if file_path.suffix == '.jpg' or file_path.suffix == '.jpeg':
+                        if file_path.suffix in ['.jpg', '.jpeg']:
                             content_type = 'image/jpeg'
                         elif file_path.suffix == '.png':
                             content_type = 'image/png'
@@ -244,25 +100,19 @@ class ImageServer:
                 self.end_headers()
             
             def log_message(self, format, *args):
-                # Customize logging
-                print(f"📁 Image server: {args[0]}")
+                pass  # Suppress logging
         
         try:
             self.server = HTTPServer((self.host, self.port), CustomHandler)
         except OSError as e:
-            if e.errno == 98:  # Address already in use
-                print(f"⚠️  Port {self.port} already in use (another worker owns it)")
+            if e.errno == 98:
+                print(f"⚠️  Port {self.port} already in use")
                 return
             else:
                 raise
         
         def serve():
-            print(f"✅ Image server started")
-            print(f"   Local access: http://localhost:{self.port}")
-            print(f"   Network access: http://{self._server_host}:{self.port}")
-            print(f"   Serving from: {parent_dir}")
-            print(f"   Assets at: /assets/")
-            print(f"   Camera debug: http://localhost:{self.port}/camera/debug")
+            print(f"✅ Image server started on http://{self._server_host}:{self.port}")
             self.server.serve_forever()
         
         self.thread = threading.Thread(target=serve, daemon=True)
@@ -275,16 +125,6 @@ class ImageServer:
             print("🛑 Image server stopped")
     
     def get_image_url(self, category: str, filename: str) -> str:
-        """
-        Get the URL for an image
-        
-        Args:
-            category: 'events', 'maps', or 'fallback'
-            filename: Image filename
-        
-        Returns:
-            Full URL to the image (accessible from network)
-        """
-        # Use the actual server host determined at startup
+        """Get the URL for an image"""
         host = self._server_host or self._get_local_ip()
         return f"http://{host}:{self.port}/assets/{category}/{filename}"
