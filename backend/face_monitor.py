@@ -1,35 +1,17 @@
 """
 Continuous Face Monitor
-Background service that monitors webcam and tracks who's present.
+Background service that monitors Raspberry Pi camera and tracks who's present.
 Supports multi-person tracking with stability cache.
-Supports both USB webcams and Raspberry Pi cameras via OpenCV.
+Uses picamera2 for Raspberry Pi camera.
 """
 
 import cv2
 import face_recognition
 import threading
 import time
-import fcntl
 from typing import Dict, List, Optional, Set
-from pathlib import Path
+from picamera2 import Picamera2
 from object_detector import ObjectDetector
-
-try:
-    from picamera2 import Picamera2
-    PICAMERA2_AVAILABLE = True
-except ImportError:
-    PICAMERA2_AVAILABLE = False
-    print("⚠️ picamera2 not available - will use OpenCV only")
-
-# Global lock file for camera access (ensures only one process uses picamera2)
-CAMERA_LOCK_FILE = Path("/tmp/picamera2.lock")
-
-# Global lock file for camera access (ensures only one process uses picamera2)
-CAMERA_LOCK_FILE = Path("/tmp/picamera2.lock")
-
-# --- DEBUG SETTINGS ---
-SHOW_DEBUG_VIDEO = False  # Toggle debug window (set False for SSH/headless)
-# ----------------------
 
 # --- STABILITY SETTINGS ---
 FACE_CACHE_DURATION = 2.0  # Seconds to keep face in memory (prevents flicker)
@@ -55,9 +37,7 @@ class FaceMonitor:
         self.is_running = False
         self.thread: Optional[threading.Thread] = None
         self.lock = threading.Lock()
-        self.video_capture = None
-        self.picam2 = None  # Picamera2 instance for Raspberry Pi
-        self._camera_lock_fd = None  # File descriptor for camera lock
+        self.picam2 = None  # Picamera2 instance
         
         # Face cache for stability (prevents flickering)
         self.face_cache: List[tuple] = []  # List of (timestamp, Set[names])
@@ -68,11 +48,12 @@ class FaceMonitor:
         self.object_cache = []  # List of (timestamp, detections)
         self.cache_duration = 5.0  # Keep last 5 seconds
         
-        # Init YOLO for debug view AND object cache (disabled by default for performance)
+        # YOLO disabled for better performance on Raspberry Pi
         print("🔍 YOLO disabled for better performance on Raspberry Pi")
         self.yolo_active = False
         self.detector = ObjectDetector(load_yolo=False)
-    # ==================== NEW MULTI-PERSON API ====================
+    
+    # ==================== MULTI-PERSON API ====================
     
     def get_current_people(self) -> Set[str]:
         """Get all people currently visible (stable, from cache)"""
@@ -88,7 +69,7 @@ class FaceMonitor:
     def get_new_arrivals(self) -> List[str]:
         """Get people who just appeared (in fresh detection, weren't in previous).
         Uses fresh detection to avoid stale cache issues.
-        Also filters out people greeted in last 5 seconds."""
+        Also filters out people greeted in last 60 seconds."""
         with self.lock:
             current_time = time.time()
             
@@ -219,139 +200,57 @@ class FaceMonitor:
     def stop(self):
         self.is_running = False
         if self.picam2:
-            self.picam2.stop()
-        if self.video_capture:
-            self.video_capture.release()
-        if SHOW_DEBUG_VIDEO:
-            cv2.destroyAllWindows()
-        # Release camera lock if we have it
-        if hasattr(self, '_camera_lock_fd') and self._camera_lock_fd:
             try:
-                fcntl.flock(self._camera_lock_fd.fileno(), fcntl.LOCK_UN)
-                self._camera_lock_fd.close()
-                print("🔓 Released camera lock")
+                self.picam2.stop()
             except:
                 pass
         print("🛑 Face monitor stopped")
             
     def _monitor_loop(self):
-        """Monitor loop that captures frames from either USB camera or Raspberry Pi camera"""
-        self.video_capture = None
-        camera_type = None
+        """Monitor loop using picamera2"""
+        print("🎥 Initializing picamera2...")
         
-        # Try picamera2 first (native Raspberry Pi camera support)
-        # Following camtest.py pattern: use XRGB8888 format, size (1280, 720)
-        print("🎥 Attempting to open camera...")
-        camera_lock_fd = None
-        if PICAMERA2_AVAILABLE:
-            # Try to acquire camera lock (prevents multiple processes from using camera)
-            try:
-                CAMERA_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
-                camera_lock_fd = open(CAMERA_LOCK_FILE, 'w')
-                # Try to acquire exclusive lock (non-blocking)
-                fcntl.flock(camera_lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                print("🔒 Acquired camera lock - attempting to open picamera2")
-            except (IOError, OSError) as lock_error:
-                # Camera is locked by another process
-                print(f"⚠️ Camera is already in use by another process - will use fallback")
-                if camera_lock_fd:
-                    camera_lock_fd.close()
-                    camera_lock_fd = None
-                # Don't try picamera2 if locked, skip to fallback
-                pass
-            else:
-                # We have the lock, try to use picamera2
-                try:
-                    self.picam2 = Picamera2()
-                    # Match camtest.py configuration exactly
-                    config = self.picam2.create_video_configuration(
-                        main={"format": 'XRGB8888', "size": (1280, 720)}
-                    )
-                    self.picam2.configure(config)
-                    self.picam2.start()
-                    time.sleep(0.5)  # Allow camera to warm up
-                    # Test capture
-                    test_frame = self.picam2.capture_array()
-                    if test_frame is not None and test_frame.size > 0:
-                        camera_type = "picamera2"
-                        print(f"✅ Camera: Picamera2 (size: {test_frame.shape[1]}x{test_frame.shape[0]})")
-                        # Store lock file descriptor for cleanup
-                        self._camera_lock_fd = camera_lock_fd
-                    else:
-                        # Release lock if initialization failed
-                        if camera_lock_fd:
-                            fcntl.flock(camera_lock_fd.fileno(), fcntl.LOCK_UN)
-                            camera_lock_fd.close()
-                            camera_lock_fd = None
-                except Exception as e:
-                    import traceback
-                    print(f"⚠️ Picamera2 failed: {e}")
-                    print(f"   Error details: {type(e).__name__}")
-                    # Release lock on error
-                    if camera_lock_fd:
-                        try:
-                            fcntl.flock(camera_lock_fd.fileno(), fcntl.LOCK_UN)
-                            camera_lock_fd.close()
-                        except:
-                            pass
-                        camera_lock_fd = None
-                    if self.picam2:
-                        try:
-                            self.picam2.stop()
-                        except:
-                            pass
-                        self.picam2 = None
-        
-        # Fallback to OpenCV VideoCapture (USB webcams)
-        if not camera_type:
-            configs = [(0, cv2.CAP_V4L2, "V4L2/0"), (0, cv2.CAP_ANY, "ANY/0"), 
-                       (1, cv2.CAP_V4L2, "V4L2/1"), (1, cv2.CAP_ANY, "ANY/1")]
+        try:
+            self.picam2 = Picamera2()
+            config = self.picam2.create_video_configuration(
+                main={"format": 'XRGB8888', "size": (1280, 720)}
+            )
+            self.picam2.configure(config)
+            self.picam2.start()
+            time.sleep(0.5)  # Allow camera to warm up
             
-            for idx, backend, name in configs:
-                try:
-                    cap = cv2.VideoCapture(idx, backend)
-                    if cap.isOpened():
-                        ret, frame = cap.read()
-                        if ret and frame is not None and frame.size > 0:
-                            self.video_capture = cap
-                            camera_type = "opencv"
-                            print(f"✅ Camera: OpenCV {name} (size: {frame.shape[1]}x{frame.shape[0]})")
-                            break
-                        cap.release()
-                except Exception as e:
-                    pass
-        
-        if not camera_type:
-            print("❌ Cannot open any camera")
+            # Test capture
+            test_frame = self.picam2.capture_array()
+            if test_frame is not None and test_frame.size > 0:
+                print(f"✅ Picamera2 started (size: {test_frame.shape[1]}x{test_frame.shape[0]})")
+            else:
+                print("❌ Failed to capture test frame")
+                self.is_running = False
+                return
+                
+        except Exception as e:
+            print(f"❌ Picamera2 initialization failed: {e}")
             self.is_running = False
             return
         
         frame_count = 0
         while self.is_running:
             try:
-                # Capture frame based on camera type
-                if camera_type == "picamera2":
-                    frame = self.picam2.capture_array()
-                    # Convert XRGB to BGR for OpenCV compatibility
-                    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                    ret = True
-                else:
-                    ret, frame = self.video_capture.read()
-                
-                if not ret or frame is None:
-                    time.sleep(0.5)
-                    continue
+                # Capture frame from picamera2
+                frame = self.picam2.capture_array()
+                # Convert XRGB to BGR for OpenCV compatibility
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                 
                 with self.lock:
                     self.current_frame = frame.copy()
                 
                 frame_count += 1
                 
-                # Process every 5th frame
+                # Process every 5th frame for face recognition
                 if frame_count % 5 == 0:
                     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     
-                    # Face Detection - now tracks ALL faces
+                    # Face Detection - tracks ALL faces
                     face_locs = face_recognition.face_locations(rgb_frame)
                     detected_names: Set[str] = set()
                     
@@ -367,66 +266,11 @@ class FaceMonitor:
                                     break
                             detected_names.add(match_name)
                     
-                    # YOLO Detection (for debug view)
-                    yolo_dets = []
-                    p_count = 0
-                    if self.yolo_active:
-                        yolo_dets = self.detector.detect_objects(frame)
-                        p_count = sum(1 for d in yolo_dets if d['class'] == 'person')
-                    
                     with self.lock:
                         # Update face cache (handles stability)
                         self._update_face_cache(detected_names)
-                        
-                        self.people_count = p_count
-                        self._last_face_locs = face_locs
-                        self._last_detected_names = detected_names
-                        self._last_yolo_dets = yolo_dets
-                        
-                        # Update object cache using same YOLO results (every frame we process)
-                        if self.yolo_active and yolo_dets:
-                            self._update_object_cache(yolo_dets)
-                
-                # Debug Display
-                if SHOW_DEBUG_VIDEO:
-                    display = frame.copy()
-                    flocs = getattr(self, '_last_face_locs', [])
-                    detected = getattr(self, '_last_detected_names', set())
-                    ydets = getattr(self, '_last_yolo_dets', [])
-                    
-                    # Draw faces with their names
-                    names_list = list(detected) if detected else []
-                    for i, (t, r, b, l) in enumerate(flocs):
-                        cv2.rectangle(display, (l, t), (r, b), (255, 0, 0), 2)
-                        name = names_list[i] if i < len(names_list) else "?"
-                        cv2.putText(display, name, (l, b+25), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255,0,0), 2)
-                    
-                    # Draw YOLO
-                    for det in ydets:
-                        x1, y1, x2, y2 = map(int, det['bbox'])
-                        lbl = f"{det['class']} {det['confidence']:.1f}"
-                        clr = (0, 255, 0) if det['class'] == 'person' else (255, 0, 255)
-                        cv2.rectangle(display, (x1, y1), (x2, y2), clr, 2)
-                        cv2.putText(display, lbl, (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, clr, 2)
-                    
-                    # Status - show stable people
-                    stable_str = ", ".join(self.current_people) if self.current_people else "None"
-                    status = f"Stable: [{stable_str}] | YOLO People: {len([d for d in ydets if d['class']=='person'])}"
-                    cv2.putText(display, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-                    
-                    # Show face cache info
-                    cache_info = f"Face cache: {len(self.face_cache)} entries, {FACE_CACHE_DURATION}s window"
-                    cv2.putText(display, cache_info, (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 0), 1)
-                    
-                    # Show object cache info
-                    cached_objs = self.get_recent_objects(seconds=5.0)
-                    obj_names = [o['class'] for o in cached_objs if o['class'] != 'person'][:5]
-                    obj_cache_str = f"Object cache: {', '.join(obj_names) if obj_names else 'None'}"
-                    cv2.putText(display, obj_cache_str, (10, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1)
-                    
-                    cv2.imshow("Debug View", display)
-                    cv2.waitKey(1)
             
             except Exception as e:
                 print(f"⚠️ Frame processing error: {e}")
+                time.sleep(0.5)
                 continue
