@@ -253,9 +253,6 @@ async def entrypoint(ctx: agents.JobContext):
     agent.face_monitor = FaceMonitor(agent.known_faces)
     agent.face_monitor.start()
     
-    # Link face monitor to image server for camera debug view
-    _global_image_server.face_monitor = agent.face_monitor
-    
     # Context Injection: LLM always knows who's in front
     async def inject_person_context(assistant: AgentSession, chat_ctx):
         # Use thread-safe FRESH people getter (most recent detection)
