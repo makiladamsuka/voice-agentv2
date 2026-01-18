@@ -24,6 +24,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - LIVEKIT_URL=${LIVEKIT_URL}
+        - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+        - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+        - AGENT_NAME=${AGENT_NAME:-campus-greeting-agent}
+        - NEXT_PUBLIC_APP_CONFIG_ENDPOINT=${NEXT_PUBLIC_APP_CONFIG_ENDPOINT}
+        - SANDBOX_ID=${SANDBOX_ID}
     container_name: voice-agent-frontend
     ports:
       - "3000:3000"
@@ -32,7 +39,7 @@ services:
       - LIVEKIT_URL=${LIVEKIT_URL}
       - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
       - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
-      - AGENT_NAME=${AGENT_NAME:-}
+      - AGENT_NAME=${AGENT_NAME:-campus-greeting-agent}
       - NEXT_PUBLIC_APP_CONFIG_ENDPOINT=${NEXT_PUBLIC_APP_CONFIG_ENDPOINT:-}
       - SANDBOX_ID=${SANDBOX_ID:-}
     depends_on:

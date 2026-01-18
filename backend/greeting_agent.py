@@ -18,6 +18,7 @@ from greetings import generate_greeting, generate_group_greeting
 # Import modular tools
 from tools.vision import VisionTools
 from tools.content import ContentTools
+from tools.system import SystemTools
 
 # Load environment variables
 env_path = Path(__file__).parent / ".env"
@@ -45,15 +46,35 @@ class CampusGreetingAgent(Agent):
             image_server=self.image_server,
             room_provider=lambda: self.room
         )
+        self.system_tools = SystemTools()
         
         # Load known face encodings
         self.known_faces = {}
         encodings_path = Path(__file__).parent / "known_faces" / "encodings.pkl"
         
         if encodings_path.exists():
-            with open(encodings_path, 'rb') as f:
-                self.known_faces = pickle.load(f)
-            print(f"✅ Loaded face encodings for {len(self.known_faces)} people: {list(self.known_faces.keys())}")
+            try:
+                with open(encodings_path, 'rb') as f:
+                    self.known_faces = pickle.load(f)
+                print(f"✅ Loaded face encodings for {len(self.known_faces)} people: {list(self.known_faces.keys())}")
+            except (ModuleNotFoundError, AttributeError, ImportError) as e:
+                # Handle numpy version incompatibility or other pickle loading issues
+                print(f"⚠️  Failed to load face encodings due to version incompatibility: {e}")
+                print("   The encodings.pkl file may have been created with a different numpy version.")
+                print("   Face recognition will start fresh. Re-enroll faces if needed.")
+                # Backup the old file and create a new empty one
+                backup_path = encodings_path.with_suffix('.pkl.backup')
+                try:
+                    import shutil
+                    shutil.move(encodings_path, backup_path)
+                    print(f"   Old encodings backed up to: {backup_path}")
+                except Exception as backup_error:
+                    print(f"   Could not backup old encodings: {backup_error}")
+                self.known_faces = {}
+            except Exception as e:
+                print(f"⚠️  Error loading face encodings: {e}")
+                print("   Face recognition will start fresh.")
+                self.known_faces = {}
         else:
             print("⚠️  No face encodings found. Face recognition will be limited.")
         
@@ -100,6 +121,10 @@ AVAILABLE TOOLS:
 - show_event_poster - display event images
 - show_location_map - show campus maps
 - enroll_new_face(name) - ALWAYS USE when someone introduces themselves!
+- get_cpu_temperature - get CPU temperature
+- get_system_info - get comprehensive system information
+- get_cpu_usage - get CPU usage percentage
+- get_memory_usage - get memory/RAM usage
 
 Remember: Auto-enroll new people when they introduce themselves!"""
         )
@@ -172,6 +197,30 @@ Remember: Auto-enroll new people when they introduce themselves!"""
         """Displays a campus location map on the frontend."""
         print(f"🗺️ [TOOL] show_location_map called for: {location_query}")
         return await self.content_tools.show_location_map(location_query, context)
+    
+    @function_tool
+    async def get_cpu_temperature(self, context: RunContext) -> str:
+        """Gets the CPU temperature of the Raspberry Pi."""
+        print("🌡️ [TOOL] get_cpu_temperature called")
+        return await self.system_tools.get_cpu_temperature(context)
+    
+    @function_tool
+    async def get_system_info(self, context: RunContext) -> str:
+        """Gets comprehensive system information including CPU temperature, usage, memory, disk, and uptime."""
+        print("💻 [TOOL] get_system_info called")
+        return await self.system_tools.get_system_info(context)
+    
+    @function_tool
+    async def get_cpu_usage(self, context: RunContext) -> str:
+        """Gets the CPU usage percentage."""
+        print("⚡ [TOOL] get_cpu_usage called")
+        return await self.system_tools.get_cpu_usage(context)
+    
+    @function_tool
+    async def get_memory_usage(self, context: RunContext) -> str:
+        """Gets the memory (RAM) usage information."""
+        print("🧠 [TOOL] get_memory_usage called")
+        return await self.system_tools.get_memory_usage(context)
 
 
 # Global image server (shared across all agent instances)
@@ -203,6 +252,9 @@ async def entrypoint(ctx: agents.JobContext):
     # Start face monitoring
     agent.face_monitor = FaceMonitor(agent.known_faces)
     agent.face_monitor.start()
+    
+    # Link face monitor to image server for camera debug view
+    _global_image_server.face_monitor = agent.face_monitor
     
     # Context Injection: LLM always knows who's in front
     async def inject_person_context(assistant: AgentSession, chat_ctx):
@@ -389,4 +441,7 @@ async def entrypoint(ctx: agents.JobContext):
             agent.face_monitor.stop()
 
 if __name__ == "__main__":
-    agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))
+    agents.cli.run_app(agents.WorkerOptions(
+        entrypoint_fnc=entrypoint,
+        agent_name="campus-greeting-agent",  # Must match frontend AGENT_NAME
+    ))

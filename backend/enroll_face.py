@@ -8,7 +8,15 @@ import cv2
 import face_recognition
 import pickle
 import os
+import time
 from pathlib import Path
+
+try:
+    from picamera2 import Picamera2
+    PICAMERA2_AVAILABLE = True
+except ImportError:
+    PICAMERA2_AVAILABLE = False
+    print("⚠️ picamera2 not available - will use OpenCV only")
 
 def enroll_face(name: str, num_samples: int = 5):
     """
@@ -21,11 +29,54 @@ def enroll_face(name: str, num_samples: int = 5):
     print(f"\n🎥 Face Enrollment for: {name}")
     print(f"📸 Capturing {num_samples} photos automatically...\n")
     
-    # Initialize webcam
-    video_capture = cv2.VideoCapture(0)
+    # Initialize camera (picamera2 first, then fallback to OpenCV)
+    video_capture = None
+    picam2 = None
+    camera_type = None
     
-    if not video_capture.isOpened():
-        print("❌ Error: Could not open webcam!")
+    # Try picamera2 first (native Raspberry Pi camera support)
+    # Following camtest.py pattern: use XRGB8888 format, size (1280, 720)
+    print("🎥 Attempting to open camera...")
+    if PICAMERA2_AVAILABLE:
+        try:
+            picam2 = Picamera2()
+            config = picam2.create_video_configuration(
+                main={"format": 'XRGB8888', "size": (1280, 720)}
+            )
+            picam2.configure(config)
+            picam2.start()
+            time.sleep(0.5)  # Allow camera to warm up
+            # Test capture
+            test_frame = picam2.capture_array()
+            if test_frame is not None and test_frame.size > 0:
+                camera_type = "picamera2"
+                print(f"✅ Camera: Picamera2 (size: {test_frame.shape[1]}x{test_frame.shape[0]})")
+        except Exception as e:
+            print(f"⚠️ Picamera2 failed: {e}")
+            if picam2:
+                try:
+                    picam2.stop()
+                except:
+                    pass
+                picam2 = None
+    
+    # Fallback to OpenCV VideoCapture (USB webcams)
+    if not camera_type:
+        try:
+            video_capture = cv2.VideoCapture(0)
+            if video_capture.isOpened():
+                ret, test_frame = video_capture.read()
+                if ret and test_frame is not None and test_frame.size > 0:
+                    camera_type = "opencv"
+                    print(f"✅ Camera: OpenCV (size: {test_frame.shape[1]}x{test_frame.shape[0]})")
+                else:
+                    video_capture.release()
+                    video_capture = None
+        except Exception as e:
+            print(f"⚠️ OpenCV camera failed: {e}")
+    
+    if not camera_type:
+        print("❌ Error: Could not open any camera!")
         return False
     
     encodings = []
@@ -37,10 +88,18 @@ def enroll_face(name: str, num_samples: int = 5):
     print("Press ESC to cancel\n")
     
     while count < num_samples and attempts < max_attempts:
-        ret, frame = video_capture.read()
+        # Capture frame based on camera type
+        if camera_type == "picamera2":
+            frame = picam2.capture_array()
+            # Convert XRGB to BGR for OpenCV compatibility
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            ret = True
+        else:
+            ret, frame = video_capture.read()
+        
         attempts += 1
         
-        if not ret:
+        if not ret or frame is None:
             continue
         
         # Display the frame
@@ -85,7 +144,11 @@ def enroll_face(name: str, num_samples: int = 5):
                 count += 1
                 print(f"✅ Photo {count}/{num_samples} captured!")
     
-    video_capture.release()
+    # Cleanup camera
+    if picam2:
+        picam2.stop()
+    if video_capture:
+        video_capture.release()
     cv2.destroyAllWindows()
     
     if len(encodings) < num_samples:

@@ -3,22 +3,54 @@ Object Detection Service using YOLOv8
 Provides environmental awareness for the voice agent.
 """
 
-from ultralytics import YOLO
 import cv2
 import numpy as np
 from typing import List, Dict, Tuple, Optional
 from pathlib import Path
 
+# Lazy import YOLO only when needed
+YOLO_AVAILABLE = False
+YOLO = None
+
+def _try_import_yolo():
+    """Lazy import of YOLO to avoid hanging on startup"""
+    global YOLO, YOLO_AVAILABLE
+    if YOLO is not None or not YOLO_AVAILABLE:
+        return
+    try:
+        from ultralytics import YOLO as YOLOModel
+        YOLO = YOLOModel
+        YOLO_AVAILABLE = True
+    except Exception as e:
+        print(f"⚠️ YOLO not available: {e}")
+        YOLO_AVAILABLE = False
+        YOLO = None
+
 class ObjectDetector:
     """YOLO-based object detection for environmental awareness"""
     
-    def __init__(self, model_name: str = "yolov8s.pt"):
+    def __init__(self, model_name: str = "yolov8s.pt", load_yolo: bool = False):
         """
         Initialize YOLO detector
         
         Args:
             model_name: YOLO model to use (yolov8n.pt = nano, yolov8s.pt = small, etc.)
+            load_yolo: Whether to actually load YOLO (False = disabled, True = attempt load)
         """
+        self.model = None
+        self.class_names = {}
+        
+        if not load_yolo:
+            print("⚠️ YOLO disabled (load_yolo=False) - object detection disabled")
+            return
+        
+        # Try lazy import of YOLO
+        _try_import_yolo()
+        
+        if not YOLO_AVAILABLE or YOLO is None:
+            print("⚠️ YOLO not available - object detection disabled")
+            return
+            
         # Set models directory
         models_dir = Path(__file__).parent.parent / "models"
         models_dir.mkdir(exist_ok=True)
@@ -46,7 +78,7 @@ class ObjectDetector:
             List of detected objects with format:
             [{'class': 'person', 'confidence': 0.95, 'bbox': [x1, y1, x2, y2]}, ...]
         """
-        if frame is None:
+        if frame is None or self.model is None:
             return []
         
         # Run YOLO inference
