@@ -244,8 +244,8 @@ class FaceMonitor:
             try:
                 # Capture frame from picamera2
                 frame = self.picam2.capture_array()
-                # Convert XRGB to BGR for OpenCV compatibility
-                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                # XRGB8888 is actually BGRX format in memory, drop the X channel
+                frame = frame[:, :, :3]  # Keep only BGR channels
                 
                 with self.lock:
                     self.current_frame = frame.copy()
