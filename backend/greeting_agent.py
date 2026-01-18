@@ -4,7 +4,6 @@ from livekit.agents import Agent, AgentSession, RunContext
 from livekit.agents.llm import function_tool
 from livekit.plugins import openai, deepgram, silero
 import os
-import cv2
 import pickle
 import json
 import asyncio
