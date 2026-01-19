@@ -14,7 +14,8 @@ from picamera2 import Picamera2
 from object_detector import ObjectDetector
 
 # --- DEBUG SETTINGS ---
-SHOW_DEBUG_VIDEO = True  # Set True to show camera window on HDMI display
+SHOW_DEBUG_VIDEO = True   # Set True to show camera window on HDMI display
+DEBUG_LOG_INTERVAL = 5.0  # Seconds between status prints (0 = disable)
 # -----------------------
 
 # --- STABILITY SETTINGS ---
@@ -240,6 +241,8 @@ class FaceMonitor:
             return
         
         frame_count = 0
+        last_debug_time = time.time()
+        
         while self.is_running:
             try:
                 # Capture frame from picamera2
@@ -277,6 +280,20 @@ class FaceMonitor:
                         self._update_face_cache(detected_names)
                         self._last_face_locs = face_locs
                         self._last_detected_names = list(detected_names)
+                    
+                    # Periodic debug log
+                    if DEBUG_LOG_INTERVAL > 0 and time.time() - last_debug_time >= DEBUG_LOG_INTERVAL:
+                        last_debug_time = time.time()
+                        recognized = [n for n in self.current_people if n != "Unknown"]
+                        unknown_count = sum(1 for n in self.current_people if n == "Unknown")
+                        objects = self.get_recent_objects(seconds=3.0) if self.yolo_active else []
+                        
+                        print("\n" + "="*50)
+                        print("📊 STATUS UPDATE")
+                        print(f"   Recognized: {', '.join(recognized) if recognized else 'None'}")
+                        print(f"   Unknown:    {unknown_count if unknown_count else 'None'}")
+                        print(f"   Objects:    {', '.join(objects) if objects else 'None (YOLO off)'}")
+                        print("="*50 + "\n")
                 
                 # Debug Display on HDMI
                 if SHOW_DEBUG_VIDEO:
