@@ -9,7 +9,6 @@ import json
 import asyncio
 from pathlib import Path
 from image_manager import ImageManager
-from image_server import ImageServer
 from face_monitor import FaceMonitor
 from object_detector import ObjectDetector
 from greetings import generate_greeting, generate_group_greeting
@@ -24,11 +23,10 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 
 class CampusGreetingAgent(Agent):
-    def __init__(self, image_server: ImageServer):
+    def __init__(self):
         # Initialize image manager
         assets_dir = Path(__file__).parent / "assets"
         self.image_manager = ImageManager(assets_dir)
-        self.image_server = image_server
         self.face_monitor = None
         self._object_detector = None
         
@@ -42,7 +40,6 @@ class CampusGreetingAgent(Agent):
         )
         self.content_tools = ContentTools(
             image_manager=self.image_manager,
-            image_server=self.image_server,
             room_provider=lambda: self.room
         )
         self.system_tools = SystemTools()
@@ -221,8 +218,7 @@ Remember: Auto-enroll new people when they introduce themselves!"""
         print("🧠 [TOOL] get_memory_usage called")
         return await self.system_tools.get_memory_usage(context)
 
-# Global image server (shared across all agent instances)
-_global_image_server = None
+# Global face monitor (shared across all agent instances)
 _global_face_monitor = None
 
 def _load_known_faces():
@@ -243,13 +239,8 @@ def _load_known_faces():
     return known_faces
 
 def _init_globals():
-    """Initialize global services (camera, image server) before any connection"""
-    global _global_image_server, _global_face_monitor
-    
-    if _global_image_server is None:
-        assets_dir = Path(__file__).parent / "assets"
-        _global_image_server = ImageServer(assets_dir, port=8080)
-        _global_image_server.start()
+    """Initialize global services (camera) before any connection"""
+    global _global_face_monitor
     
     if _global_face_monitor is None:
         print("🎥 Starting camera early (before any connection)...")
@@ -263,9 +254,9 @@ def _init_globals():
 
 
 async def entrypoint(ctx: agents.JobContext):
-    global _global_image_server, _global_face_monitor
+    global _global_face_monitor
     
-    # Initialize globals (camera, image server) ONCE before any connection
+    # Initialize globals (camera) ONCE before any connection
     _init_globals()
     
     session = AgentSession(
@@ -279,7 +270,7 @@ async def entrypoint(ctx: agents.JobContext):
         ),
     )
     # Create agent and set room reference
-    agent = CampusGreetingAgent(_global_image_server)
+    agent = CampusGreetingAgent()
     agent.room = ctx.room
     
     # Use global face monitor (already running)
