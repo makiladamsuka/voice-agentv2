@@ -13,6 +13,7 @@ from image_server import ImageServer
 from face_monitor import FaceMonitor
 from object_detector import ObjectDetector
 from greetings import generate_greeting, generate_group_greeting
+from event_database import EventDatabase, build_event_database
 
 # Import modular tools
 from tools.vision import VisionTools
@@ -24,11 +25,12 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 
 class CampusGreetingAgent(Agent):
-    def __init__(self, image_server):
+    def __init__(self, image_server, event_db=None):
         # Initialize image manager
         assets_dir = Path(__file__).parent / "assets"
         self.image_manager = ImageManager(assets_dir)
         self.image_server = image_server
+        self.event_db = event_db  # Event database for Q&A
         self.face_monitor = None
         self._object_detector = None
         
@@ -120,6 +122,7 @@ AVAILABLE TOOLS:
 - show_event_poster - display event images
 - show_location_map - show campus maps
 - enroll_new_face(name) - ALWAYS USE when someone introduces themselves!
+- ask_about_events(question) - answer questions about events (dates, times, venues)
 - get_cpu_temperature - get CPU temperature
 - get_system_info - get comprehensive system information
 - get_cpu_usage - get CPU usage percentage
@@ -220,10 +223,44 @@ Remember: Auto-enroll new people when they introduce themselves!"""
         """Gets the memory (RAM) usage information."""
         print("🧠 [TOOL] get_memory_usage called")
         return await self.system_tools.get_memory_usage(context)
+    
+    @function_tool
+    async def ask_about_events(self, question: str, context: RunContext) -> str:
+        """
+        Answers questions about campus events by searching poster information.
+        Use for questions like: "When is the art exhibition?", "What events are happening?", "Where is the sports meet?"
+        
+        Args:
+            question: The question about events to answer
+        """
+        print(f"📅 [TOOL] ask_about_events called: {question}")
+        
+        if not self.event_db:
+            return "Event database is not available. I can't answer event questions right now."
+        
+        results = self.event_db.query(question, n_results=3)
+        
+        if not results:
+            return "I don't have information about that event. Try asking about art exhibition, freshers sportmeet, or openhouse."
+        
+        # Format response
+        responses = []
+        for r in results:
+            parts = [f"**{r['name']}**"]
+            if r.get('date'):
+                parts.append(f"Date: {r['date']}")
+            if r.get('time'):
+                parts.append(f"Time: {r['time']}")
+            if r.get('venue'):
+                parts.append(f"Venue: {r['venue']}")
+            responses.append(" - ".join(parts))
+        
+        return "Here's what I found:\\n" + "\\n".join(responses)
 
 # Global services (shared across all agent instances)
 _global_face_monitor = None
 _global_image_server = None
+_global_event_db = None
 
 def _load_known_faces():
     """Load face encodings from file"""
@@ -243,14 +280,23 @@ def _load_known_faces():
     return known_faces
 
 def _init_globals():
-    """Initialize global services (camera, image server) before any connection"""
-    global _global_face_monitor, _global_image_server
+    """Initialize global services (camera, image server, event database) before any connection"""
+    global _global_face_monitor, _global_image_server, _global_event_db
     
     # Start image server for posters/maps
     if _global_image_server is None:
         assets_dir = Path(__file__).parent / "assets"
         _global_image_server = ImageServer(assets_dir, port=8080)
         _global_image_server.start()
+    
+    # Build event database from posters (OCR)
+    if _global_event_db is None:
+        try:
+            assets_dir = Path(__file__).parent / "assets"
+            _global_event_db = build_event_database(assets_dir)
+        except Exception as e:
+            print(f"⚠️ Could not build event database: {e}")
+            _global_event_db = None
     
     # Start camera
     if _global_face_monitor is None:
@@ -264,9 +310,9 @@ def _init_globals():
 
 
 async def entrypoint(ctx: agents.JobContext):
-    global _global_face_monitor, _global_image_server
+    global _global_face_monitor, _global_image_server, _global_event_db
     
-    # Initialize globals (camera, image server) ONCE before any connection
+    # Initialize globals (camera, image server, event db) ONCE before any connection
     _init_globals()
     
     session = AgentSession(
@@ -280,7 +326,7 @@ async def entrypoint(ctx: agents.JobContext):
         ),
     )
     # Create agent and set room reference
-    agent = CampusGreetingAgent(_global_image_server)
+    agent = CampusGreetingAgent(_global_image_server, _global_event_db)
     agent.room = ctx.room
     
     # Use global face monitor (already running)
