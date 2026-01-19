@@ -1,32 +1,30 @@
 """
 Poster Indexer - Extracts text from event posters using OCR
-Scans images in assets/events/ and extracts readable text.
+Uses pytesseract (Tesseract OCR) which is lighter and compatible with Pi.
 """
 
-import easyocr
+import pytesseract
+from PIL import Image
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 import re
 
 class PosterIndexer:
-    """Extracts text from event poster images using EasyOCR"""
+    """Extracts text from event poster images using Tesseract OCR"""
     
     def __init__(self, assets_dir: Path = None):
         if assets_dir is None:
             assets_dir = Path(__file__).parent / "assets"
         self.assets_dir = assets_dir
         self.events_dir = assets_dir / "events"
-        
-        # Initialize EasyOCR (downloads models on first run)
-        print("📖 Initializing OCR engine...")
-        self.reader = easyocr.Reader(['en'], gpu=False, verbose=False)
-        print("✅ OCR engine ready!")
+        print("📖 OCR engine ready (Tesseract)")
     
     def extract_text(self, image_path: Path) -> str:
         """Extract all text from an image"""
         try:
-            result = self.reader.readtext(str(image_path), detail=0)
-            return " ".join(result)
+            image = Image.open(image_path)
+            text = pytesseract.image_to_string(image)
+            return text.strip()
         except Exception as e:
             print(f"⚠️ OCR error for {image_path}: {e}")
             return ""
