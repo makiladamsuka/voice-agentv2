@@ -12,6 +12,22 @@ python backend/agent.py dev
 LIVEKIT_LOG_LEVEL=warn python backend/agent.py dev
 ```
 
+## Docker Frontend
+
+```bash
+# Start frontend container
+docker run -d -p 3000:3000 voice-agentv2-frontend:latest
+
+# Check if running
+docker ps
+
+# View logs
+docker logs <container_id>
+
+# Stop container
+docker stop <container_id>
+```
+
 ## Accessing from Laptop
 
 ```bash
