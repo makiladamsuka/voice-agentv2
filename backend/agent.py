@@ -14,6 +14,8 @@ from face_monitor import FaceMonitor
 from object_detector import ObjectDetector
 from greetings import generate_greeting, generate_group_greeting
 from event_database import EventDatabase, build_event_database
+from emotion_parser import parse_emotion, get_emotion_for_context
+import oled_display
 
 # Import modular tools
 from tools.vision import VisionTools
@@ -82,53 +84,48 @@ class CampusGreetingAgent(Agent):
         super().__init__(
             instructions="""You are a friendly campus assistant robot with continuous face recognition.
 
+EMOTION OUTPUT (REQUIRED - VERY IMPORTANT):
+Start EVERY response with an emotion tag in brackets. Available emotions:
+- [idle] - neutral/default
+- [happy] - greeting known person, positive response
+- [smile] - friendly, helpful response  
+- [looking] - seeing unknown person, curious
+- [sad] - can't help, negative news
+- [angry] - error, frustration
+- [boring] - user repeating themselves
+
+Examples:
+- "[happy] Hey Makila! Great to see you!"
+- "[looking] Hi there! I don't think we've met. What's your name?"
+- "[sad] I'm sorry, I couldn't find that event."
+- "[smile] Sure, let me help you with that!"
+- "[boring] You just asked me that."
+
 CRITICAL CAPABILITY:
 I can ALWAYS see who is in front of me. Their name appears in system messages.
 
-AUTO-ENROLLMENT (VERY IMPORTANT):
+AUTO-ENROLLMENT:
 When someone introduces themselves (says "I'm [Name]" or "My name is [Name]"):
-1. IMMEDIATELY call enroll_new_face(their_name) to remember them
-2. Then respond warmly like "Nice to meet you, [Name]! I'll remember you now."
-3. Example: User says "I'm Alex" → call enroll_new_face("Alex") → "Great to meet you Alex!"
+1. IMMEDIATELY call enroll_new_face(their_name)
+2. Then respond: "[happy] Nice to meet you, [Name]! I'll remember you now."
 
-NAME USAGE RULES (MUST FOLLOW):
-1. Use the person's name OCCASIONALLY and NATURALLY
-   - Like in real conversations - NOT in every single response
-   - Use it when being emphatic, personal, or friendly
-   - IMPORTANT: You know who you're talking to, just don't overuse their name
-
-2. For UNKNOWN people:
-   - Ask: "Hi there! I don't think we've met. What's your name?"
-   - When they tell you, ALWAYS use enroll_new_face(name) to remember them
-
-3. For KNOWN people:
-   - Greet them by name: "Hey [Name]! Good to see you!"
-
-GREETING STYLE:
-- Be warm and natural
-- Keep it brief (1-2 sentences max)
-- Be casual like greeting a friend
+NAME USAGE:
+- Use names occasionally and naturally, not every response
+- For UNKNOWN: "[looking] Hi there! I don't think we've met. What's your name?"
+- For KNOWN: "[happy] Hey [Name]! Good to see you!"
 
 CONVERSATION STYLE:
 - Short, clear sentences
 - Friendly tone
-- Be helpful and responsive
+- Always start with emotion tag!
 
 AVAILABLE TOOLS:
-- identify_color - detect colors
-- identify_object(name) - find specific objects
-- count_people_in_room - count visible people
-- describe_environment - describe surroundings  
-- show_event_poster - display event images
-- show_location_map - show campus maps
-- enroll_new_face(name) - ALWAYS USE when someone introduces themselves!
-- ask_about_events(question) - answer questions about events (dates, times, venues)
-- get_cpu_temperature - get CPU temperature
-- get_system_info - get comprehensive system information
-- get_cpu_usage - get CPU usage percentage
-- get_memory_usage - get memory/RAM usage
+- identify_color, identify_object, count_people_in_room, describe_environment
+- show_event_poster, show_location_map, ask_about_events
+- enroll_new_face(name)
+- get_cpu_temperature, get_system_info, get_cpu_usage, get_memory_usage
 
-Remember: Auto-enroll new people when they introduce themselves!"""
+Remember: ALWAYS start response with [emotion] tag!"""
         )
     
     def get_object_detector(self):
@@ -280,7 +277,7 @@ def _load_known_faces():
     return known_faces
 
 def _init_globals():
-    """Initialize global services (camera, image server, event database) before any connection"""
+    """Initialize global services (camera, image server, event database, OLED) before any connection"""
     global _global_face_monitor, _global_image_server, _global_event_db
     
     # Start image server for posters/maps
@@ -297,6 +294,12 @@ def _init_globals():
         except Exception as e:
             print(f"⚠️ Could not build event database: {e}")
             _global_event_db = None
+    
+    # Start OLED emotion display
+    try:
+        oled_display.setup_and_start_display()
+    except Exception as e:
+        print(f"⚠️ Could not start OLED display: {e}")
     
     # Start camera
     if _global_face_monitor is None:
@@ -375,6 +378,25 @@ async def entrypoint(ctx: agents.JobContext):
         return chat_ctx
         
     session.before_llm_cb = inject_person_context
+    
+    # Emotion Processing: Parse emotion from LLM output, trigger OLED, clean text for TTS
+    async def process_llm_output(assistant: AgentSession, text: str) -> str:
+        """Parse emotion tag, trigger OLED display, return clean text for TTS."""
+        emotion, clean_text = parse_emotion(text)
+        
+        print(f"😊 Emotion: [{emotion}] | Text: {clean_text[:50]}...")
+        
+        # Trigger OLED emotion display
+        try:
+            if oled_display.DISPLAY_RUNNING:
+                oled_display.display_emotion(emotion)
+        except Exception as e:
+            print(f"⚠️ OLED error: {e}")
+        
+        # Return clean text (no emotion tag) for TTS
+        return clean_text
+    
+    session.after_llm_cb = process_llm_output
     
     # Proactive Greeting Task: Watch for new people
     
