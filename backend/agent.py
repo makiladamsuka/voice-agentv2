@@ -134,6 +134,31 @@ Remember: ALWAYS start response with [emotion] tag!"""
             print("🔍 Loading YOLO model...")
             self._object_detector = ObjectDetector()
         return self._object_detector
+    
+    async def llm_node(self, chat_ctx, tools, model_settings):
+        """
+        Override llm_node to intercept LLM output, parse emotion tags,
+        trigger OLED display, and pass clean text to TTS.
+        """
+        # Get LLM stream from parent
+        async for chunk in super().llm_node(chat_ctx, tools, model_settings):
+            if hasattr(chunk, 'text') and chunk.text:
+                # Parse emotion from text
+                emotion, clean_text = parse_emotion(chunk.text)
+                
+                print(f"😊 Emotion: [{emotion}] | Text: {clean_text[:50] if len(clean_text) > 50 else clean_text}")
+                
+                # Trigger OLED emotion display
+                try:
+                    if oled_display.DISPLAY_RUNNING:
+                        oled_display.display_emotion(emotion)
+                except Exception as e:
+                    print(f"⚠️ OLED error: {e}")
+                
+                # Yield clean text (without emotion tag) for TTS
+                chunk.text = clean_text
+            
+            yield chunk
 
     # --- Delegate to Tool Modules ---
 
@@ -379,24 +404,7 @@ async def entrypoint(ctx: agents.JobContext):
         
     session.before_llm_cb = inject_person_context
     
-    # Emotion Processing: Parse emotion from LLM output, trigger OLED, clean text for TTS
-    async def process_llm_output(assistant: AgentSession, text: str) -> str:
-        """Parse emotion tag, trigger OLED display, return clean text for TTS."""
-        emotion, clean_text = parse_emotion(text)
-        
-        print(f"😊 Emotion: [{emotion}] | Text: {clean_text[:50]}...")
-        
-        # Trigger OLED emotion display
-        try:
-            if oled_display.DISPLAY_RUNNING:
-                oled_display.display_emotion(emotion)
-        except Exception as e:
-            print(f"⚠️ OLED error: {e}")
-        
-        # Return clean text (no emotion tag) for TTS
-        return clean_text
-    
-    session.after_llm_cb = process_llm_output
+    # Note: Emotion processing is handled by llm_node override in CampusGreetingAgent
     
     # Proactive Greeting Task: Watch for new people
     
