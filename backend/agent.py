@@ -7,6 +7,7 @@ import os
 import pickle
 import json
 import asyncio
+import re
 from pathlib import Path
 from image_manager import ImageManager
 from image_server import ImageServer
@@ -155,7 +156,6 @@ Remember: ALWAYS start response with [emotion] tag!"""
                 # Check for emotion tag if not yet detected
                 if not emotion_detected and accumulated_text.startswith('['):
                     # Look for complete tag like [happy]
-                    import re
                     match = re.match(r'^\[(\w+)\]', accumulated_text)
                     if match:
                         detected_emotion = match.group(1).lower()
