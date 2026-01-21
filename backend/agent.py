@@ -199,14 +199,15 @@ AVAILABLE TOOLS:
         """
         accumulated_text = ""
         current_emotion = "idle"
-        last_emotion_trigger = 0
         
-        async for text_chunk in text_stream:
-            accumulated_text += text_chunk
+        async def emotion_aware_text_stream():
+            nonlocal accumulated_text, current_emotion
             
-            # Every ~50 chars, analyze sentiment and update emotion
-            if len(accumulated_text) - last_emotion_trigger > 50:
-                emotion = analyze_emotion(accumulated_text[last_emotion_trigger:])
+            async for text_chunk in text_stream:
+                accumulated_text += text_chunk
+                
+                # Analyze emotion every chunk
+                emotion = analyze_emotion(accumulated_text)
                 if emotion != current_emotion:
                     current_emotion = emotion
                     print(f"🎭 TTS emotion: [{emotion}] | Text: ...{accumulated_text[-40:]}")
@@ -215,23 +216,16 @@ AVAILABLE TOOLS:
                             oled_display.start_emotion(emotion)
                     except Exception as e:
                         print(f"⚠️ OLED error: {e}")
-                last_emotion_trigger = len(accumulated_text)
+                
+                yield text_chunk
             
-            yield text_chunk
+            # Final debug output
+            print(f"\n📝 TTS Complete: {accumulated_text[:80]}{'...' if len(accumulated_text) > 80 else ''}")
+            print(f"🎭 Final emotion: [{current_emotion}]\n")
         
-        # Final analysis of complete text
-        final_emotion = analyze_emotion(accumulated_text)
-        if final_emotion != current_emotion:
-            print(f"🎭 Final emotion: [{final_emotion}]")
-            try:
-                if oled_display.DISPLAY_RUNNING:
-                    oled_display.start_emotion(final_emotion)
-            except Exception:
-                pass
-        
-        # Debug: show full analysis
-        print(f"\n📝 TTS Complete: {accumulated_text[:100]}{'...' if len(accumulated_text) > 100 else ''}")
-        print(f"🎭 Detected emotion: [{final_emotion}]\n")
+        # Call parent's tts_node with our emotion-aware stream
+        async for audio_frame in super().tts_node(emotion_aware_text_stream(), model_settings):
+            yield audio_frame
 
     # --- Delegate to Tool Modules ---
 
