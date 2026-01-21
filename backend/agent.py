@@ -190,56 +190,48 @@ AVAILABLE TOOLS:
             self._object_detector = ObjectDetector()
         return self._object_detector
     
-    async def llm_node(self, chat_ctx, tools, model_settings):
+    async def tts_node(self, text_stream, model_settings):
         """
-        Override llm_node to intercept LLM output, parse emotion tags,
-        trigger OLED display, and pass clean text to TTS.
+        Override tts_node to intercept ALL text going to TTS.
+        Applies VADER sentiment analysis for real-time emotion sync.
         
-        The emotion tag [happy] appears at the START of the response.
-        We need to detect it in the first chunk and strip it from output.
+        This catches both LLM responses AND session.say() calls.
         """
         accumulated_text = ""
-        emotion_detected = False
-        detected_emotion = "idle"
+        current_emotion = "idle"
+        last_emotion_trigger = 0
         
-        async for chunk in super().llm_node(chat_ctx, tools, model_settings):
-            if hasattr(chunk, 'text') and chunk.text:
-                # Accumulate text to find the emotion tag
-                accumulated_text += chunk.text
-                
-                # Check for emotion tag if not yet detected
-                if not emotion_detected and accumulated_text.startswith('['):
-                    # Look for complete tag like [happy]
-                    match = re.match(r'^\[(\w+)\]', accumulated_text)
-                    if match:
-                        detected_emotion = match.group(1).lower()
-                        emotion_detected = True
-                        
-                        print(f"😊 Emotion detected: [{detected_emotion}]")
-                        
-                        # Trigger OLED emotion display
-                        try:
-                            if oled_display.DISPLAY_RUNNING:
-                                oled_display.display_emotion(detected_emotion)
-                        except Exception as e:
-                            print(f"⚠️ OLED error: {e}")
-                        
-                        # Strip the emotion tag from the chunk
-                        tag_length = len(match.group(0))
-                        if len(chunk.text) >= tag_length:
-                            chunk.text = chunk.text[tag_length:].lstrip()
-                        else:
-                            # Tag spans multiple chunks - clear this chunk
-                            chunk.text = ""
-                            continue
-                        
-                        if not chunk.text:  # Skip empty chunks
-                            continue
-                
-                # For subsequent chunks after we stripped the tag from first
-                # Just pass through
+        async for text_chunk in text_stream:
+            accumulated_text += text_chunk
             
-            yield chunk
+            # Every ~50 chars, analyze sentiment and update emotion
+            if len(accumulated_text) - last_emotion_trigger > 50:
+                emotion = analyze_emotion(accumulated_text[last_emotion_trigger:])
+                if emotion != current_emotion:
+                    current_emotion = emotion
+                    print(f"🎭 TTS emotion: [{emotion}] | Text: ...{accumulated_text[-40:]}")
+                    try:
+                        if oled_display.DISPLAY_RUNNING:
+                            oled_display.start_emotion(emotion)
+                    except Exception as e:
+                        print(f"⚠️ OLED error: {e}")
+                last_emotion_trigger = len(accumulated_text)
+            
+            yield text_chunk
+        
+        # Final analysis of complete text
+        final_emotion = analyze_emotion(accumulated_text)
+        if final_emotion != current_emotion:
+            print(f"🎭 Final emotion: [{final_emotion}]")
+            try:
+                if oled_display.DISPLAY_RUNNING:
+                    oled_display.start_emotion(final_emotion)
+            except Exception:
+                pass
+        
+        # Debug: show full analysis
+        print(f"\n📝 TTS Complete: {accumulated_text[:100]}{'...' if len(accumulated_text) > 100 else ''}")
+        print(f"🎭 Detected emotion: [{final_emotion}]\n")
 
     # --- Delegate to Tool Modules ---
 
