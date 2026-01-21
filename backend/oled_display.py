@@ -1,6 +1,10 @@
 """
 OLED Emotion Display - Dual SSD1306 robot eyes
 Displays emotions on dual OLED screens connected via I2C.
+
+Enhanced version with:
+- Looping mode: Keep emotion playing during speech
+- Living idle: Random blinks and subtle movements
 """
 
 import sys 
@@ -11,6 +15,8 @@ import os
 import glob 
 import threading 
 import collections 
+import random
+from enum import Enum
 
 # Try to import luma.oled - gracefully fail if not on Pi
 try:
@@ -38,13 +44,34 @@ FRAME_DELAY = 1.0 / DESIRED_FPS if DESIRED_FPS > 0 else 0.0
 # Available emotions
 EMOTIONS = ["idle", "looking", "happy", "sad", "angry", "boring", "smile"]
 
+# Living idle settings
+BLINK_INTERVAL_MIN = 3.0  # Minimum seconds between blinks
+BLINK_INTERVAL_MAX = 7.0  # Maximum seconds between blinks
+LOOK_INTERVAL_MIN = 8.0   # Minimum seconds between look movements
+LOOK_INTERVAL_MAX = 15.0  # Maximum seconds between look movements
+
+
+class EmotionMode(Enum):
+    """Emotion playback modes"""
+    ONE_SHOT = "one_shot"     # Play once, return to idle
+    LOOPING = "looping"       # Keep looping until stopped
+    SUSTAINED = "sustained"   # Keep last frame until changed
+
 
 # --- Global State ---
 current_emotion = DEFAULT_EMOTION 
+current_mode = EmotionMode.ONE_SHOT
+_stop_current_emotion = threading.Event()  # Signal to stop current emotion
 video_queue = collections.deque() 
 FRAME_CACHE = {} 
 DEVICES = None
 DISPLAY_RUNNING = False
+
+# Living idle state
+_last_blink_time = 0
+_next_blink_interval = 5.0
+_last_look_time = 0
+_next_look_interval = 10.0
 
 
 class DummyDevice:
@@ -109,7 +136,7 @@ def _process_frame(img, frame_number):
         pass
 
 
-def _play_emotion_one_shot(emotion_name):
+def _play_emotion_once(emotion_name):
     """Plays a single full cycle of the specified emotion video."""
     emotion_frames = FRAME_CACHE.get(emotion_name)
     
@@ -117,11 +144,9 @@ def _play_emotion_one_shot(emotion_name):
         print(f"⚠️ Cannot play '{emotion_name}' - frames missing")
         return False
         
-    print(f"👀 Playing: {emotion_name.upper()}")
-    
     for frame_index in range(len(emotion_frames)):
-        if not DISPLAY_RUNNING:
-            return
+        if not DISPLAY_RUNNING or _stop_current_emotion.is_set():
+            return False
 
         file_path = emotion_frames[frame_index]
         start_time = time.time()
@@ -140,43 +165,121 @@ def _play_emotion_one_shot(emotion_name):
     return True
 
 
+def _play_emotion_looping(emotion_name):
+    """Plays the emotion in a loop until stopped."""
+    emotion_frames = FRAME_CACHE.get(emotion_name)
+    
+    if not emotion_frames:
+        print(f"⚠️ Cannot play '{emotion_name}' - frames missing")
+        return
+    
+    print(f"🔄 Looping: {emotion_name.upper()}")
+    
+    while DISPLAY_RUNNING and not _stop_current_emotion.is_set():
+        for frame_index in range(len(emotion_frames)):
+            if not DISPLAY_RUNNING or _stop_current_emotion.is_set():
+                return
+
+            file_path = emotion_frames[frame_index]
+            start_time = time.time()
+            
+            try:
+                current_frame_img = Image.open(file_path)
+                _process_frame(current_frame_img, frame_index) 
+            except Exception:
+                pass
+
+            time_spent = time.time() - start_time
+            sleep_time = FRAME_DELAY - time_spent
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+
+
+def _play_living_idle():
+    """Plays idle animation with occasional blinks and look movements."""
+    global _last_blink_time, _next_blink_interval, _last_look_time, _next_look_interval
+    
+    emotion_frames = FRAME_CACHE.get(DEFAULT_EMOTION)
+    if not emotion_frames:
+        time.sleep(FRAME_DELAY)
+        return
+    
+    current_time = time.time()
+    
+    # Check for blink
+    if current_time - _last_blink_time > _next_blink_interval:
+        # Try to play blink animation if available
+        if "blink" in FRAME_CACHE or _load_and_cache("blink"):
+            _play_emotion_once("blink")
+        _last_blink_time = current_time
+        _next_blink_interval = random.uniform(BLINK_INTERVAL_MIN, BLINK_INTERVAL_MAX)
+        return
+    
+    # Check for look movement
+    if current_time - _last_look_time > _next_look_interval:
+        # Try to play looking animation if available
+        if "looking" in FRAME_CACHE or _load_and_cache("looking"):
+            _play_emotion_once("looking")
+        _last_look_time = current_time
+        _next_look_interval = random.uniform(LOOK_INTERVAL_MIN, LOOK_INTERVAL_MAX)
+        return
+    
+    # Normal idle frame
+    frame_index = int((current_time * DESIRED_FPS) % len(emotion_frames))
+    file_path = emotion_frames[frame_index]
+    
+    try:
+        current_frame_img = Image.open(file_path)
+        _process_frame(current_frame_img, frame_index)
+    except Exception:
+        pass
+    
+    time.sleep(FRAME_DELAY)
+
+
+def _load_and_cache(emotion):
+    """Try to load and cache an emotion, returns True if successful."""
+    global FRAME_CACHE
+    if emotion not in FRAME_CACHE:
+        frames = _load_emotion_frames(emotion)
+        if frames:
+            FRAME_CACHE[emotion] = frames
+            return True
+    return emotion in FRAME_CACHE and len(FRAME_CACHE[emotion]) > 0
+
+
 def _display_thread_function():
     """The continuous video playback loop."""
-    global current_emotion, video_queue, DISPLAY_RUNNING
+    global current_emotion, current_mode, video_queue, DISPLAY_RUNNING, _stop_current_emotion
     
     current_emotion = DEFAULT_EMOTION 
-    idle_frame_index = 0 
+    _stop_current_emotion.clear()
 
     while DISPLAY_RUNNING:
         # Check for new video request
         if video_queue:
-            requested_emotion = video_queue.popleft()
-            _play_emotion_one_shot(requested_emotion)
+            request = video_queue.popleft()
+            emotion_name = request["emotion"]
+            mode = request["mode"]
+            
+            current_emotion = emotion_name
+            current_mode = mode
+            _stop_current_emotion.clear()
+            
+            print(f"👀 Playing: {emotion_name.upper()} ({mode.value})")
+            
+            if mode == EmotionMode.LOOPING:
+                _play_emotion_looping(emotion_name)
+            else:  # ONE_SHOT
+                _play_emotion_once(emotion_name)
+                
+            # After playing, return to idle
             current_emotion = DEFAULT_EMOTION
-            idle_frame_index = 0 
-
-        # Play idle frame
-        emotion_frames = FRAME_CACHE.get(DEFAULT_EMOTION)
-        
-        if not emotion_frames:
-            time.sleep(FRAME_DELAY)
+            _stop_current_emotion.clear()
             continue
 
-        file_path = emotion_frames[idle_frame_index]
-        start_time = time.time()
-        
-        try:
-            current_frame_img = Image.open(file_path)
-            _process_frame(current_frame_img, idle_frame_index)
-        except Exception:
-            pass 
-
-        idle_frame_index = (idle_frame_index + 1) % len(emotion_frames)
-        
-        time_spent = time.time() - start_time
-        sleep_time = FRAME_DELAY - time_spent
-        if sleep_time > 0:
-            time.sleep(sleep_time)
+        # Play living idle when nothing in queue
+        _play_living_idle()
 
 
 def setup_and_start_display():
@@ -184,7 +287,7 @@ def setup_and_start_display():
     Initializes devices, pre-loads the default emotion, and starts the display loop.
     Call this at agent startup.
     """
-    global DEVICES, FRAME_CACHE, DISPLAY_RUNNING
+    global DEVICES, FRAME_CACHE, DISPLAY_RUNNING, _last_blink_time, _last_look_time
     
     if not LUMA_AVAILABLE:
         print("⚠️ OLED display disabled (luma.oled not installed)")
@@ -206,24 +309,31 @@ def setup_and_start_display():
         print(f"⚠️ Default 'idle' frames missing in {BASE_DIRECTORY}/idle")
         return None
 
+    # Initialize living idle timers
+    _last_blink_time = time.time()
+    _last_look_time = time.time()
+
     # Start display thread
     DISPLAY_RUNNING = True
     display_thread = threading.Thread(target=_display_thread_function, daemon=True)
     display_thread.start()
-    print(f"👀 OLED display started ({DESIRED_FPS} FPS)")
+    print(f"👀 OLED display started ({DESIRED_FPS} FPS) with living idle")
     
     return display_thread
 
 
-def display_emotion(emotion_name: str) -> bool:
+def display_emotion(emotion_name: str, mode: EmotionMode = EmotionMode.ONE_SHOT) -> bool:
     """
     Queue an emotion to display.
-    Call this when LLM generates a response with emotion tag.
     
     Args:
         emotion_name: One of: idle, looking, happy, sad, angry, boring, smile
+        mode: EmotionMode.ONE_SHOT (play once) or EmotionMode.LOOPING (keep looping)
+    
+    Returns:
+        True if emotion was queued successfully
     """
-    global video_queue, current_emotion, FRAME_CACHE, DISPLAY_RUNNING
+    global video_queue, FRAME_CACHE, DISPLAY_RUNNING, _stop_current_emotion
     
     if not DISPLAY_RUNNING:
         return False
@@ -241,18 +351,43 @@ def display_emotion(emotion_name: str) -> bool:
         
     # Add to queue
     if FRAME_CACHE.get(requested_emotion):
-        if requested_emotion not in video_queue and requested_emotion != current_emotion:
-            video_queue.append(requested_emotion)
-            current_emotion = requested_emotion 
-            return True
+        # Stop any currently playing emotion
+        _stop_current_emotion.set()
+        
+        # Clear queue and add new request
+        video_queue.clear()
+        video_queue.append({
+            "emotion": requested_emotion,
+            "mode": mode
+        })
+        return True
     
     return False
 
 
+def start_emotion(emotion_name: str) -> bool:
+    """
+    Start playing an emotion in looping mode.
+    Use this when starting to speak.
+    """
+    return display_emotion(emotion_name, EmotionMode.LOOPING)
+
+
+def stop_emotion() -> bool:
+    """
+    Stop the current emotion and return to idle.
+    Use this when done speaking.
+    """
+    global _stop_current_emotion
+    _stop_current_emotion.set()
+    return True
+
+
 def stop_display():
     """Stops the display thread and clears the screens."""
-    global DISPLAY_RUNNING, DEVICES
+    global DISPLAY_RUNNING, DEVICES, _stop_current_emotion
     print("👀 Stopping OLED display...")
+    _stop_current_emotion.set()
     DISPLAY_RUNNING = False
     time.sleep(0.5) 
 
@@ -266,13 +401,22 @@ if __name__ == "__main__":
     display_thread = setup_and_start_display()
     
     if display_thread:
-        print("\nTesting emotions...")
+        print("\nTesting emotions with looping mode...")
         time.sleep(2)
         
-        for emotion in ["happy", "sad", "smile"]:
-            print(f"Testing: {emotion}")
-            display_emotion(emotion)
-            time.sleep(3)
+        # Test looping mode
+        print("Starting 'happy' in looping mode...")
+        start_emotion("happy")
+        time.sleep(4)
+        
+        print("Stopping emotion...")
+        stop_emotion()
+        time.sleep(2)
+        
+        # Test one-shot
+        print("Playing 'sad' one-shot...")
+        display_emotion("sad", EmotionMode.ONE_SHOT)
+        time.sleep(4)
         
         stop_display()
     else:

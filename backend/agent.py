@@ -16,7 +16,9 @@ from object_detector import ObjectDetector
 from greetings import generate_greeting, generate_group_greeting
 from event_database import EventDatabase, build_event_database
 from emotion_parser import parse_emotion, get_emotion_for_context
+from emotion_sync import get_emotion_for_text, analyze_emotion
 import oled_display
+from oled_display import EmotionMode
 
 # Import modular tools
 from tools.vision import VisionTools
@@ -28,35 +30,54 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 
 
-class EmotionFilterTTS:
+class EmotionSpeechWrapper:
     """
-    TTS wrapper that filters emotion tags from text and triggers OLED display.
-    Wraps any TTS provider to intercept synthesize() calls.
+    Wrapper that provides emotional speech with VADER sentiment analysis.
+    Analyzes text segments and syncs OLED emotions with speech.
     """
-    def __init__(self, tts_provider):
-        self._tts = tts_provider
-        self._first_chunk_buffer = ""
     
-    def synthesize(self, text: str, **kwargs):
-        """Filter emotion tag from text before synthesizing."""
-        # Parse emotion from text
-        emotion, clean_text = parse_emotion(text)
+    @staticmethod
+    async def speak_with_emotion(session, text: str):
+        """
+        Speak text with synchronized emotions.
+        Analyzes each sentence and shows matching emotion while speaking.
         
-        print(f"🎵 TTS: [{emotion}] | Text: {clean_text[:50] if len(clean_text) > 50 else clean_text}")
+        Args:
+            session: AgentSession to use for speaking
+            text: Full text to speak
+        """
+        # Get emotionally segmented text
+        segments = get_emotion_for_text(text)
         
-        # Trigger OLED emotion display
+        for segment in segments:
+            emotion = segment["emotion"]
+            segment_text = segment["text"]
+            
+            print(f"🎤 Speaking: [{emotion}] {segment_text[:40]}..." if len(segment_text) > 40 else f"🎤 Speaking: [{emotion}] {segment_text}")
+            
+            # Start emotion (looping mode)
+            try:
+                if oled_display.DISPLAY_RUNNING:
+                    oled_display.start_emotion(emotion)
+            except Exception as e:
+                print(f"⚠️ OLED error: {e}")
+            
+            # Speak the segment
+            try:
+                await session.say(segment_text)
+            except Exception as e:
+                print(f"⚠️ Speech error: {e}")
+            
+            # Small pause between segments
+            await asyncio.sleep(0.1)
+        
+        # Return to idle after all speech
         try:
             if oled_display.DISPLAY_RUNNING:
-                oled_display.display_emotion(emotion)
+                oled_display.stop_emotion()
         except Exception as e:
             print(f"⚠️ OLED error: {e}")
-        
-        # Synthesize clean text (without emotion tag)
-        return self._tts.synthesize(clean_text, **kwargs)
-    
-    # Delegate all other attributes to the wrapped TTS
-    def __getattr__(self, name):
-        return getattr(self._tts, name)
+
 
 class CampusGreetingAgent(Agent):
     def __init__(self, image_server, event_db=None):
@@ -116,31 +137,31 @@ class CampusGreetingAgent(Agent):
         super().__init__(
             instructions="""You are a friendly campus assistant robot with continuous face recognition.
 
-EMOTION DISPLAY (REQUIRED):
-Before EVERY response, call the set_emotion tool to show your emotion on the robot's eyes.
-Available emotions: idle, happy, smile, looking, sad, angry, boring
+ABOUT YOUR EMOTIONS:
+Your facial expressions are AUTOMATIC! They sync with what you say.
+- Say something happy → happy eyes appear
+- Say "sorry" → sad eyes appear
+- No need to manage emotions - just speak naturally!
 
-Examples:
-- Seeing a known person: set_emotion("happy") then say "Hey Makila!"
-- Seeing unknown person: set_emotion("looking") then ask their name
-- Can't help: set_emotion("sad") then apologize
-- Annoyed by repetition: set_emotion("boring") then remind them
-
-CRITICAL: Always call set_emotion() BEFORE your spoken response!
+CRITICAL CAPABILITY:
+I can ALWAYS see who is in front of me. Their name appears in system messages.
 
 AUTO-ENROLLMENT:
-When someone introduces themselves:
-1. Call enroll_new_face(their_name)
-2. Call set_emotion("happy")
-3. Say "Nice to meet you!"
+When someone introduces themselves (says "I'm [Name]" or "My name is [Name]"):
+1. IMMEDIATELY call enroll_new_face(their_name) 
+2. Then respond warmly: "Nice to meet you, [Name]! I'll remember you now."
+
+NAME USAGE:
+- Use names occasionally and naturally, not every response
+- For UNKNOWN: "Hi there! I don't think we've met. What's your name?"
+- For KNOWN: "Hey [Name]! Good to see you!"
 
 CONVERSATION STYLE:
 - Short, clear sentences
-- Friendly tone
-- Call set_emotion() before every response!
+- Friendly, warm tone
+- Be helpful and responsive
 
 AVAILABLE TOOLS:
-- set_emotion(emotion) - REQUIRED before every response
 - identify_color, identify_object, count_people_in_room, describe_environment
 - show_event_poster, show_location_map, ask_about_events
 - enroll_new_face(name)
