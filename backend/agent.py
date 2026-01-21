@@ -49,16 +49,24 @@ class EmotionSpeechWrapper:
         # Get emotionally segmented text
         segments = get_emotion_for_text(text)
         
+        print(f"\n🎭 === EMOTION SYNC DEBUG ===")
+        print(f"📝 Full text: {text}")
+        print(f"📊 Segments: {len(segments)}")
+        for i, seg in enumerate(segments):
+            print(f"   {i+1}. [{seg['emotion']}] {seg['text']}")
+        print(f"🎭 ===========================\n")
+        
         for segment in segments:
             emotion = segment["emotion"]
             segment_text = segment["text"]
             
-            print(f"🎤 Speaking: [{emotion}] {segment_text[:40]}..." if len(segment_text) > 40 else f"🎤 Speaking: [{emotion}] {segment_text}")
+            print(f"🎤 NOW SPEAKING: [{emotion}] {segment_text}")
             
             # Start emotion (looping mode)
             try:
                 if oled_display.DISPLAY_RUNNING:
                     oled_display.start_emotion(emotion)
+                    print(f"👀 OLED: Started {emotion} emotion")
             except Exception as e:
                 print(f"⚠️ OLED error: {e}")
             
@@ -75,8 +83,15 @@ class EmotionSpeechWrapper:
         try:
             if oled_display.DISPLAY_RUNNING:
                 oled_display.stop_emotion()
+                print(f"👀 OLED: Returned to idle")
         except Exception as e:
             print(f"⚠️ OLED error: {e}")
+
+
+# Convenience function for easier use
+async def emotional_say(session, text: str):
+    """Convenience function to speak with emotions."""
+    await EmotionSpeechWrapper.speak_with_emotion(session, text)
 
 
 class CampusGreetingAgent(Agent):
@@ -531,29 +546,29 @@ async def entrypoint(ctx: agents.JobContext):
                                 name = known_people[0]
                                 greeting = generate_greeting(name, is_known=True)
                                 print(f"✅ Greeting known person: {name} -> {greeting}")
-                                await session.say(greeting)
+                                await emotional_say(session, greeting)
                             else:
                                 greeting = generate_group_greeting(known_people, 0)
                                 print(f"✅ Greeting multiple known people -> {greeting}")
-                                await session.say(greeting)
+                                await emotional_say(session, greeting)
                         
                         elif known_people and unknown_count > 0:
                             # Mix of known and unknown
                             greeting = generate_group_greeting(known_people, unknown_count)
                             print(f"🤔 Greeting mix -> {greeting}")
-                            await session.say(greeting)
+                            await emotional_say(session, greeting)
                         
                         elif unknown_count == 1:
                             # Single unknown person - ask for name
                             greeting = generate_greeting("Unknown", is_known=False)
                             print(f"🤔 Greeting unknown person -> {greeting}")
-                            await session.say(greeting)
+                            await emotional_say(session, greeting)
                         
                         else:
                             # Multiple unknown people
                             greeting = generate_group_greeting([], unknown_count)
                             print(f"👥 Greeting {unknown_count} unknown people -> {greeting}")
-                            await session.say(greeting)
+                            await emotional_say(session, greeting)
                             
                     except RuntimeError:
                         print("⚠️ Session closing, stopping greetings")
@@ -604,26 +619,26 @@ async def entrypoint(ctx: agents.JobContext):
                 else:
                     greeting = generate_group_greeting(known_people, 0)
                 print(f"👋 Initial greeting -> {greeting}")
-                await session.say(greeting)
+                await emotional_say(session, greeting)
             elif known_people and unknown_count:
                 # Mix of known and unknown
                 greeting = generate_group_greeting(known_people, unknown_count)
                 print(f"👋 Initial greeting (mix) -> {greeting}")
-                await session.say(greeting)
+                await emotional_say(session, greeting)
             elif unknown_count == 1:
                 # Single unknown person
                 greeting = generate_greeting("Unknown", is_known=False)
                 print(f"🤔 Initial greeting (unknown) -> {greeting}")
-                await session.say(greeting)
+                await emotional_say(session, greeting)
             elif unknown_count > 1:
                 # Multiple unknown people
                 greeting = generate_group_greeting([], unknown_count)
                 print(f"👥 Initial greeting (unknowns) -> {greeting}")
-                await session.say(greeting)
+                await emotional_say(session, greeting)
             else:
                 # No one visible
                 print("👋 No one detected - generic greeting")
-                await session.say("Hello! I'm your campus assistant. How can I help you today?")
+                await emotional_say(session, "Hello! I'm your campus assistant. How can I help you today?")
                 
         except RuntimeError as e:
             print(f"⚠️ Could not send initial greeting: {e}")
