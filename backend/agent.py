@@ -27,6 +27,37 @@ from tools.system import SystemTools
 env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 
+
+class EmotionFilterTTS:
+    """
+    TTS wrapper that filters emotion tags from text and triggers OLED display.
+    Wraps any TTS provider to intercept synthesize() calls.
+    """
+    def __init__(self, tts_provider):
+        self._tts = tts_provider
+        self._first_chunk_buffer = ""
+    
+    def synthesize(self, text: str, **kwargs):
+        """Filter emotion tag from text before synthesizing."""
+        # Parse emotion from text
+        emotion, clean_text = parse_emotion(text)
+        
+        print(f"🎵 TTS: [{emotion}] | Text: {clean_text[:50] if len(clean_text) > 50 else clean_text}")
+        
+        # Trigger OLED emotion display
+        try:
+            if oled_display.DISPLAY_RUNNING:
+                oled_display.display_emotion(emotion)
+        except Exception as e:
+            print(f"⚠️ OLED error: {e}")
+        
+        # Synthesize clean text (without emotion tag)
+        return self._tts.synthesize(clean_text, **kwargs)
+    
+    # Delegate all other attributes to the wrapped TTS
+    def __getattr__(self, name):
+        return getattr(self._tts, name)
+
 class CampusGreetingAgent(Agent):
     def __init__(self, image_server, event_db=None):
         # Initialize image manager
@@ -85,48 +116,35 @@ class CampusGreetingAgent(Agent):
         super().__init__(
             instructions="""You are a friendly campus assistant robot with continuous face recognition.
 
-EMOTION OUTPUT (REQUIRED - VERY IMPORTANT):
-Start EVERY response with an emotion tag in brackets. Available emotions:
-- [idle] - neutral/default
-- [happy] - greeting known person, positive response
-- [smile] - friendly, helpful response  
-- [looking] - seeing unknown person, curious
-- [sad] - can't help, negative news
-- [angry] - error, frustration
-- [boring] - user repeating themselves
+EMOTION DISPLAY (REQUIRED):
+Before EVERY response, call the set_emotion tool to show your emotion on the robot's eyes.
+Available emotions: idle, happy, smile, looking, sad, angry, boring
 
 Examples:
-- "[happy] Hey Makila! Great to see you!"
-- "[looking] Hi there! I don't think we've met. What's your name?"
-- "[sad] I'm sorry, I couldn't find that event."
-- "[smile] Sure, let me help you with that!"
-- "[boring] You just asked me that."
+- Seeing a known person: set_emotion("happy") then say "Hey Makila!"
+- Seeing unknown person: set_emotion("looking") then ask their name
+- Can't help: set_emotion("sad") then apologize
+- Annoyed by repetition: set_emotion("boring") then remind them
 
-CRITICAL CAPABILITY:
-I can ALWAYS see who is in front of me. Their name appears in system messages.
+CRITICAL: Always call set_emotion() BEFORE your spoken response!
 
 AUTO-ENROLLMENT:
-When someone introduces themselves (says "I'm [Name]" or "My name is [Name]"):
-1. IMMEDIATELY call enroll_new_face(their_name)
-2. Then respond: "[happy] Nice to meet you, [Name]! I'll remember you now."
-
-NAME USAGE:
-- Use names occasionally and naturally, not every response
-- For UNKNOWN: "[looking] Hi there! I don't think we've met. What's your name?"
-- For KNOWN: "[happy] Hey [Name]! Good to see you!"
+When someone introduces themselves:
+1. Call enroll_new_face(their_name)
+2. Call set_emotion("happy")
+3. Say "Nice to meet you!"
 
 CONVERSATION STYLE:
 - Short, clear sentences
 - Friendly tone
-- Always start with emotion tag!
+- Call set_emotion() before every response!
 
 AVAILABLE TOOLS:
+- set_emotion(emotion) - REQUIRED before every response
 - identify_color, identify_object, count_people_in_room, describe_environment
 - show_event_poster, show_location_map, ask_about_events
 - enroll_new_face(name)
-- get_cpu_temperature, get_system_info, get_cpu_usage, get_memory_usage
-
-Remember: ALWAYS start response with [emotion] tag!"""
+- get_cpu_temperature, get_system_info, get_cpu_usage, get_memory_usage"""
         )
     
     def get_object_detector(self):
@@ -230,6 +248,34 @@ Remember: ALWAYS start response with [emotion] tag!"""
         print("👥 [TOOL] count_people_in_room called")
         self.vision_tools.face_monitor = self.face_monitor
         return await self.vision_tools.count_people_in_room(context)
+    
+    @function_tool
+    async def set_emotion(self, emotion: str, context: RunContext) -> str:
+        """
+        Set the robot's emotional expression on the OLED eyes.
+        MUST be called before every response to show the appropriate emotion.
+        
+        Args:
+            emotion: One of: idle, happy, smile, looking, sad, angry, boring
+        """
+        print(f"😊 [TOOL] set_emotion called: {emotion}")
+        
+        valid_emotions = ["idle", "happy", "smile", "looking", "sad", "angry", "boring"]
+        emotion_clean = emotion.lower().strip()
+        
+        if emotion_clean not in valid_emotions:
+            return f"Invalid emotion. Use one of: {', '.join(valid_emotions)}"
+        
+        # Trigger OLED emotion display
+        try:
+            if oled_display.DISPLAY_RUNNING:
+                oled_display.display_emotion(emotion_clean)
+                return f"Emotion set to: {emotion_clean}"
+            else:
+                return f"Emotion received: {emotion_clean} (display not running)"
+        except Exception as e:
+            print(f"⚠️ OLED error: {e}")
+            return f"Emotion received: {emotion_clean} (display error)"
 
     @function_tool
     async def list_available_events(self, context: RunContext) -> str:
