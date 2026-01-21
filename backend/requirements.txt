@@ -19,8 +19,11 @@ chromadb
 # Raspberry Pi Camera (install via: sudo apt install python3-picamera2)
 # picamera2 is system-specific and typically installed via apt on Raspberry Pi OS
 
-# OLED Display (dual SSD1306 eyes)
+# OLED emotion display
 luma.oled
+
+# Sentiment analysis for emotion sync
+vaderSentiment
 
 # Utilities
 python-dotenv==1.2.1
