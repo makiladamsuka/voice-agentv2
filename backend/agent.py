@@ -139,24 +139,51 @@ Remember: ALWAYS start response with [emotion] tag!"""
         """
         Override llm_node to intercept LLM output, parse emotion tags,
         trigger OLED display, and pass clean text to TTS.
+        
+        The emotion tag [happy] appears at the START of the response.
+        We need to detect it in the first chunk and strip it from output.
         """
-        # Get LLM stream from parent
+        accumulated_text = ""
+        emotion_detected = False
+        detected_emotion = "idle"
+        
         async for chunk in super().llm_node(chat_ctx, tools, model_settings):
             if hasattr(chunk, 'text') and chunk.text:
-                # Parse emotion from text
-                emotion, clean_text = parse_emotion(chunk.text)
+                # Accumulate text to find the emotion tag
+                accumulated_text += chunk.text
                 
-                print(f"😊 Emotion: [{emotion}] | Text: {clean_text[:50] if len(clean_text) > 50 else clean_text}")
+                # Check for emotion tag if not yet detected
+                if not emotion_detected and accumulated_text.startswith('['):
+                    # Look for complete tag like [happy]
+                    import re
+                    match = re.match(r'^\[(\w+)\]', accumulated_text)
+                    if match:
+                        detected_emotion = match.group(1).lower()
+                        emotion_detected = True
+                        
+                        print(f"😊 Emotion detected: [{detected_emotion}]")
+                        
+                        # Trigger OLED emotion display
+                        try:
+                            if oled_display.DISPLAY_RUNNING:
+                                oled_display.display_emotion(detected_emotion)
+                        except Exception as e:
+                            print(f"⚠️ OLED error: {e}")
+                        
+                        # Strip the emotion tag from the chunk
+                        tag_length = len(match.group(0))
+                        if len(chunk.text) >= tag_length:
+                            chunk.text = chunk.text[tag_length:].lstrip()
+                        else:
+                            # Tag spans multiple chunks - clear this chunk
+                            chunk.text = ""
+                            continue
+                        
+                        if not chunk.text:  # Skip empty chunks
+                            continue
                 
-                # Trigger OLED emotion display
-                try:
-                    if oled_display.DISPLAY_RUNNING:
-                        oled_display.display_emotion(emotion)
-                except Exception as e:
-                    print(f"⚠️ OLED error: {e}")
-                
-                # Yield clean text (without emotion tag) for TTS
-                chunk.text = clean_text
+                # For subsequent chunks after we stripped the tag from first
+                # Just pass through
             
             yield chunk
 
