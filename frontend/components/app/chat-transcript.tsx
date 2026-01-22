@@ -24,7 +24,7 @@ const CONTAINER_MOTION_PROPS = {
         delay: 0.2,
         ease: 'easeOut' as const,
         duration: 0.3,
-        stagerDelay: 0.2,
+        delayChildren: 0.2,
         staggerChildren: 0.1,
         staggerDirection: 1,
       },
