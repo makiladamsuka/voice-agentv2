@@ -116,20 +116,35 @@ EMOTION_PRESETS: Dict[str, EyeParams] = {
 
 # === Eye Renderer ===
 class EyeRenderer:
-    """Renders a single eye based on parameters."""
+    """Renders a single eye based on parameters - Vector-style blocky eyes."""
     
     def __init__(self, size: int = EYE_SIZE):
         self.size = size
         self.center_x = size // 2
         self.center_y = size // 2
         
-        # Eye shape constants
-        self.eye_width = int(size * 0.8)
-        self.eye_height_base = int(size * 0.6)
-        self.pupil_max_radius = int(size * 0.2)
+        # Eye shape constants - Vector style is more rectangular
+        self.eye_width = int(size * 0.75)
+        self.eye_height_base = int(size * 0.55)
+        self.corner_radius = int(size * 0.12)  # Rounded corners
+        self.pupil_max_radius = int(size * 0.18)
+    
+    def _draw_rounded_rect(self, draw, bbox, radius, fill):
+        """Draw a rounded rectangle."""
+        x1, y1, x2, y2 = bbox
+        
+        # Draw main rectangle
+        draw.rectangle([x1 + radius, y1, x2 - radius, y2], fill=fill)
+        draw.rectangle([x1, y1 + radius, x2, y2 - radius], fill=fill)
+        
+        # Draw corners
+        draw.ellipse([x1, y1, x1 + 2*radius, y1 + 2*radius], fill=fill)
+        draw.ellipse([x2 - 2*radius, y1, x2, y1 + 2*radius], fill=fill)
+        draw.ellipse([x1, y2 - 2*radius, x1 + 2*radius, y2], fill=fill)
+        draw.ellipse([x2 - 2*radius, y2 - 2*radius, x2, y2], fill=fill)
         
     def render(self, params: EyeParams) -> Image.Image:
-        """Render eye to PIL Image."""
+        """Render eye to PIL Image - Vector-style blocky design."""
         img = Image.new('1', (self.size, self.size), 0)  # Black background
         draw = ImageDraw.Draw(img)
         
@@ -138,45 +153,48 @@ class EyeRenderer:
         top_y = self.center_y - eye_h // 2
         bottom_y = self.center_y + eye_h // 2
         
-        # Draw eye white (ellipse)
+        # Eye bounds
         left_x = self.center_x - self.eye_width // 2
         right_x = self.center_x + self.eye_width // 2
-        draw.ellipse([left_x, top_y, right_x, bottom_y], fill=1, outline=1)
         
-        # Apply eyelids (cover parts of the ellipse)
+        # Apply eyelids by adjusting the visible region
         lid_top_y = top_y + int(eye_h * params.eyelid_top)
         lid_bottom_y = bottom_y - int(eye_h * params.eyelid_bottom)
         
-        # Top eyelid (black rectangle from top)
-        if params.eyelid_top > 0:
-            draw.rectangle([0, 0, self.size, lid_top_y], fill=0)
-        
-        # Bottom eyelid (black rectangle from bottom)  
-        if params.eyelid_bottom > 0:
-            draw.rectangle([0, lid_bottom_y, self.size, self.size], fill=0)
-        
-        # Draw pupil
         visible_h = lid_bottom_y - lid_top_y
-        if visible_h > 5:  # Only draw if eye is open enough
-            pupil_radius = int(self.pupil_max_radius * params.pupil_size)
+        
+        if visible_h > 4:  # Only draw if eye is open enough
+            # Draw eye white as rounded rectangle
+            self._draw_rounded_rect(
+                draw, 
+                [left_x, lid_top_y, right_x, lid_bottom_y],
+                min(self.corner_radius, visible_h // 3),
+                fill=1
+            )
             
-            # Gaze offset (limited to eye bounds)
-            max_offset_x = (self.eye_width // 2) - pupil_radius - 5
-            max_offset_y = (visible_h // 2) - pupil_radius - 3
+            # Draw pupil as smaller rounded rectangle (Vector style)
+            pupil_w = int(self.pupil_max_radius * 2 * params.pupil_size)
+            pupil_h = int(pupil_w * 1.2)  # Slightly taller than wide
             
-            gaze_offset_x = int((params.gaze_x - 0.5) * 2 * max_offset_x)
-            gaze_offset_y = int((params.gaze_y - 0.5) * 2 * max_offset_y)
+            # Gaze offset
+            max_offset_x = (self.eye_width // 2) - pupil_w // 2 - 4
+            max_offset_y = (visible_h // 2) - pupil_h // 2 - 2
             
-            pupil_x = self.center_x + gaze_offset_x
-            pupil_y = (lid_top_y + lid_bottom_y) // 2 + gaze_offset_y
+            gaze_offset_x = int((params.gaze_x - 0.5) * 2 * max(0, max_offset_x))
+            gaze_offset_y = int((params.gaze_y - 0.5) * 2 * max(0, max_offset_y))
             
-            # Draw pupil as black circle
-            draw.ellipse([
-                pupil_x - pupil_radius,
-                pupil_y - pupil_radius,
-                pupil_x + pupil_radius,
-                pupil_y + pupil_radius
-            ], fill=0)
+            pupil_cx = self.center_x + gaze_offset_x
+            pupil_cy = (lid_top_y + lid_bottom_y) // 2 + gaze_offset_y
+            
+            # Draw pupil as rounded rect
+            pupil_radius = min(pupil_w // 4, pupil_h // 4, 3)
+            self._draw_rounded_rect(
+                draw,
+                [pupil_cx - pupil_w // 2, pupil_cy - pupil_h // 2,
+                 pupil_cx + pupil_w // 2, pupil_cy + pupil_h // 2],
+                pupil_radius,
+                fill=0
+            )
         
         return img
 
