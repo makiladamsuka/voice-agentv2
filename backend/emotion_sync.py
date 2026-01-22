@@ -98,7 +98,7 @@ def analyze_emotion(text: str) -> str:
     """
     # First try keyword detection (fast path)
     keyword_emotion = analyze_emotion_keywords(text)
-    if keyword_emotion != "idle":
+    if keyword_emotion != "idle1":
         return keyword_emotion
     
     # Fallback to VADER sentiment
