@@ -222,6 +222,14 @@ AVAILABLE TOOLS:
             # Final debug output
             print(f"\n📝 TTS Complete: {accumulated_text[:80]}{'...' if len(accumulated_text) > 80 else ''}")
             print(f"🎭 Final emotion: [{current_emotion}]\n")
+            
+            # RETURN TO IDLE after speech completes
+            try:
+                if oled_display.DISPLAY_RUNNING:
+                    oled_display.stop_emotion()
+                    print("👀 OLED: Returned to idle")
+            except Exception as e:
+                print(f"⚠️ OLED stop error: {e}")
         
         # Call parent's tts_node with our emotion-aware stream
         async for audio_frame in super().tts_node(emotion_aware_text_stream(), model_settings):
