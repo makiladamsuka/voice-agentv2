@@ -647,10 +647,24 @@ async def entrypoint(ctx: agents.JobContext):
             await asyncio.sleep(1)
         
     finally:
-        # CLEANUP
-        print("🔌 Session ending - releasing camera...")
+        # CLEANUP - Show sad emotion on disconnect, then shutdown
+        print("🔌 Session ending...")
+        
+        # Show sad emotion when disconnecting
+        try:
+            if oled_display.DISPLAY_RUNNING:
+                print("😢 Showing sad emotion for disconnect...")
+                oled_display.display_emotion("sad")
+                await asyncio.sleep(2)  # Let it play for 2 seconds
+                oled_display.stop_display()
+                print("👀 OLED display stopped safely")
+        except Exception as e:
+            print(f"⚠️ OLED shutdown error: {e}")
+        
+        # Release camera
         if agent.face_monitor:
             agent.face_monitor.stop()
+            print("📷 Camera released")
 
 if __name__ == "__main__":
     agents.cli.run_app(agents.WorkerOptions(
