@@ -407,6 +407,13 @@ def _init_lightweight():
         _global_image_server = ImageServer(assets_dir, port=8080)
         _global_image_server.start()
         print("✅ Image server started")
+    
+    # Start OLED display (I2C must run on main thread, but it's fast)
+    try:
+        oled_display.setup_and_start_display()
+        print("✅ OLED display started")
+    except Exception as e:
+        print(f"⚠️ Could not start OLED display: {e}")
 
 async def _init_heavy_async(agent):
     """Background initialization of heavy ML components"""
@@ -416,13 +423,6 @@ async def _init_heavy_async(agent):
     
     # Run heavy init in thread pool to not block event loop
     loop = asyncio.get_event_loop()
-    
-    # 1. Start OLED emotion display
-    try:
-        await loop.run_in_executor(None, oled_display.setup_and_start_display)
-        print("✅ OLED display ready")
-    except Exception as e:
-        print(f"⚠️ Could not start OLED display: {e}")
     
     # 2. Build event database from posters (OCR) - can be slow
     if _global_event_db is None:
