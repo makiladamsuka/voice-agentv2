@@ -18,8 +18,12 @@ _analyzer = SentimentIntensityAnalyzer()
 EMOTION_KEYWORDS = {
     "happy": [
         "hello", "hi", "hey", "great", "wonderful", "nice", "welcome",
-        "glad", "pleased", "excellent", "awesome", "love", "amazing",
+        "glad", "pleased", "excellent", "awesome", "amazing",
         "fantastic", "good to see", "happy", "excited", "yay"
+    ],
+    "loving": [
+        "love", "adore", "care", "sweet", "dear", "affection",
+        "miss you", "appreciate", "thank you so much", "means a lot"
     ],
     "sad": [
         "sorry", "apologize", "unfortunately", "can't", "couldn't",
@@ -45,19 +49,20 @@ EMOTION_KEYWORDS = {
 }
 
 # Valid emotions for OLED display
-VALID_EMOTIONS = ["idle", "happy", "smile", "looking", "sad", "angry", "boring"]
+# idle1 = default/no one talking, idle2 = user is talking/listening
+VALID_EMOTIONS = ["idle1", "idle2", "happy", "smile", "looking", "sad", "angry", "boring", "loving"]
 
 
 def analyze_emotion_keywords(text: str) -> str:
     """
     Fast keyword-based emotion detection.
-    Returns emotion if keywords found, else "idle".
+    Returns emotion if keywords found, else "idle1".
     """
     text_lower = text.lower()
     for emotion, keywords in EMOTION_KEYWORDS.items():
         if any(kw in text_lower for kw in keywords):
             return emotion
-    return "idle"
+    return "idle1"
 
 
 def analyze_emotion_vader(text: str) -> str:
@@ -78,7 +83,7 @@ def analyze_emotion_vader(text: str) -> str:
     elif compound <= -0.2:
         return "looking"  # Slightly negative = concerned/curious
     else:
-        return "idle"
+        return "idle1"
 
 
 def analyze_emotion(text: str) -> str:
