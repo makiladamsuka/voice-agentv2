@@ -198,7 +198,7 @@ AVAILABLE TOOLS:
         This catches both LLM responses AND session.say() calls.
         """
         accumulated_text = ""
-        current_emotion = "idle"
+        current_emotion = "idle1"  # idle1 = resting, idle2 = listening
         chunk_count = 0
         
         print("\n🎭 === TTS_NODE STARTED ===")
