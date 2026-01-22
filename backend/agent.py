@@ -378,6 +378,7 @@ AVAILABLE TOOLS:
 _global_face_monitor = None
 _global_image_server = None
 _global_event_db = None
+_is_ready = False  # Flag to track if heavy components are loaded
 
 def _load_known_faces():
     """Load face encodings from file"""
@@ -396,48 +397,71 @@ def _load_known_faces():
     
     return known_faces
 
-def _init_globals():
-    """Initialize global services (camera, image server, event database, OLED) before any connection"""
-    global _global_face_monitor, _global_image_server, _global_event_db
+def _init_lightweight():
+    """Lightweight init - only start fast services for immediate connection"""
+    global _global_image_server
     
-    # Start image server for posters/maps
+    # Start image server for posters/maps (fast)
     if _global_image_server is None:
         assets_dir = Path(__file__).parent / "assets"
         _global_image_server = ImageServer(assets_dir, port=8080)
         _global_image_server.start()
+        print("✅ Image server started")
+
+async def _init_heavy_async(agent):
+    """Background initialization of heavy ML components"""
+    global _global_face_monitor, _global_event_db, _is_ready
     
-    # Build event database from posters (OCR)
+    print("🔄 Starting background initialization of ML components...")
+    
+    # Run heavy init in thread pool to not block event loop
+    loop = asyncio.get_event_loop()
+    
+    # 1. Start OLED emotion display
+    try:
+        await loop.run_in_executor(None, oled_display.setup_and_start_display)
+        print("✅ OLED display ready")
+    except Exception as e:
+        print(f"⚠️ Could not start OLED display: {e}")
+    
+    # 2. Build event database from posters (OCR) - can be slow
     if _global_event_db is None:
         try:
             assets_dir = Path(__file__).parent / "assets"
-            _global_event_db = build_event_database(assets_dir)
+            _global_event_db = await loop.run_in_executor(
+                None, build_event_database, assets_dir
+            )
+            print("✅ Event database ready")
         except Exception as e:
             print(f"⚠️ Could not build event database: {e}")
             _global_event_db = None
     
-    # Start OLED emotion display
-    try:
-        oled_display.setup_and_start_display()
-    except Exception as e:
-        print(f"⚠️ Could not start OLED display: {e}")
-    
-    # Start camera
+    # 3. Start camera and face recognition (slowest)
     if _global_face_monitor is None:
-        print("🎥 Starting camera early (before any connection)...")
-        known_faces = _load_known_faces()
+        print("🎥 Starting camera...")
+        known_faces = await loop.run_in_executor(None, _load_known_faces)
         _global_face_monitor = FaceMonitor(known_faces)
-        _global_face_monitor.start()
-        import time
-        time.sleep(1)
+        await loop.run_in_executor(None, _global_face_monitor.start)
+        await asyncio.sleep(1)  # Give camera time to warm up
         print("✅ Camera ready!")
+    
+    # Update agent with initialized components
+    agent.face_monitor = _global_face_monitor
+    agent.known_faces = _global_face_monitor.known_faces
+    agent.event_db = _global_event_db
+    
+    _is_ready = True
+    print("🎉 All components initialized!")
+
 
 
 async def entrypoint(ctx: agents.JobContext):
-    global _global_face_monitor, _global_image_server, _global_event_db
+    global _global_face_monitor, _global_image_server, _global_event_db, _is_ready
     
-    # Initialize globals (camera, image server, event db) ONCE before any connection
-    _init_globals()
+    # LIGHTWEIGHT init - only start fast services
+    _init_lightweight()
     
+    # Create session immediately (no waiting for ML models)
     session = AgentSession(
         stt=deepgram.STT(model="nova-2"),
         tts=deepgram.TTS(model="aura-2-luna-en"),
@@ -448,16 +472,24 @@ async def entrypoint(ctx: agents.JobContext):
             model=os.getenv("LLM_CHOICE", "mistralai/devstral-2512:free"),
         ),
     )
-    # Create agent and set room reference
-    agent = CampusGreetingAgent(_global_image_server, _global_event_db)
+    
+    # Create agent without heavy components (will be set later)
+    agent = CampusGreetingAgent(_global_image_server, None)  # event_db set later
     agent.room = ctx.room
+    agent.face_monitor = None  # Will be set after background init
     
-    # Use global face monitor (already running)
-    agent.face_monitor = _global_face_monitor
-    agent.known_faces = _global_face_monitor.known_faces
-    
-    # Context Injection: LLM always knows who's in front
+    # Context Injection: LLM always knows who's in front (handles None face_monitor)
     async def inject_person_context(assistant: AgentSession, chat_ctx):
+        # Check if face monitor is ready
+        if not _is_ready or agent.face_monitor is None:
+            from livekit.agents.llm import ChatMessage, ChatRole
+            context_msg = ChatMessage(
+                role=ChatRole.SYSTEM,
+                content="System is still initializing. Face recognition not yet available."
+            )
+            chat_ctx.messages.insert(0, context_msg)
+            return chat_ctx
+            
         # Use thread-safe FRESH people getter (most recent detection)
         fresh = agent.face_monitor.get_fresh_people()
         
@@ -471,7 +503,6 @@ async def entrypoint(ctx: agents.JobContext):
         print(f"🎯 Context injection - Fresh: {fresh}, Known: {known}")
         
         if known:
-            # Known people - list their names with STRONG emphasis
             names = ", ".join(known)
             if unknown_count:
                 context_msg = ChatMessage(
@@ -499,17 +530,22 @@ async def entrypoint(ctx: agents.JobContext):
         
     session.before_llm_cb = inject_person_context
     
-    # Note: Emotion processing is handled by llm_node override in CampusGreetingAgent
-    
-    # Proactive Greeting Task: Watch for new people
-    
+    # Proactive Greeting Task: Watch for new people (only runs after init completes)
     async def monitor_and_greet():
         """Background task that greets people when they appear"""
-        await asyncio.sleep(5)  # Wait for session to be fully running
+        # Wait for initialization to complete
+        while not _is_ready:
+            await asyncio.sleep(1)
+        
+        await asyncio.sleep(2)  # Additional delay after init
         print("🔄 Background greeting monitor started (multi-person mode)")
         
         while ctx.room.connection_state == rtc.ConnectionState.CONN_CONNECTED:
             try:
+                if agent.face_monitor is None:
+                    await asyncio.sleep(2)
+                    continue
+                    
                 # Get new arrivals (FaceMonitor handles 5-second cooldown)
                 arrivals = agent.face_monitor.get_new_arrivals()
                 
@@ -520,14 +556,12 @@ async def entrypoint(ctx: agents.JobContext):
                     known_people = [p for p in arrivals if p != "Unknown"]
                     unknown_count = arrivals.count("Unknown")
                     
-                    # Mark all as greeted (5-second cooldown in FaceMonitor)
+                    # Mark all as greeted
                     for p in arrivals:
                         agent.face_monitor.mark_greeted(p)
                     
-                    # Build greeting instruction based on who arrived
                     try:
                         if len(known_people) > 0 and unknown_count == 0:
-                            # Only known people
                             if len(known_people) == 1:
                                 name = known_people[0]
                                 greeting = generate_greeting(name, is_known=True)
@@ -539,19 +573,16 @@ async def entrypoint(ctx: agents.JobContext):
                                 await emotional_say(session, greeting)
                         
                         elif known_people and unknown_count > 0:
-                            # Mix of known and unknown
                             greeting = generate_group_greeting(known_people, unknown_count)
                             print(f"🤔 Greeting mix -> {greeting}")
                             await emotional_say(session, greeting)
                         
                         elif unknown_count == 1:
-                            # Single unknown person - ask for name
                             greeting = generate_greeting("Unknown", is_known=False)
                             print(f"🤔 Greeting unknown person -> {greeting}")
                             await emotional_say(session, greeting)
                         
                         else:
-                            # Multiple unknown people
                             greeting = generate_group_greeting([], unknown_count)
                             print(f"👥 Greeting {unknown_count} unknown people -> {greeting}")
                             await emotional_say(session, greeting)
@@ -565,71 +596,25 @@ async def entrypoint(ctx: agents.JobContext):
                 import traceback
                 traceback.print_exc()
                 
-            await asyncio.sleep(2)  # Check every 2 seconds
+            await asyncio.sleep(2)
     
     try:
-        # CRITICAL: Pass agent to session.start() so it joins the room!
+        # START SESSION IMMEDIATELY (before heavy init)
         await session.start(room=ctx.room, agent=agent)
         
-        # Wait for face detection to stabilize (up to 5 seconds)
-        print("⏳ Waiting for face detection to stabilize...")
-        people = set()
-        for i in range(10):  # Try for 5 seconds (10 x 0.5s)
-            await asyncio.sleep(0.5)
-            # Check both stable and fresh detection
-            stable = agent.face_monitor.get_current_people()
-            fresh = agent.face_monitor.fresh_people if hasattr(agent.face_monitor, 'fresh_people') else set()
-            print(f"  [{i+1}/10] Stable: {stable}, Fresh: {fresh}")
-            
-            # Use fresh if available, otherwise stable
-            people = fresh if fresh else stable
-            if people:
-                print(f"✅ Faces detected: {people}")
-                break
-        else:
-            print("⚠️ No faces detected after 5 seconds")
+        # Send loading message right away
+        print("💬 Sending loading message...")
+        await session.say("Give me a moment to wake up. I'm loading my systems...")
         
-        # Initial greeting based on who's present
-        try:
-            known_people = [p for p in people if p != "Unknown"]
-            unknown_count = sum(1 for p in people if p == "Unknown")
-            
-            # Mark everyone as greeted (5-second cooldown)
-            for p in people:
-                agent.face_monitor.mark_greeted(p)
-            
-            if known_people and not unknown_count:
-                # All known people - direct greeting
-                if len(known_people) == 1:
-                    greeting = generate_greeting(known_people[0], is_known=True)
-                else:
-                    greeting = generate_group_greeting(known_people, 0)
-                print(f"👋 Initial greeting -> {greeting}")
-                await emotional_say(session, greeting)
-            elif known_people and unknown_count:
-                # Mix of known and unknown
-                greeting = generate_group_greeting(known_people, unknown_count)
-                print(f"👋 Initial greeting (mix) -> {greeting}")
-                await emotional_say(session, greeting)
-            elif unknown_count == 1:
-                # Single unknown person
-                greeting = generate_greeting("Unknown", is_known=False)
-                print(f"🤔 Initial greeting (unknown) -> {greeting}")
-                await emotional_say(session, greeting)
-            elif unknown_count > 1:
-                # Multiple unknown people
-                greeting = generate_group_greeting([], unknown_count)
-                print(f"👥 Initial greeting (unknowns) -> {greeting}")
-                await emotional_say(session, greeting)
-            else:
-                # No one visible
-                print("👋 No one detected - generic greeting")
-                await emotional_say(session, "Hello! I'm your campus assistant. How can I help you today?")
-                
-        except RuntimeError as e:
-            print(f"⚠️ Could not send initial greeting: {e}")
+        # Start background initialization
+        print("🔄 Starting background initialization...")
+        await _init_heavy_async(agent)
         
-        # NOW start background greeting monitor after session is fully running
+        # Announce readiness
+        print("🎉 Initialization complete - announcing readiness")
+        await session.say("I'm ready! How can I help you today?")
+        
+        # NOW start background greeting monitor
         asyncio.create_task(monitor_and_greet())
         
         # Keep session alive
@@ -637,7 +622,7 @@ async def entrypoint(ctx: agents.JobContext):
             await asyncio.sleep(1)
         
     finally:
-        # CLEANUP: Stop camera and close windows when session ends
+        # CLEANUP
         print("🔌 Session ending - releasing camera...")
         if agent.face_monitor:
             agent.face_monitor.stop()
