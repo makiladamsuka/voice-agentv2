@@ -195,59 +195,59 @@ AVAILABLE TOOLS:
         Override tts_node to intercept ALL text going to TTS.
         Applies VADER sentiment analysis for real-time emotion sync.
         
-        This catches both LLM responses AND session.say() calls.
+        TIMING: Emotion triggers on FIRST AUDIO FRAME, not text input.
+        This syncs emotion with actual speech output.
         """
         accumulated_text = ""
-        current_emotion = "idle1"  # idle1 = resting, idle2 = listening
+        detected_emotion = "idle1"
+        emotion_triggered = False
         chunk_count = 0
+        audio_frame_count = 0
         
         print("\n🎭 === TTS_NODE STARTED ===")
         print(f"👀 OLED Running: {oled_display.DISPLAY_RUNNING}")
         
         async def emotion_aware_text_stream():
-            nonlocal accumulated_text, current_emotion, chunk_count
+            nonlocal accumulated_text, detected_emotion, chunk_count
             
             async for text_chunk in text_stream:
                 chunk_count += 1
                 accumulated_text += text_chunk
                 
-                # Debug every chunk
-                print(f"📝 Chunk {chunk_count}: '{text_chunk}' | Total: {len(accumulated_text)} chars")
-                
-                # Analyze emotion every chunk
-                emotion = analyze_emotion(accumulated_text)
-                print(f"🔍 Analyzed emotion: [{emotion}] (current: [{current_emotion}])")
-                
-                if emotion != current_emotion:
-                    current_emotion = emotion
-                    print(f"🎭 EMOTION CHANGED: [{current_emotion}] -> [{emotion}]")
-                    try:
-                        if oled_display.DISPLAY_RUNNING:
-                            result = oled_display.start_emotion(emotion)
-                            print(f"👀 OLED start_emotion({emotion}) = {result}")
-                        else:
-                            print("⚠️ OLED not running!")
-                    except Exception as e:
-                        print(f"⚠️ OLED error: {e}")
+                # Analyze emotion but DON'T trigger yet (wait for audio)
+                detected_emotion = analyze_emotion(accumulated_text)
+                print(f"📝 Chunk {chunk_count}: '{text_chunk}' → emotion: [{detected_emotion}]")
                 
                 yield text_chunk
             
-            # Final debug output
-            print(f"\n📝 TTS Complete: {accumulated_text[:80]}{'...' if len(accumulated_text) > 80 else ''}")
-            print(f"🎭 Final emotion: [{current_emotion}]")
-            print(f"📊 Total chunks: {chunk_count}\n")
-            
-            # RETURN TO IDLE after speech completes
-            try:
-                if oled_display.DISPLAY_RUNNING:
-                    oled_display.stop_emotion()
-                    print("👀 OLED: Returned to idle")
-            except Exception as e:
-                print(f"⚠️ OLED stop error: {e}")
+            print(f"\n📝 TTS Text Complete: {accumulated_text[:60]}...")
+            print(f"🎭 Detected emotion: [{detected_emotion}]")
         
         # Call parent's tts_node with our emotion-aware stream
         async for audio_frame in super().tts_node(emotion_aware_text_stream(), model_settings):
+            audio_frame_count += 1
+            
+            # Trigger emotion on FIRST audio frame (when speech actually starts)
+            if not emotion_triggered and detected_emotion != "idle1":
+                emotion_triggered = True
+                print(f"🔊 Audio frame #{audio_frame_count} - TRIGGERING EMOTION: [{detected_emotion}]")
+                try:
+                    if oled_display.DISPLAY_RUNNING:
+                        oled_display.start_emotion(detected_emotion)
+                        print(f"👀 OLED: {detected_emotion}")
+                except Exception as e:
+                    print(f"⚠️ OLED error: {e}")
+            
             yield audio_frame
+        
+        # Return to idle after ALL audio frames sent
+        print(f"🔊 Audio complete ({audio_frame_count} frames)")
+        try:
+            if oled_display.DISPLAY_RUNNING:
+                oled_display.stop_emotion()
+                print("👀 OLED: Returned to idle1")
+        except Exception as e:
+            print(f"⚠️ OLED stop error: {e}")
 
     # --- Delegate to Tool Modules ---
 
