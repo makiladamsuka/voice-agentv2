@@ -646,4 +646,5 @@ if __name__ == "__main__":
     agents.cli.run_app(agents.WorkerOptions(
         entrypoint_fnc=entrypoint,
         agent_name="campus-greeting-agent",  # Must match frontend AGENT_NAME
+        initialize_process_timeout=120,  # 2 minutes for slow devices like Raspberry Pi
     ))
