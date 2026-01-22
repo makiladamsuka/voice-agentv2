@@ -641,6 +641,24 @@ async def entrypoint(ctx: agents.JobContext):
         # START SESSION IMMEDIATELY (before heavy init)
         await session.start(room=ctx.room, agent=agent)
         
+        # Register user state callback for idle2 (listening) emotion
+        @session.on("user_state_changed")
+        def on_user_state_changed(state):
+            """
+            Show idle2 (listening eyes) when user is speaking.
+            Show idle1 (resting eyes) when user stops speaking.
+            """
+            try:
+                if oled_display.DISPLAY_RUNNING:
+                    if state.speaking:
+                        print("🎤 User SPEAKING - showing idle2")
+                        oled_display.start_emotion("idle2")
+                    else:
+                        print("🔇 User STOPPED - returning to idle1")
+                        oled_display.stop_emotion()  # Returns to idle1
+            except Exception as e:
+                print(f"⚠️ User state OLED error: {e}")
+        
         # Send loading message right away
         print("💬 Sending loading message...")
         await session.say("Give me a moment to wake up. I'm loading my systems...")
