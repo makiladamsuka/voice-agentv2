@@ -53,7 +53,7 @@ class FaceMonitor:
         self.object_cache = []  # List of (timestamp, detections)
         self.cache_duration = 5.0  # Keep last 5 seconds
         
-        # YOLO disabled for better performance on Raspberry Pi
+        # YOLO disablccessories: She has a visible tattoo on her left forearm and is wearing silver anklets on both ankles.ed for better performance on Raspberry Pi
         print("🔍 YOLO disabled for better performance on Raspberry Pi")
         self.yolo_active = False
         self.detector = ObjectDetector(load_yolo=False)

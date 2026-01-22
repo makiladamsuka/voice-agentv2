@@ -198,22 +198,35 @@ AVAILABLE TOOLS:
         This catches both LLM responses AND session.say() calls.
         """
         accumulated_text = ""
-        current_emotion = "idle1"
+        current_emotion = "idle"
+        chunk_count = 0
+        
+        print("\n🎭 === TTS_NODE STARTED ===")
+        print(f"👀 OLED Running: {oled_display.DISPLAY_RUNNING}")
         
         async def emotion_aware_text_stream():
-            nonlocal accumulated_text, current_emotion
+            nonlocal accumulated_text, current_emotion, chunk_count
             
             async for text_chunk in text_stream:
+                chunk_count += 1
                 accumulated_text += text_chunk
+                
+                # Debug every chunk
+                print(f"📝 Chunk {chunk_count}: '{text_chunk}' | Total: {len(accumulated_text)} chars")
                 
                 # Analyze emotion every chunk
                 emotion = analyze_emotion(accumulated_text)
+                print(f"🔍 Analyzed emotion: [{emotion}] (current: [{current_emotion}])")
+                
                 if emotion != current_emotion:
                     current_emotion = emotion
-                    print(f"🎭 TTS emotion: [{emotion}] | Text: ...{accumulated_text[-40:]}")
+                    print(f"🎭 EMOTION CHANGED: [{current_emotion}] -> [{emotion}]")
                     try:
                         if oled_display.DISPLAY_RUNNING:
-                            oled_display.start_emotion(emotion)
+                            result = oled_display.start_emotion(emotion)
+                            print(f"👀 OLED start_emotion({emotion}) = {result}")
+                        else:
+                            print("⚠️ OLED not running!")
                     except Exception as e:
                         print(f"⚠️ OLED error: {e}")
                 
@@ -221,7 +234,8 @@ AVAILABLE TOOLS:
             
             # Final debug output
             print(f"\n📝 TTS Complete: {accumulated_text[:80]}{'...' if len(accumulated_text) > 80 else ''}")
-            print(f"🎭 Final emotion: [{current_emotion}]\n")
+            print(f"🎭 Final emotion: [{current_emotion}]")
+            print(f"📊 Total chunks: {chunk_count}\n")
             
             # RETURN TO IDLE after speech completes
             try:
