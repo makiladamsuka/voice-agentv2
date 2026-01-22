@@ -198,7 +198,7 @@ AVAILABLE TOOLS:
         This catches both LLM responses AND session.say() calls.
         """
         accumulated_text = ""
-        current_emotion = "idle"
+        current_emotion = "idle1"
         
         async def emotion_aware_text_stream():
             nonlocal accumulated_text, current_emotion
@@ -537,6 +537,23 @@ async def entrypoint(ctx: agents.JobContext):
         return chat_ctx
         
     session.before_llm_cb = inject_person_context
+    
+    # User speech listener: Show idle2 when user is talking
+    async def on_user_speech(ev):
+        """Handle user speech events - show idle2 when user is speaking"""
+        try:
+            if oled_display.DISPLAY_RUNNING:
+                if hasattr(ev, 'is_speaking'):
+                    if ev.is_speaking:
+                        # User started speaking - show idle2 (attentive/listening)
+                        oled_display.start_emotion("idle2")
+                        print("👂 User speaking - showing idle2")
+                    else:
+                        # User stopped speaking - return to idle1
+                        oled_display.stop_emotion()
+                        print("👀 User stopped - returning to idle1")
+        except Exception as e:
+            print(f"⚠️ User speech OLED error: {e}")
     
     # Proactive Greeting Task: Watch for new people (only runs after init completes)
     async def monitor_and_greet():

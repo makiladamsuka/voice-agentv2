@@ -33,16 +33,16 @@ I2C_PORT = 1
 LEFT_OLED_ADDRESS = 0x3d
 RIGHT_OLED_ADDRESS = 0x3c 
 
-# Video frames directory - change this to your path
-BASE_DIRECTORY = "/home/nema/Documents/NEma/oled/videos" 
-DEFAULT_EMOTION = "idle" 
+# Video frames directory - relative to this file's location
+BASE_DIRECTORY = str(Path(__file__).parent / "videos")
+DEFAULT_EMOTION = "idle1"  # idle1 = no one talking, idle2 = user talking
 
 ZOOM_FACTOR = 0.8
 DESIRED_FPS = 30
 FRAME_DELAY = 1.0 / DESIRED_FPS if DESIRED_FPS > 0 else 0.0
 
 # Available emotions
-EMOTIONS = ["idle", "looking", "happy", "sad", "angry", "boring", "smile"]
+EMOTIONS = ["idle1", "idle2", "looking", "happy", "sad", "angry", "boring", "smile", "loving"]
 
 # Living idle settings
 BLINK_INTERVAL_MIN = 3.0  # Minimum seconds between blinks
