@@ -372,13 +372,23 @@ class ProceduralEyes:
     
     def _display_frame(self, left_img: Image.Image, right_img: Image.Image):
         """Send frame to OLED displays."""
+        # OLED is 128x64. We render 64x64 eyes.
+        # We need to create 128x64 canvas, center the eye, and rotate.
+        
         if self.left_device:
+            # Create 128x64 canvas (will become 64x128 after rotation, but OLED handles this)
+            # Actually the OLED is in portrait mode, so we create 64x128, put eye in center
+            canvas = Image.new('1', (64, 128), 0)  # Create tall canvas
+            # Paste 64x64 eye centered vertically
+            canvas.paste(left_img, (0, 32))  # Center at (0, 32) -> eye fills 32-96
             # Rotate for OLED orientation
-            left_rotated = left_img.rotate(-90, expand=True)
+            left_rotated = canvas.rotate(-90, expand=True)  # Now 128x64
             self.left_device.display(left_rotated)
         
         if self.right_device:
-            right_rotated = right_img.rotate(90, expand=True)
+            canvas = Image.new('1', (64, 128), 0)
+            canvas.paste(right_img, (0, 32))
+            right_rotated = canvas.rotate(90, expand=True)  # Now 128x64
             self.right_device.display(right_rotated)
     
     def _animation_loop(self):
