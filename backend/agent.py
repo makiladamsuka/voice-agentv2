@@ -243,8 +243,17 @@ AVAILABLE TOOLS:
         
         # Return to idle after ALL audio frames sent
         print(f"🔊 Audio complete ({audio_frame_count} frames)")
-        # Note: oled_display.stop_emotion() moved to session event listener for better sync 
-        # with actual audio playback end.
+        
+        # Safety watchdog: return to idle after buffer clears if no event received
+        async def safety_return_to_idle():
+            await asyncio.sleep(1.5) # Wait for audio buffer 
+            try:
+                if oled_display.DISPLAY_RUNNING:
+                    oled_display.stop_emotion()
+                    print("👀 OLED: Safety fallback returned to idle")
+            except: pass
+            
+        asyncio.create_task(safety_return_to_idle())
 
     # --- Delegate to Tool Modules ---
 
@@ -669,72 +678,49 @@ async def entrypoint(ctx: agents.JobContext):
                 
             await asyncio.sleep(2)
     
-    try:
-        # START SESSION IMMEDIATELY (before heavy init)
-        await session.start(room=ctx.room, agent=agent)
+        # --- Register event listeners BEFORE session.start() ---
         
         # Register user state callback for idle2 (listening) emotion
         @session.on("user_state_changed")
         def on_user_state_changed(state):
-            """
-            Show idle2 (listening eyes) when user is speaking.
-            Show idle1 (resting eyes) when user stops speaking.
-            """
+            """Show idle2 when user is speaking, idle1 when stopped"""
             try:
                 if oled_display.DISPLAY_RUNNING:
                     if state.speaking:
-                        print("🎤 User SPEAKING - showing idle2")
                         oled_display.start_emotion("idle2")
+                        print("👂 User speaking - showing idle2")
                     else:
-                        print("🔇 User STOPPED - returning to idle1")
-                        oled_display.stop_emotion()  # Returns to idle1
+                        oled_display.stop_emotion()
+                        print("👀 User stopped - returning to idle1")
             except Exception as e:
                 print(f"⚠️ User state OLED error: {e}")
 
-        # Register agent speech listeners for precise emotion sync
+        # Precise emotion finish listeners
         @session.on("agent_speech_stopped")
-        def on_agent_speech_stopped(ev):
-            """Returns OLED to idle when agent finishes speaking"""
-            print("🔊 Session: agent_speech_stopped event fired")
-            try:
-                if oled_display.DISPLAY_RUNNING:
-                    oled_display.stop_emotion()
-                    print("👀 OLED: Agent speech stopped - requested idle")
-            except Exception as e:
-                print(f"⚠️ Agent speech stop OLED error: {e}")
-
         @session.on("agent_speech_finished")
         def on_agent_speech_finished(ev):
-            """Alternative event name for speech finished"""
-            print("🔊 Session: agent_speech_finished event fired")
+            print(f"🔊 Session: Speech finish event fired")
             try:
                 if oled_display.DISPLAY_RUNNING:
                     oled_display.stop_emotion()
-                    print("👀 OLED: Agent speech finished - requested idle")
-            except Exception as e:
-                print(f"⚠️ Agent speech finish OLED error: {e}")
-
-        @session.on("speech_finished")
-        def on_speech_finished(ev):
-            """Alternative event name for speech finished"""
-            print("🔊 Session: speech_finished event fired")
-            try:
-                if oled_display.DISPLAY_RUNNING:
-                    oled_display.stop_emotion()
-                    print("👀 OLED: Speech finished - requested idle")
+                    print("👀 OLED: Returned to idle")
             except Exception as e:
                 print(f"⚠️ Speech finish OLED error: {e}")
 
         @session.on("agent_speech_interrupted")
         def on_agent_speech_interrupted(ev):
-            """Returns OLED to idle when agent is interrupted"""
             print("🔊 Session: agent_speech_interrupted event fired")
             try:
                 if oled_display.DISPLAY_RUNNING:
                     oled_display.stop_emotion()
-                    print("👀 OLED: Agent speech interrupted - requested idle")
+                    print("👀 OLED: Interrupted - requested idle")
             except Exception as e:
                 print(f"⚠️ Agent speech interrupt OLED error: {e}")
+
+        # START SESSION
+        print("🚀 Starting LiveKit session...")
+        await session.start(room=ctx.room, agent=agent)
+        
         
         # Send loading message right away
         print("💬 Sending loading message...")

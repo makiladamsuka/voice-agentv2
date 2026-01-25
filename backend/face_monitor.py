@@ -334,10 +334,6 @@ class FaceMonitor:
                     status2 = f"Known: {', '.join(known_names) if known_names else 'None'}"
                     cv2.putText(display, status2, (10, 60), 
                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                    
-                    # Disabled imshow to prevent crash in headless mode
-                    # cv2.imshow("Face Monitor", display)
-                    # cv2.waitKey(1)
                 else:
                     # Small delay when video disabled to prevent overwhelming picamera2
                     time.sleep(0.03)  # ~30 FPS max
