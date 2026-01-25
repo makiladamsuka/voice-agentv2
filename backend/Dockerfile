@@ -17,6 +17,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libavcodec-dev \
     libavformat-dev \
     libswscale-dev \
+    i2c-tools \
+    libi2c-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
