@@ -225,17 +225,24 @@ AVAILABLE TOOLS:
             print(f"🎭 Detected emotion: [{detected_emotion}]")
         
         # Call parent's tts_node with our emotion-aware stream
+        print(f"🔊 Starting audio frame loop...")
         async for audio_frame in super().tts_node(emotion_aware_text_stream(), model_settings):
             audio_frame_count += 1
             
+            # Diagnostic: Log every 10th frame or the first 5
+            if audio_frame_count <= 5 or audio_frame_count % 50 == 0:
+                print(f"🔊 Frame #{audio_frame_count}: emotion={detected_emotion}, triggered={emotion_triggered}")
+
             # Trigger emotion on FIRST audio frame (when speech actually starts)
             if not emotion_triggered and detected_emotion != "idle1":
                 emotion_triggered = True
-                print(f"🔊 Audio frame #{audio_frame_count} - TRIGGERING EMOTION: [{detected_emotion}]")
+                print(f"🔊 Audio frame #{audio_frame_count} - TRYING TO TRIGGER EMOTION: [{detected_emotion}]")
                 try:
-                    if oled_display.DISPLAY_RUNNING:
-                        oled_display.start_emotion(detected_emotion)
-                        print(f"👀 OLED: {detected_emotion}")
+                    is_running = oled_display.DISPLAY_RUNNING
+                    print(f"👀 OLED: DISPLAY_RUNNING={is_running}")
+                    if is_running:
+                        success = oled_display.start_emotion(detected_emotion)
+                        print(f"👀 OLED: start_emotion({detected_emotion}) -> {success}")
                 except Exception as e:
                     print(f"⚠️ OLED error: {e}")
             
