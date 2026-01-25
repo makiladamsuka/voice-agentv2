@@ -114,11 +114,14 @@ def enroll_face(name: str, num_samples: int = 5):
             2
         )
         
-        cv2.imshow('Face Enrollment', display_frame)
+        # cv2.imshow('Face Enrollment', display_frame)
         
-        key = cv2.waitKey(100) & 0xFF
+        # In headless mode, we can't wait for keys from imshow
+        # We'll just capture automatically without visual feedback
+        # key = cv2.waitKey(100) & 0xFF
+        key = -1 
         
-        # ESC to quit
+        # ESC to quit (not really possible in headless without imshow window)
         if key == 27:
             print("\n❌ Enrollment cancelled.")
             video_capture.release()
