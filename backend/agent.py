@@ -63,13 +63,13 @@ class EmotionSpeechWrapper:
             
             print(f"🎤 NOW SPEAKING: [{emotion}] {segment_text}")
             
-            # Start emotion (looping mode)
-            try:
-                if oled_display.DISPLAY_RUNNING:
-                    oled_display.start_emotion(emotion)
-                    print(f"👀 OLED: Started {emotion} emotion")
-            except Exception as e:
-                print(f"⚠️ OLED error: {e}")
+            # Start emotion (looping mode) - DISABLED here, handled by tts_node for better sync
+            # try:
+            #     if oled_display.DISPLAY_RUNNING:
+            #         oled_display.start_emotion(emotion)
+            #         print(f"👀 OLED: Started {emotion} emotion")
+            # except Exception as e:
+            #     print(f"⚠️ OLED error: {e}")
             
             # Speak the segment
             try:
@@ -80,13 +80,13 @@ class EmotionSpeechWrapper:
             # Small pause between segments
             await asyncio.sleep(0.1)
         
-        # Return to idle after all speech
-        try:
-            if oled_display.DISPLAY_RUNNING:
-                oled_display.stop_emotion()
-                print(f"👀 OLED: Returned to idle")
-        except Exception as e:
-            print(f"⚠️ OLED error: {e}")
+        # Return to idle after all speech - DISABLED here, handled by tts_node and session events
+        # try:
+        #     if oled_display.DISPLAY_RUNNING:
+        #         oled_display.stop_emotion()
+        #         print(f"👀 OLED: Returned to idle")
+        # except Exception as e:
+        #     print(f"⚠️ OLED error: {e}")
 
 
 # Convenience function for easier use
@@ -244,10 +244,13 @@ AVAILABLE TOOLS:
         # Return to idle after ALL audio frames sent
         print(f"🔊 Audio complete ({audio_frame_count} frames)")
         
-        # Safety watchdog: return to idle after buffer clears if no event received
+        # Safety watchdog: return to idle after buffer clears
         async def safety_return_to_idle():
-            await asyncio.sleep(1.5) # Wait for audio buffer 
+            # Wait for audio buffer to clear (1.5s - 2.5s is safe for typical V/A sync)
+            await asyncio.sleep(2.0) 
             try:
+                # ONLY if the agent is not in another speech session
+                # This check is basic but helps with back-to-back segments
                 if oled_display.DISPLAY_RUNNING:
                     oled_display.stop_emotion()
                     print("👀 OLED: Safety fallback returned to idle")
