@@ -8,6 +8,7 @@ import pickle
 import json
 import asyncio
 import re
+import signal
 from pathlib import Path
 from image_manager import ImageManager
 from image_server import ImageServer
@@ -472,9 +473,44 @@ async def _init_heavy_async(agent):
     print("🎉 All components initialized!")
 
 
+def _handle_signal(sig, frame):
+    """Handle termination signals for graceful shutdown"""
+    print(f"\n🛑 Received signal {sig}, shutting down...")
+    try:
+        if oled_display.DISPLAY_RUNNING:
+            print("👋 OLED: Shutdown requested via signal")
+            oled_display.stop_display()
+    except Exception as e:
+        print(f"⚠️ Shutdown signal error: {e}")
+    
+    # Allow natural exit
+    # sys.exit(0) is not needed as LiveKit runner handles it, but we ensured OLED stop
+
 
 async def entrypoint(ctx: agents.JobContext):
     global _global_face_monitor, _global_image_server, _global_event_db, _is_ready
+    
+    # Register signal handlers for Ctrl+C and termination
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, lambda: asyncio.create_task(shutdown_wrapper()))
+        except (NotImplementedError, ValueError):
+            # Fallback for systems where add_signal_handler isn't available
+            signal.signal(sig, _handle_signal)
+            
+    async def shutdown_wrapper():
+        """Clean shutdown transition"""
+        print("🧼 Performing final cleanup...")
+        try:
+            if oled_display.DISPLAY_RUNNING:
+                oled_display.stop_display()
+        except:
+            pass
+        # Give a small moment for I2C to settle
+        await asyncio.sleep(0.5)
+        # Note: We don't exit here, we let the runner clean up the rest
+
     
     # LIGHTWEIGHT init - only start fast services
     _init_lightweight()
