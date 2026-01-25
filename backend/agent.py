@@ -681,6 +681,7 @@ async def entrypoint(ctx: agents.JobContext):
                 
             await asyncio.sleep(2)
     
+    try:
         # --- Register event listeners BEFORE session.start() ---
         
         # Register user state callback for idle2 (listening) emotion
