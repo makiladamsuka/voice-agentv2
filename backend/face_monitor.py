@@ -14,7 +14,7 @@ from picamera2 import Picamera2
 from object_detector import ObjectDetector
 
 # --- DEBUG SETTINGS ---
-SHOW_DEBUG_VIDEO = True   # Set True to show camera window on HDMI display
+SHOW_DEBUG_VIDEO = False   # Set True to show camera window on HDMI display
 DEBUG_LOG_INTERVAL = 5.0  # Seconds between status prints (0 = disable)
 # -----------------------
 
@@ -335,8 +335,9 @@ class FaceMonitor:
                     cv2.putText(display, status2, (10, 60), 
                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                     
-                    cv2.imshow("Face Monitor", display)
-                    cv2.waitKey(1)
+                    # Disabled imshow to prevent crash in headless mode
+                    # cv2.imshow("Face Monitor", display)
+                    # cv2.waitKey(1)
                 else:
                     # Small delay when video disabled to prevent overwhelming picamera2
                     time.sleep(0.03)  # ~30 FPS max
