@@ -695,20 +695,22 @@ async def entrypoint(ctx: agents.JobContext):
         @session.on("agent_speech_stopped")
         def on_agent_speech_stopped(ev):
             """Returns OLED to idle when agent finishes speaking"""
+            print("🔊 Session: agent_speech_stopped event fired")
             try:
                 if oled_display.DISPLAY_RUNNING:
                     oled_display.stop_emotion()
-                    print("👀 OLED: Agent speech stopped - returned to idle")
+                    print("👀 OLED: Agent speech stopped - requested idle")
             except Exception as e:
                 print(f"⚠️ Agent speech stop OLED error: {e}")
 
         @session.on("agent_speech_interrupted")
         def on_agent_speech_interrupted(ev):
             """Returns OLED to idle when agent is interrupted"""
+            print("🔊 Session: agent_speech_interrupted event fired")
             try:
                 if oled_display.DISPLAY_RUNNING:
                     oled_display.stop_emotion()
-                    print("👀 OLED: Agent speech interrupted - returned to idle")
+                    print("👀 OLED: Agent speech interrupted - requested idle")
             except Exception as e:
                 print(f"⚠️ Agent speech interrupt OLED error: {e}")
         

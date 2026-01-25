@@ -282,6 +282,7 @@ def _display_thread_function():
                 _play_emotion_once(emotion_name)
                 
             # After playing, return to idle
+            print(f"👀 OLED: Finished {emotion_name.upper()}, returning to idle")
             current_emotion = DEFAULT_EMOTION
             _stop_current_emotion.clear()
             continue
@@ -398,6 +399,7 @@ def stop_emotion() -> bool:
     Use this when done speaking.
     """
     global _stop_current_emotion
+    print("🎬 OLED: stop_emotion() called")
     _stop_current_emotion.set()
     return True
 
