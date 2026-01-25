@@ -17,6 +17,7 @@ import threading
 import collections 
 import random
 from enum import Enum
+import atexit
 
 # Try to import luma.oled - gracefully fail if not on Pi
 try:
@@ -318,6 +319,9 @@ def setup_and_start_display():
     display_thread = threading.Thread(target=_display_thread_function, daemon=True)
     display_thread.start()
     print(f"👀 OLED display started ({DESIRED_FPS} FPS) with living idle")
+    
+    # Register cleanup for process exit
+    atexit.register(stop_display)
     
     return display_thread
 
