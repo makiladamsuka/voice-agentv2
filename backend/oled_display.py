@@ -343,6 +343,7 @@ def display_emotion(emotion_name: str, mode: EmotionMode = EmotionMode.ONE_SHOT)
         return False
         
     requested_emotion = emotion_name.strip().lower()
+    print(f"🎬 OLED: display_emotion called with '{requested_emotion}'")
     
     # Validate emotion
     if requested_emotion not in EMOTIONS:
