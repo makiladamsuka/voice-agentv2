@@ -242,12 +242,8 @@ AVAILABLE TOOLS:
         
         # Return to idle after ALL audio frames sent
         print(f"🔊 Audio complete ({audio_frame_count} frames)")
-        try:
-            if oled_display.DISPLAY_RUNNING:
-                oled_display.stop_emotion()
-                print("👀 OLED: Returned to idle1")
-        except Exception as e:
-            print(f"⚠️ OLED stop error: {e}")
+        # Note: oled_display.stop_emotion() moved to session event listener for better sync 
+        # with actual audio playback end.
 
     # --- Delegate to Tool Modules ---
 
@@ -658,6 +654,27 @@ async def entrypoint(ctx: agents.JobContext):
                         oled_display.stop_emotion()  # Returns to idle1
             except Exception as e:
                 print(f"⚠️ User state OLED error: {e}")
+
+        # Register agent speech listeners for precise emotion sync
+        @session.on("agent_speech_stopped")
+        def on_agent_speech_stopped(ev):
+            """Returns OLED to idle when agent finishes speaking"""
+            try:
+                if oled_display.DISPLAY_RUNNING:
+                    oled_display.stop_emotion()
+                    print("👀 OLED: Agent speech stopped - returned to idle")
+            except Exception as e:
+                print(f"⚠️ Agent speech stop OLED error: {e}")
+
+        @session.on("agent_speech_interrupted")
+        def on_agent_speech_interrupted(ev):
+            """Returns OLED to idle when agent is interrupted"""
+            try:
+                if oled_display.DISPLAY_RUNNING:
+                    oled_display.stop_emotion()
+                    print("👀 OLED: Agent speech interrupted - returned to idle")
+            except Exception as e:
+                print(f"⚠️ Agent speech interrupt OLED error: {e}")
         
         # Send loading message right away
         print("💬 Sending loading message...")
