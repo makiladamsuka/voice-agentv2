@@ -50,6 +50,13 @@ BLINK_INTERVAL_MIN = 3.0  # Minimum seconds between blinks
 BLINK_INTERVAL_MAX = 7.0  # Maximum seconds between blinks
 LOOK_INTERVAL_MIN = 8.0   # Minimum seconds between look movements
 LOOK_INTERVAL_MAX = 15.0  # Maximum seconds between look movements
+ 
+# Emotion fallbacks (if directory is missing)
+EMOTION_FALLBACKS = {
+    "happy": "smile",
+    "loving": "smile",
+    "boring": "idle2"
+}
 
 
 class EmotionMode(Enum):
@@ -343,7 +350,14 @@ def display_emotion(emotion_name: str, mode: EmotionMode = EmotionMode.ONE_SHOT)
         return False
         
     requested_emotion = emotion_name.strip().lower()
-    print(f"🎬 OLED: display_emotion called with '{requested_emotion}'")
+    
+    # Apply fallback if folder missing
+    if requested_emotion not in FRAME_CACHE:
+        frame_path = os.path.join(BASE_DIRECTORY, requested_emotion)
+        if not os.path.exists(frame_path) and requested_emotion in EMOTION_FALLBACKS:
+            fallback = EMOTION_FALLBACKS[requested_emotion]
+            print(f"🎬 OLED: Fallback '{requested_emotion}' -> '{fallback}'")
+            requested_emotion = fallback
     
     # Validate emotion
     if requested_emotion not in EMOTIONS:
