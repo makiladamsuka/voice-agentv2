@@ -336,16 +336,16 @@ def setup_and_start_display():
 
 def display_emotion(emotion_name: str, mode: EmotionMode = EmotionMode.ONE_SHOT) -> bool:
     """
-    Queue an emotion to display.
+    Queue an emotion to display. Clears queue and interrupts current play.
     
     Args:
-        emotion_name: One of: idle, looking, happy, sad, angry, boring, smile
-        mode: EmotionMode.ONE_SHOT (play once) or EmotionMode.LOOPING (keep looping)
+        emotion_name: The emotion to play
+        mode: EmotionMode.ONE_SHOT or EmotionMode.LOOPING
     
     Returns:
         True if emotion was queued successfully
     """
-    global video_queue, FRAME_CACHE, DISPLAY_RUNNING, _stop_current_emotion
+    global video_queue, current_emotion, FRAME_CACHE, DISPLAY_RUNNING, _stop_current_emotion
     
     if not DISPLAY_RUNNING:
         return False
@@ -353,42 +353,44 @@ def display_emotion(emotion_name: str, mode: EmotionMode = EmotionMode.ONE_SHOT)
     requested_emotion = emotion_name.strip().lower()
     
     # Apply fallback if folder missing
-    if requested_emotion not in FRAME_CACHE:
-        frame_path = os.path.join(BASE_DIRECTORY, requested_emotion)
-        if not os.path.exists(frame_path) and requested_emotion in EMOTION_FALLBACKS:
-            fallback = EMOTION_FALLBACKS[requested_emotion]
-            print(f"🎬 OLED: Fallback '{requested_emotion}' -> '{fallback}'")
-            requested_emotion = fallback
+    if not os.path.exists(os.path.join(BASE_DIRECTORY, requested_emotion)) and requested_emotion in EMOTION_FALLBACKS:
+        fallback = EMOTION_FALLBACKS[requested_emotion]
+        print(f"🎬 OLED: Fallback '{requested_emotion}' -> '{fallback}'")
+        requested_emotion = fallback
     
     # Validate emotion
     if requested_emotion not in EMOTIONS:
-        print(f"⚠️ Unknown emotion: {requested_emotion}")
+        print(f"⚠️ Emotion '{requested_emotion}' not found in {EMOTIONS}")
         return False
+        
+    # DEDUPLICATION: If already playing this emotion in LOOPING mode, don't restart it
+    if current_emotion == requested_emotion and mode == EmotionMode.LOOPING:
+        return True
 
     # Load frames if not cached
     if requested_emotion not in FRAME_CACHE:
         FRAME_CACHE[requested_emotion] = _load_emotion_frames(requested_emotion)
         
-    # Add to queue
-    if FRAME_CACHE.get(requested_emotion):
-        # Stop any currently playing emotion
-        _stop_current_emotion.set()
-        
-        # Clear queue and add new request
-        video_queue.clear()
-        video_queue.append({
-            "emotion": requested_emotion,
-            "mode": mode
-        })
-        return True
+    # If frames are still not available after loading attempt, return False
+    if not FRAME_CACHE.get(requested_emotion):
+        print(f"⚠️ Cannot play '{requested_emotion}' - frames missing")
+        return False
+
+    # CLEAR QUEUE and Interrupt current animation to start new one immediately
+    video_queue.clear()
+    _stop_current_emotion.set()
     
-    return False
+    video_queue.append({
+        "emotion": requested_emotion,
+        "mode": mode
+    })
+    
+    return True
 
 
 def start_emotion(emotion_name: str) -> bool:
     """
-    Start playing an emotion in looping mode.
-    Use this when starting to speak.
+    Start playing an emotion in looping mode (typical for speech).
     """
     return display_emotion(emotion_name, EmotionMode.LOOPING)
 
