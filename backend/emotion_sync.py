@@ -32,15 +32,15 @@ EMOTION_KEYWORDS = {
     ],
     "angry": [
         "error", "wrong", "failed", "broken", "frustrated", "annoyed",
-        "stop", "no way", "impossible"
+        "stop", "no way", "impossible", "angry", "furious", "mad", "upset"
     ],
     "looking": [
         "hmm", "interesting", "curious", "let me see", "checking",
-        "looking", "searching", "finding"
+        "looking", "searching", "finding", "think", "thinking"
     ],
     "smile": [
         "sure", "of course", "happy to", "let me help", "here you go",
-        "certainly", "absolutely", "no problem"
+        "certainly", "absolutely", "no problem", "alright", "okay"
     ],
     "boring": [
         "again", "already", "told you", "repeated", "same thing",
@@ -48,9 +48,41 @@ EMOTION_KEYWORDS = {
     ]
 }
 
+# Negative contractions and words to check for negation
+NEGATIONS = ["not", "no", "don't", "doesn't", "wasn't", "isn't", "aren't", "ain't", "never"]
+
 # Valid emotions for OLED display
 # idle1 = default/no one talking, idle2 = user is talking/listening
 VALID_EMOTIONS = ["idle1", "idle2", "happy", "smile", "looking", "sad", "angry", "boring", "loving"]
+
+
+def is_negated(text: str, keyword: str) -> bool:
+    """
+    Check if a keyword is negated in the text.
+    Example: "not angry" -> True
+    """
+    text_lower = text.lower()
+    keyword_lower = keyword.lower()
+    
+    # Very simple check: is there a negation word within 3 words before the keyword?
+    words = text_lower.split()
+    if keyword_lower not in words:
+        # Check if keyword is part of a word?
+        found_idx = -1
+        for i, w in enumerate(words):
+            if keyword_lower in w:
+                found_idx = i
+                break
+        if found_idx == -1: return False
+    else:
+        found_idx = words.index(keyword_lower)
+        
+    start_idx = max(0, found_idx - 3)
+    for i in range(start_idx, found_idx):
+        if words[i] in NEGATIONS:
+            return True
+            
+    return False
 
 
 def analyze_emotion_keywords(text: str) -> str:
@@ -60,8 +92,13 @@ def analyze_emotion_keywords(text: str) -> str:
     """
     text_lower = text.lower()
     for emotion, keywords in EMOTION_KEYWORDS.items():
-        if any(kw in text_lower for kw in keywords):
-            return emotion
+        for kw in keywords:
+            if kw in text_lower:
+                # Check for negation if it's a negative emotion
+                if emotion in ["sad", "angry", "boring"]:
+                    if is_negated(text_lower, kw):
+                        continue # Skip this keyword
+                return emotion
     return "idle1"
 
 
@@ -70,6 +107,8 @@ def analyze_emotion_vader(text: str) -> str:
     VADER sentiment-based emotion detection.
     Maps compound sentiment score to emotions.
     """
+    # Strip emojis for VADER to get better text-based score if needed, 
+    # but VADER actually handles emojis well.
     scores = _analyzer.polarity_scores(text)
     compound = scores['compound']
     
@@ -78,10 +117,12 @@ def analyze_emotion_vader(text: str) -> str:
         return "happy"
     elif compound >= 0.2:
         return "smile"
-    elif compound <= -0.5:
+    elif compound <= -0.6:  # very negative
+        return "angry"
+    elif compound <= -0.2:  # slightly negative
         return "sad"
-    elif compound <= -0.2:
-        return "looking"  # Slightly negative = concerned/curious
+    elif compound <= -0.1:
+        return "looking"  # Thinking/concerned
     else:
         return "idle1"
 

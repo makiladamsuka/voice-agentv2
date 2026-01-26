@@ -303,34 +303,6 @@ AVAILABLE TOOLS:
         return await self.vision_tools.count_people_in_room(context)
     
     @function_tool
-    async def set_emotion(self, emotion: str, context: RunContext) -> str:
-        """
-        Set the robot's emotional expression on the OLED eyes.
-        MUST be called before every response to show the appropriate emotion.
-        
-        Args:
-            emotion: One of: idle, happy, smile, looking, sad, angry, boring
-        """
-        print(f"😊 [TOOL] set_emotion called: {emotion}")
-        
-        valid_emotions = ["idle", "happy", "smile", "looking", "sad", "angry", "boring"]
-        emotion_clean = emotion.lower().strip()
-        
-        if emotion_clean not in valid_emotions:
-            return f"Invalid emotion. Use one of: {', '.join(valid_emotions)}"
-        
-        # Trigger OLED emotion display
-        try:
-            if oled_display.DISPLAY_RUNNING:
-                oled_display.display_emotion(emotion_clean)
-                return f"Emotion set to: {emotion_clean}"
-            else:
-                return f"Emotion received: {emotion_clean} (display not running)"
-        except Exception as e:
-            print(f"⚠️ OLED error: {e}")
-            return f"Emotion received: {emotion_clean} (display error)"
-
-    @function_tool
     async def list_available_events(self, context: RunContext) -> str:
         """Lists all available events on campus."""
         print("📋 [TOOL] list_available_events called")
