@@ -17,6 +17,7 @@ import threading
 import collections 
 import random
 from enum import Enum
+import atexit
 
 # Try to import luma.oled - gracefully fail if not on Pi
 try:
@@ -49,6 +50,13 @@ BLINK_INTERVAL_MIN = 3.0  # Minimum seconds between blinks
 BLINK_INTERVAL_MAX = 7.0  # Maximum seconds between blinks
 LOOK_INTERVAL_MIN = 8.0   # Minimum seconds between look movements
 LOOK_INTERVAL_MAX = 15.0  # Maximum seconds between look movements
+ 
+# Emotion fallbacks (if directory is missing)
+EMOTION_FALLBACKS = {
+    "happy": "smile",
+    "loving": "smile",
+    "boring": "idle2"
+}
 
 
 class EmotionMode(Enum):
@@ -274,6 +282,7 @@ def _display_thread_function():
                 _play_emotion_once(emotion_name)
                 
             # After playing, return to idle
+            print(f"👀 OLED: Finished {emotion_name.upper()}, returning to idle")
             current_emotion = DEFAULT_EMOTION
             _stop_current_emotion.clear()
             continue
@@ -319,56 +328,69 @@ def setup_and_start_display():
     display_thread.start()
     print(f"👀 OLED display started ({DESIRED_FPS} FPS) with living idle")
     
+    # Register cleanup for process exit
+    atexit.register(stop_display)
+    
     return display_thread
 
 
 def display_emotion(emotion_name: str, mode: EmotionMode = EmotionMode.ONE_SHOT) -> bool:
     """
-    Queue an emotion to display.
+    Queue an emotion to display. Clears queue and interrupts current play.
     
     Args:
-        emotion_name: One of: idle, looking, happy, sad, angry, boring, smile
-        mode: EmotionMode.ONE_SHOT (play once) or EmotionMode.LOOPING (keep looping)
+        emotion_name: The emotion to play
+        mode: EmotionMode.ONE_SHOT or EmotionMode.LOOPING
     
     Returns:
         True if emotion was queued successfully
     """
-    global video_queue, FRAME_CACHE, DISPLAY_RUNNING, _stop_current_emotion
+    global video_queue, current_emotion, FRAME_CACHE, DISPLAY_RUNNING, _stop_current_emotion
     
     if not DISPLAY_RUNNING:
         return False
         
     requested_emotion = emotion_name.strip().lower()
     
+    # Apply fallback if folder missing
+    if not os.path.exists(os.path.join(BASE_DIRECTORY, requested_emotion)) and requested_emotion in EMOTION_FALLBACKS:
+        fallback = EMOTION_FALLBACKS[requested_emotion]
+        print(f"🎬 OLED: Fallback '{requested_emotion}' -> '{fallback}'")
+        requested_emotion = fallback
+    
     # Validate emotion
     if requested_emotion not in EMOTIONS:
-        print(f"⚠️ Unknown emotion: {requested_emotion}")
+        print(f"⚠️ Emotion '{requested_emotion}' not found in {EMOTIONS}")
         return False
+        
+    # DEDUPLICATION: If already playing this emotion in LOOPING mode, don't restart it
+    if current_emotion == requested_emotion and mode == EmotionMode.LOOPING:
+        return True
 
     # Load frames if not cached
     if requested_emotion not in FRAME_CACHE:
         FRAME_CACHE[requested_emotion] = _load_emotion_frames(requested_emotion)
         
-    # Add to queue
-    if FRAME_CACHE.get(requested_emotion):
-        # Stop any currently playing emotion
-        _stop_current_emotion.set()
-        
-        # Clear queue and add new request
-        video_queue.clear()
-        video_queue.append({
-            "emotion": requested_emotion,
-            "mode": mode
-        })
-        return True
+    # If frames are still not available after loading attempt, return False
+    if not FRAME_CACHE.get(requested_emotion):
+        print(f"⚠️ Cannot play '{requested_emotion}' - frames missing")
+        return False
+
+    # CLEAR QUEUE and Interrupt current animation to start new one immediately
+    video_queue.clear()
+    _stop_current_emotion.set()
     
-    return False
+    video_queue.append({
+        "emotion": requested_emotion,
+        "mode": mode
+    })
+    
+    return True
 
 
 def start_emotion(emotion_name: str) -> bool:
     """
-    Start playing an emotion in looping mode.
-    Use this when starting to speak.
+    Start playing an emotion in looping mode (typical for speech).
     """
     return display_emotion(emotion_name, EmotionMode.LOOPING)
 
@@ -379,6 +401,7 @@ def stop_emotion() -> bool:
     Use this when done speaking.
     """
     global _stop_current_emotion
+    print("🎬 OLED: stop_emotion() called")
     _stop_current_emotion.set()
     return True
 

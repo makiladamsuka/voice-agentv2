@@ -8,6 +8,7 @@ import pickle
 import json
 import asyncio
 import re
+import signal
 from pathlib import Path
 from image_manager import ImageManager
 from image_server import ImageServer
@@ -62,13 +63,13 @@ class EmotionSpeechWrapper:
             
             print(f"🎤 NOW SPEAKING: [{emotion}] {segment_text}")
             
-            # Start emotion (looping mode)
-            try:
-                if oled_display.DISPLAY_RUNNING:
-                    oled_display.start_emotion(emotion)
-                    print(f"👀 OLED: Started {emotion} emotion")
-            except Exception as e:
-                print(f"⚠️ OLED error: {e}")
+            # Start emotion (looping mode) - DISABLED here, handled by tts_node for better sync
+            # try:
+            #     if oled_display.DISPLAY_RUNNING:
+            #         oled_display.start_emotion(emotion)
+            #         print(f"👀 OLED: Started {emotion} emotion")
+            # except Exception as e:
+            #     print(f"⚠️ OLED error: {e}")
             
             # Speak the segment
             try:
@@ -79,13 +80,13 @@ class EmotionSpeechWrapper:
             # Small pause between segments
             await asyncio.sleep(0.1)
         
-        # Return to idle after all speech
-        try:
-            if oled_display.DISPLAY_RUNNING:
-                oled_display.stop_emotion()
-                print(f"👀 OLED: Returned to idle")
-        except Exception as e:
-            print(f"⚠️ OLED error: {e}")
+        # Return to idle after all speech - DISABLED here, handled by tts_node and session events
+        # try:
+        #     if oled_display.DISPLAY_RUNNING:
+        #         oled_display.stop_emotion()
+        #         print(f"👀 OLED: Returned to idle")
+        # except Exception as e:
+        #     print(f"⚠️ OLED error: {e}")
 
 
 # Convenience function for easier use
@@ -242,12 +243,20 @@ AVAILABLE TOOLS:
         
         # Return to idle after ALL audio frames sent
         print(f"🔊 Audio complete ({audio_frame_count} frames)")
-        try:
-            if oled_display.DISPLAY_RUNNING:
-                oled_display.stop_emotion()
-                print("👀 OLED: Returned to idle1")
-        except Exception as e:
-            print(f"⚠️ OLED stop error: {e}")
+        
+        # Safety watchdog: return to idle after buffer clears
+        async def safety_return_to_idle():
+            # Wait for audio buffer to clear (1.5s - 2.5s is safe for typical V/A sync)
+            await asyncio.sleep(2.0) 
+            try:
+                # ONLY if the agent is not in another speech session
+                # This check is basic but helps with back-to-back segments
+                if oled_display.DISPLAY_RUNNING:
+                    oled_display.stop_emotion()
+                    print("👀 OLED: Safety fallback returned to idle")
+            except: pass
+            
+        asyncio.create_task(safety_return_to_idle())
 
     # --- Delegate to Tool Modules ---
 
@@ -293,34 +302,6 @@ AVAILABLE TOOLS:
         self.vision_tools.face_monitor = self.face_monitor
         return await self.vision_tools.count_people_in_room(context)
     
-    @function_tool
-    async def set_emotion(self, emotion: str, context: RunContext) -> str:
-        """
-        Set the robot's emotional expression on the OLED eyes.
-        MUST be called before every response to show the appropriate emotion.
-        
-        Args:
-            emotion: One of: idle, happy, smile, looking, sad, angry, boring
-        """
-        print(f"😊 [TOOL] set_emotion called: {emotion}")
-        
-        valid_emotions = ["idle", "happy", "smile", "looking", "sad", "angry", "boring"]
-        emotion_clean = emotion.lower().strip()
-        
-        if emotion_clean not in valid_emotions:
-            return f"Invalid emotion. Use one of: {', '.join(valid_emotions)}"
-        
-        # Trigger OLED emotion display
-        try:
-            if oled_display.DISPLAY_RUNNING:
-                oled_display.display_emotion(emotion_clean)
-                return f"Emotion set to: {emotion_clean}"
-            else:
-                return f"Emotion received: {emotion_clean} (display not running)"
-        except Exception as e:
-            print(f"⚠️ OLED error: {e}")
-            return f"Emotion received: {emotion_clean} (display error)"
-
     @function_tool
     async def list_available_events(self, context: RunContext) -> str:
         """Lists all available events on campus."""
@@ -476,9 +457,44 @@ async def _init_heavy_async(agent):
     print("🎉 All components initialized!")
 
 
+def _handle_signal(sig, frame):
+    """Handle termination signals for graceful shutdown"""
+    print(f"\n🛑 Received signal {sig}, shutting down...")
+    try:
+        if oled_display.DISPLAY_RUNNING:
+            print("👋 OLED: Shutdown requested via signal")
+            oled_display.stop_display()
+    except Exception as e:
+        print(f"⚠️ Shutdown signal error: {e}")
+    
+    # Allow natural exit
+    # sys.exit(0) is not needed as LiveKit runner handles it, but we ensured OLED stop
+
 
 async def entrypoint(ctx: agents.JobContext):
     global _global_face_monitor, _global_image_server, _global_event_db, _is_ready
+    
+    # Register signal handlers for Ctrl+C and termination
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, lambda: asyncio.create_task(shutdown_wrapper()))
+        except (NotImplementedError, ValueError):
+            # Fallback for systems where add_signal_handler isn't available
+            signal.signal(sig, _handle_signal)
+            
+    async def shutdown_wrapper():
+        """Clean shutdown transition"""
+        print("🧼 Performing final cleanup...")
+        try:
+            if oled_display.DISPLAY_RUNNING:
+                oled_display.stop_display()
+        except:
+            pass
+        # Give a small moment for I2C to settle
+        await asyncio.sleep(0.5)
+        # Note: We don't exit here, we let the runner clean up the rest
+
     
     # LIGHTWEIGHT init - only start fast services
     _init_lightweight()
@@ -638,26 +654,49 @@ async def entrypoint(ctx: agents.JobContext):
             await asyncio.sleep(2)
     
     try:
-        # START SESSION IMMEDIATELY (before heavy init)
-        await session.start(room=ctx.room, agent=agent)
+        # --- Register event listeners BEFORE session.start() ---
         
         # Register user state callback for idle2 (listening) emotion
         @session.on("user_state_changed")
         def on_user_state_changed(state):
-            """
-            Show idle2 (listening eyes) when user is speaking.
-            Show idle1 (resting eyes) when user stops speaking.
-            """
+            """Show idle2 when user is speaking, idle1 when stopped"""
             try:
                 if oled_display.DISPLAY_RUNNING:
                     if state.speaking:
-                        print("🎤 User SPEAKING - showing idle2")
                         oled_display.start_emotion("idle2")
+                        print("👂 User speaking - showing idle2")
                     else:
-                        print("🔇 User STOPPED - returning to idle1")
-                        oled_display.stop_emotion()  # Returns to idle1
+                        oled_display.stop_emotion()
+                        print("👀 User stopped - returning to idle1")
             except Exception as e:
                 print(f"⚠️ User state OLED error: {e}")
+
+        # Precise emotion finish listeners
+        @session.on("agent_speech_stopped")
+        @session.on("agent_speech_finished")
+        def on_agent_speech_finished(ev):
+            print(f"🔊 Session: Speech finish event fired")
+            try:
+                if oled_display.DISPLAY_RUNNING:
+                    oled_display.stop_emotion()
+                    print("👀 OLED: Returned to idle")
+            except Exception as e:
+                print(f"⚠️ Speech finish OLED error: {e}")
+
+        @session.on("agent_speech_interrupted")
+        def on_agent_speech_interrupted(ev):
+            print("🔊 Session: agent_speech_interrupted event fired")
+            try:
+                if oled_display.DISPLAY_RUNNING:
+                    oled_display.stop_emotion()
+                    print("👀 OLED: Interrupted - requested idle")
+            except Exception as e:
+                print(f"⚠️ Agent speech interrupt OLED error: {e}")
+
+        # START SESSION
+        print("🚀 Starting LiveKit session...")
+        await session.start(room=ctx.room, agent=agent)
+        
         
         # Send loading message right away
         print("💬 Sending loading message...")
