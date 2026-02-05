@@ -19,6 +19,10 @@ chromadb
 # Raspberry Pi Camera (install via: sudo apt install python3-picamera2)
 # picamera2 is system-specific and typically installed via apt on Raspberry Pi OS
 
+# IMPORTANT: On Raspberry Pi, do NOT pip install numpy!
+# Use system numpy via: python3 -m venv --system-site-packages venv
+# This avoids version conflicts with picamera2/simplejpeg
+
 # OLED emotion display
 luma.oled
 
