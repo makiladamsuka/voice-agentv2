@@ -51,8 +51,19 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
+# Re-declare ARGs for runtime (needed for Next.js API routes)
+ARG LIVEKIT_URL
+ARG LIVEKIT_API_KEY
+ARG LIVEKIT_API_SECRET
+ARG AGENT_NAME
+
+# Set runtime environment variables
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV LIVEKIT_URL=${LIVEKIT_URL}
+ENV LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+ENV LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+ENV AGENT_NAME=${AGENT_NAME}
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs

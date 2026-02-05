@@ -1,58 +1,174 @@
-# Quick Start - Docker
+# Quick Start - Raspberry Pi Setup
 
-This is a quick reference for getting started with Docker. For comprehensive documentation, see [DOCKER.md](DOCKER.md).
+Complete guide for setting up the voice agent on a fresh Raspberry Pi (Bookworm).
 
-## TL;DR
+## Prerequisites
 
-```bash
-# 1. Configure environment
-cp .env.example .env
-# Edit .env with your LiveKit credentials
+- Raspberry Pi 4 with Raspberry Pi OS Bookworm
+- SSH access to the Pi
+- LiveKit Cloud account with credentials
 
-# 2. Start services
-docker compose up
+---
 
-# 3. Access application
-# Frontend: http://localhost:3000
-# Backend: http://localhost:8080
-```
-
-## Common Commands
+## Step 1: Install Docker
 
 ```bash
-# Start in background
-docker compose up -d
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
 
-# View logs
-docker compose logs -f
+# Add user to docker group
+sudo usermod -aG docker $USER
 
-# Rebuild after code changes
-docker compose up -d --build
-
-# Stop services
-docker compose down
-
-# Restart a service
-docker compose restart backend
+# Log out and back in for group change
+logout
 ```
 
-## Multi-Platform Build
+## Step 2: Install System Dependencies
 
 ```bash
-# Build for both x86 and ARM
-docker buildx build --platform linux/amd64,linux/arm64 -t voice-agent-backend:latest ./backend
-docker buildx build --platform linux/amd64,linux/arm64 -t voice-agent-frontend:latest ./frontend
+sudo apt update
+sudo apt install -y cmake build-essential i2c-tools python3-pip python3-venv python3-picamera2
+
+# Enable I2C for OLED display
+sudo raspi-config
+# Navigate: Interface Options → I2C → Enable
+
+sudo reboot
 ```
+
+## Step 3: Clone the Project
+
+```bash
+cd ~/Documents
+git clone <your-repo-url> voice-agentv2
+cd voice-agentv2
+git checkout emooled  # or your working branch
+```
+
+## Step 4: Transfer Credentials from Laptop
+
+From your **laptop** terminal:
+
+```bash
+# Transfer backend .env (contains LiveKit, OpenRouter, Deepgram keys)
+scp /path/to/voice-agentv2/backend/.env nema@raspberrypi.local:/home/nema/Documents/voice-agentv2/backend/.env
+```
+
+## Step 5: Setup Python Backend
+
+```bash
+cd ~/Documents/voice-agentv2
+
+# Create venv with system packages (required for picamera2)
+python3 -m venv --system-site-packages venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r backend/requirements.txt
+
+# If numpy conflicts with picamera2:
+pip uninstall numpy -y
+# Let it use system numpy
+```
+
+## Step 6: Build Frontend Docker
+
+```bash
+cd ~/Documents/voice-agentv2
+
+# Load credentials for build args
+source backend/.env
+
+# Build frontend with LiveKit credentials
+docker build \
+  --build-arg LIVEKIT_URL=$LIVEKIT_URL \
+  --build-arg LIVEKIT_API_KEY=$LIVEKIT_API_KEY \
+  --build-arg LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET \
+  --build-arg AGENT_NAME=${AGENT_NAME:-campus-greeting-agent} \
+  -t voice-agent-frontend ./frontend
+```
+
+> ⚠️ This takes 15-20 minutes on Raspberry Pi
+
+## Step 7: Run the Application
+
+### Start Frontend (Docker)
+
+```bash
+docker run -d -p 3000:3000 --name voice-frontend voice-agent-frontend:latest
+```
+
+### Start Backend (Native Python)
+
+```bash
+cd ~/Documents/voice-agentv2/backend
+source ../venv/bin/activate
+export $(grep -v '^#' .env | xargs)
+python agent.py dev
+```
+
+## Step 8: Access the App
+
+- **From Pi**: http://localhost:3000
+- **From Laptop**: http://raspberrypi.local:3000
+
+Or use SSH port forwarding for microphone access:
+```bash
+ssh -L 3000:localhost:3000 nema@raspberrypi.local
+# Then open http://localhost:3000 on laptop
+```
+
+---
+
+## Quick Reference Commands
+
+| Task | Command |
+|------|---------|
+| Start frontend | `docker run -d -p 3000:3000 --name voice-frontend voice-agent-frontend:latest` |
+| Stop frontend | `docker stop voice-frontend && docker rm voice-frontend` |
+| View frontend logs | `docker logs -f voice-frontend` |
+| Start backend | `cd backend && source ../venv/bin/activate && export $(grep -v '^#' .env \| xargs) && python agent.py dev` |
+| Check containers | `docker ps` |
+
+---
 
 ## Troubleshooting
 
-**Port already in use?**
-Edit `docker-compose.yml` to change port mappings.
-
-**Permission errors?**
+**picamera2 not found?**
 ```bash
-sudo chown -R $USER:$USER backend/known_faces backend/assets
+rm -rf venv
+python3 -m venv --system-site-packages venv
+source venv/bin/activate
+pip install -r backend/requirements.txt
 ```
 
-**Need more help?**
-See the full [DOCKER.md](DOCKER.md) documentation.
+**numpy dtype error?**
+```bash
+pip uninstall numpy -y
+# Uses system numpy compatible with picamera2
+```
+
+**LIVEKIT_URL not found?**
+```bash
+export $(grep -v '^#' backend/.env | xargs)
+```
+
+**dlib build fails?**
+```bash
+sudo apt install -y cmake build-essential
+```
+
+**Frontend build ESLint errors?**
+Make sure you're on the correct git branch (`emooled`) and the Dockerfile is synced.
+
+---
+
+## File Locations
+
+| File | Location | Purpose |
+|------|----------|---------|
+| Backend .env | `backend/.env` | LiveKit, OpenRouter, Deepgram credentials |
+| Root .env | `.env` | Docker Compose variables (optional) |
+| Known faces | `backend/known_faces/` | Face recognition database |
+| Assets | `backend/assets/` | Event posters, maps, etc. |
