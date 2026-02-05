@@ -507,7 +507,7 @@ async def entrypoint(ctx: agents.JobContext):
         llm=openai.LLM(
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY"),
-            model=os.getenv("LLM_CHOICE", "google/gemma-2-9b-it:free"),
+            model=os.getenv("LLM_CHOICE", "qwen/qwen-2.5-7b-instruct:free"),
         ),
     )
     
