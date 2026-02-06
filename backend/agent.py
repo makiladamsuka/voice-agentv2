@@ -261,8 +261,12 @@ AVAILABLE TOOLS:
     # --- Delegate to Tool Modules ---
 
     @function_tool
-    async def recognize_face(self, context: RunContext) -> str:
-        """Identifies who is currently in front of the webcam."""
+    async def recognize_face(self, mode: str = "identify", context: RunContext = None) -> str:
+        """Identifies who is currently in front of the webcam.
+        
+        Args:
+            mode: Recognition mode: 'identify' (default) or 'detailed'
+        """
         print("🎥 [TOOL] recognize_face called")
         self.vision_tools.face_monitor = self.face_monitor
         return await self.vision_tools.recognize_face(context)
@@ -275,15 +279,23 @@ AVAILABLE TOOLS:
         return await self.vision_tools.enroll_new_face(person_name, context)
 
     @function_tool
-    async def identify_color(self, context: RunContext) -> str:
-        """Identifies the dominant color in the camera view."""
+    async def identify_color(self, detail_level: str = "basic", context: RunContext = None) -> str:
+        """Identifies the dominant color in the camera view.
+        
+        Args:
+            detail_level: Detail level: 'basic' (default) or 'detailed'
+        """
         print("🎨 [TOOL] identify_color called")
         self.vision_tools.face_monitor = self.face_monitor
         return await self.vision_tools.identify_color(context)
     
     @function_tool
-    async def describe_environment(self, context: RunContext) -> str:
-        """Describes the current environment - people count and visible objects."""
+    async def describe_environment(self, detail_level: str = "full", context: RunContext = None) -> str:
+        """Describes the current environment - people count and visible objects.
+        
+        Args:
+            detail_level: Detail level: 'full' (default), 'people', or 'objects'
+        """
         print("👁️ [TOOL] describe_environment called")
         self.vision_tools.face_monitor = self.face_monitor
         return await self.vision_tools.describe_environment(context)
@@ -296,15 +308,23 @@ AVAILABLE TOOLS:
         return await self.vision_tools.identify_object(object_name, context)
     
     @function_tool
-    async def count_people_in_room(self, context: RunContext) -> str:
-        """Counts how many people are visible in the camera view."""
+    async def count_people_in_room(self, include_details: str = "count", context: RunContext = None) -> str:
+        """Counts how many people are visible in the camera view.
+        
+        Args:
+            include_details: Output type: 'count' (default) or 'detailed'
+        """
         print("👥 [TOOL] count_people_in_room called")
         self.vision_tools.face_monitor = self.face_monitor
         return await self.vision_tools.count_people_in_room(context)
     
     @function_tool
-    async def list_available_events(self, context: RunContext) -> str:
-        """Lists all available events on campus."""
+    async def list_available_events(self, filter_type: str = "all", context: RunContext = None) -> str:
+        """Lists all available events on campus.
+        
+        Args:
+            filter_type: Filter type: 'all' (default), 'today', or 'upcoming'
+        """
         print("📋 [TOOL] list_available_events called")
         return await self.content_tools.list_available_events(context)
     
@@ -321,26 +341,42 @@ AVAILABLE TOOLS:
         return await self.content_tools.show_location_map(location_query, context)
     
     @function_tool
-    async def get_cpu_temperature(self, context: RunContext) -> str:
-        """Gets the CPU temperature of the Raspberry Pi."""
+    async def get_cpu_temperature(self, unit: str = "celsius", context: RunContext = None) -> str:
+        """Gets the CPU temperature of the Raspberry Pi.
+        
+        Args:
+            unit: Temperature unit: 'celsius' (default) or 'fahrenheit'
+        """
         print("🌡️ [TOOL] get_cpu_temperature called")
         return await self.system_tools.get_cpu_temperature(context)
     
     @function_tool
-    async def get_system_info(self, context: RunContext) -> str:
-        """Gets comprehensive system information including CPU temperature, usage, memory, disk, and uptime."""
+    async def get_system_info(self, detail_level: str = "full", context: RunContext = None) -> str:
+        """Gets comprehensive system information including CPU temperature, usage, memory, disk, and uptime.
+        
+        Args:
+            detail_level: Detail level: 'full' (default), 'brief', or 'performance'
+        """
         print("💻 [TOOL] get_system_info called")
         return await self.system_tools.get_system_info(context)
     
     @function_tool
-    async def get_cpu_usage(self, context: RunContext) -> str:
-        """Gets the CPU usage percentage."""
+    async def get_cpu_usage(self, format_type: str = "percentage", context: RunContext = None) -> str:
+        """Gets the CPU usage percentage.
+        
+        Args:
+            format_type: Output format: 'percentage' (default) or 'detailed'
+        """
         print("⚡ [TOOL] get_cpu_usage called")
         return await self.system_tools.get_cpu_usage(context)
     
     @function_tool
-    async def get_memory_usage(self, context: RunContext) -> str:
-        """Gets the memory (RAM) usage information."""
+    async def get_memory_usage(self, format_type: str = "standard", context: RunContext = None) -> str:
+        """Gets the memory (RAM) usage information.
+        
+        Args:
+            format_type: Output format: 'standard' (default), 'percentage', or 'detailed'
+        """
         print("🧠 [TOOL] get_memory_usage called")
         return await self.system_tools.get_memory_usage(context)
     
