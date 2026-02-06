@@ -543,7 +543,7 @@ async def entrypoint(ctx: agents.JobContext):
         llm=openai.LLM(
             base_url="https://api.groq.com/openai/v1",
             api_key=os.getenv("GROQ_API_KEY"),
-            model="llama-3.3-70b-versatile"
+            model="llama-3.1-8b-instant"  # Smaller model, uses far fewer tokens
         ),
     )
     
