@@ -502,12 +502,12 @@ async def entrypoint(ctx: agents.JobContext):
     # Create session immediately (no waiting for ML models)
     session = AgentSession(
         stt=deepgram.STT(model="nova-2"),
-        tts=deepgram.TTS(model="aura-2-luna-en"),
+        tts=deepgram.TTS(model="aura-luna-en"),
         vad=silero.VAD.load(),
         llm=openai.LLM(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.getenv("OPENROUTER_API_KEY"),
-            model=os.getenv("LLM_CHOICE", "openai/gpt-4o-mini"),
+            base_url="https://api.groq.com/openai/v1",
+            api_key=os.getenv("GROQ_API_KEY"),
+            model="llama-3.3-70b-versatile"
         ),
     )
     
