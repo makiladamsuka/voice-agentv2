@@ -3,7 +3,17 @@ Poster Indexer - Extracts text from event posters using OCR
 Uses pytesseract (Tesseract OCR) which is lighter and compatible with Pi.
 """
 
-import pytesseract
+try:
+    import pytesseract
+    HAS_TESSERACT = True
+except ImportError:
+    print("⚠️ Pytesseract not found. OCR functionality will be disabled.")
+    HAS_TESSERACT = False
+    # Mock pytesseract
+    class pytesseract:
+        @staticmethod
+        def image_to_string(image):
+            return ""
 from PIL import Image
 from pathlib import Path
 from typing import Dict, List
@@ -21,6 +31,9 @@ class PosterIndexer:
     
     def extract_text(self, image_path: Path) -> str:
         """Extract all text from an image"""
+        if not HAS_TESSERACT:
+            return ""
+            
         try:
             image = Image.open(image_path)
             text = pytesseract.image_to_string(image)
