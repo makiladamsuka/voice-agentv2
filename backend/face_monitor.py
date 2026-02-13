@@ -10,7 +10,14 @@ import face_recognition
 import threading
 import time
 from typing import Dict, List, Optional, Set
-from picamera2 import Picamera2
+try:
+    from picamera2 import Picamera2
+    HAS_PICAMERA = True
+except ImportError:
+    print("⚠️ Picamera2 not found. Camera functionality will be disabled.")
+    HAS_PICAMERA = False
+    class Picamera2: pass # Dummy class to prevent type errors
+
 from object_detector import ObjectDetector
 
 # --- DEBUG SETTINGS ---
@@ -215,6 +222,11 @@ class FaceMonitor:
             
     def _monitor_loop(self):
         """Monitor loop using picamera2"""
+        if not HAS_PICAMERA:
+            print("❌ Picamera2 missing - monitor loop disabled")
+            self.is_running = False
+            return
+            
         print("🎥 Initializing picamera2...")
         
         try:
