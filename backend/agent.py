@@ -18,8 +18,8 @@ from greetings import generate_greeting, generate_group_greeting
 from event_database import EventDatabase, build_event_database
 from emotion_parser import parse_emotion, get_emotion_for_context
 from emotion_sync import get_emotion_for_text, analyze_emotion
-# Use procedural eyes instead of video-based oled_display
-import procedural_eyes as oled_display  # Same interface, procedural rendering
+# OLED/TFT display — now uses procedural rendering internally
+import oled_display  # start_emotion(), stop_emotion(), etc.
 
 # Import modular tools
 from tools.vision import VisionTools

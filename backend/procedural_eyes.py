@@ -1,511 +1,608 @@
 """
-Procedural Eyes - Vector-style animated robot eyes
+Procedural Eyes Engine - Vector-Style Living Robot Eyes
 
-Real-time eye rendering with smooth parameter interpolation.
-Replaces video-based emotions with procedural graphics.
+Generates real-time animated eye frames using parametric rendering.
+Every frame is unique — eyes breathe, blink, saccade, and drift
+just like a living creature.
+
+Supports:
+- ST7735 color TFT displays (128x160, RGB) via luma.lcd or SPI
+- SSD1306 monochrome OLEDs (128x64) via luma.oled (fallback)
+- Headless mode (no hardware — for development/testing on laptop)
+
+Output: 128x128 RGB PIL Image per frame
+(Display adapter handles split/rotate/send to hardware)
 """
 
-import time
 import math
+import time
+import random
 import threading
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple, List
 from PIL import Image, ImageDraw
 
-# Try to import luma.oled - gracefully fail if not on Pi
-try:
-    from luma.core.interface.serial import i2c
-    from luma.oled.device import ssd1306
-    LUMA_AVAILABLE = True
-except ImportError:
-    LUMA_AVAILABLE = False
-    print("⚠️ luma.oled not available - OLED display disabled")
 
+# ============================================================================
+# EYE PARAMETERS (all animatable)
+# ============================================================================
 
-# === Configuration ===
-I2C_PORT = 1
-LEFT_OLED_ADDRESS = 0x3d
-RIGHT_OLED_ADDRESS = 0x3c
+@dataclass
+class EyeParams:
+    """Parameters defining the appearance of a single eye."""
+    # Shape
+    eye_width: float = 28.0       # Width of eye opening
+    eye_height: float = 40.0      # Height of eye opening
+    corner_radius: float = 12.0   # Rounded corners
 
-# Eye dimensions for 128x64 OLED (we use 64x64 per eye)
-EYE_SIZE = 64
-CANVAS_SIZE = 128  # Full canvas (both eyes)
+    # Eyelids (0.0 = fully open, 1.0 = fully closed)
+    top_lid: float = 0.05         # Top eyelid closure (slight natural droop)
+    bottom_lid: float = 0.0       # Bottom eyelid closure
+    top_lid_angle: float = 0.0    # Tilt angle (-1 = angry inward, +1 = sad droop)
 
-# Animation settings
-TARGET_FPS = 30
-FRAME_TIME = 1.0 / TARGET_FPS
-TRANSITION_DURATION = 0.3  # Default emotion transition time
-BLINK_DURATION = 0.15
+    # Pupil / gaze
+    pupil_scale: float = 0.55     # Pupil size relative to eye
+    gaze_x: float = 0.0           # Horizontal gaze (-1 left, +1 right)
+    gaze_y: float = 0.0           # Vertical gaze (-1 up, +1 down)
 
+    # Global offsets
+    y_offset: float = 0.0         # Vertical offset (breathing)
+    x_offset: float = 0.0         # Horizontal offset (for asymmetry)
+    openness: float = 1.0         # Overall eye openness multiplier (0=closed, 1=open)
 
-# === Easing Functions ===
-def ease_in_out_cubic(t: float) -> float:
-    """Smooth start and end easing."""
-    if t < 0.5:
-        return 4 * t * t * t
-    return 1 - pow(-2 * t + 2, 3) / 2
-
-
-def ease_out_quad(t: float) -> float:
-    """Quick start, slow end."""
-    return 1 - (1 - t) * (1 - t)
+    # Color (RGB tuples — only used with color displays)
+    eye_color: Tuple[int, int, int] = (255, 255, 255)       # Eye white/sclera color
+    bg_color: Tuple[int, int, int] = (0, 0, 0)              # Background color
 
 
 def lerp(a: float, b: float, t: float) -> float:
-    """Linear interpolation between a and b."""
+    """Linear interpolation."""
     return a + (b - a) * t
 
 
-# === Eye Parameters ===
-@dataclass
-class EyeParams:
-    """Parameters that define eye appearance."""
-    eyelid_top: float = 0.2      # 0=open, 1=fully closed from top
-    eyelid_bottom: float = 0.0   # 0=normal, 1=raised (squint)
-    pupil_size: float = 0.5      # 0=tiny, 1=large
-    gaze_x: float = 0.5          # 0=left, 0.5=center, 1=right
-    gaze_y: float = 0.5          # 0=up, 0.5=center, 1=down
-    eye_height: float = 1.0      # Overall eye height multiplier
-    
-    def copy(self) -> 'EyeParams':
-        return EyeParams(
-            eyelid_top=self.eyelid_top,
-            eyelid_bottom=self.eyelid_bottom,
-            pupil_size=self.pupil_size,
-            gaze_x=self.gaze_x,
-            gaze_y=self.gaze_y,
-            eye_height=self.eye_height
-        )
-    
-    def lerp_to(self, target: 'EyeParams', t: float) -> 'EyeParams':
-        """Interpolate towards target parameters."""
-        return EyeParams(
-            eyelid_top=lerp(self.eyelid_top, target.eyelid_top, t),
-            eyelid_bottom=lerp(self.eyelid_bottom, target.eyelid_bottom, t),
-            pupil_size=lerp(self.pupil_size, target.pupil_size, t),
-            gaze_x=lerp(self.gaze_x, target.gaze_x, t),
-            gaze_y=lerp(self.gaze_y, target.gaze_y, t),
-            eye_height=lerp(self.eye_height, target.eye_height, t)
-        )
+def lerp_color(a: Tuple[int, int, int], b: Tuple[int, int, int], t: float) -> Tuple[int, int, int]:
+    """Interpolate between two RGB colors."""
+    return (
+        int(lerp(a[0], b[0], t)),
+        int(lerp(a[1], b[1], t)),
+        int(lerp(a[2], b[2], t)),
+    )
 
 
-# === Emotion Presets ===
+def ease_in_out_cubic(t: float) -> float:
+    """Smooth ease-in-out cubic curve."""
+    if t < 0.5:
+        return 4.0 * t * t * t
+    else:
+        return 1.0 - pow(-2.0 * t + 2.0, 3) / 2.0
+
+
+def ease_out_quad(t: float) -> float:
+    """Quick start, slow finish — used for blink open."""
+    return 1.0 - (1.0 - t) * (1.0 - t)
+
+
+def ease_in_quad(t: float) -> float:
+    """Slow start, quick finish — used for blink close."""
+    return t * t
+
+
+def blend_params(current: EyeParams, target: EyeParams, t: float) -> EyeParams:
+    """Blend between two EyeParams with interpolation factor t (0-1)."""
+    result = EyeParams()
+    for attr in ['eye_width', 'eye_height', 'corner_radius',
+                 'top_lid', 'bottom_lid', 'top_lid_angle',
+                 'pupil_scale', 'gaze_x', 'gaze_y',
+                 'y_offset', 'x_offset', 'openness']:
+        setattr(result, attr, lerp(getattr(current, attr), getattr(target, attr), t))
+    # Blend colors
+    result.eye_color = lerp_color(current.eye_color, target.eye_color, t)
+    result.bg_color = lerp_color(current.bg_color, target.bg_color, t)
+    return result
+
+
+# ============================================================================
+# EMOTION PRESETS
+# ============================================================================
+
+# Default eye color: bright cyan-white for that Vector/robot feel
+DEFAULT_EYE_COLOR = (180, 230, 255)    # Cool blue-white
+DEFAULT_BG_COLOR = (0, 0, 0)           # Black background
+
 EMOTION_PRESETS: Dict[str, EyeParams] = {
-    # Neutral states
-    "idle1": EyeParams(eyelid_top=0.2, eyelid_bottom=0.0, pupil_size=0.5),
-    "idle2": EyeParams(eyelid_top=0.1, eyelid_bottom=0.0, pupil_size=0.6),  # Alert/listening
-    
-    # Positive emotions
-    "happy": EyeParams(eyelid_top=0.45, eyelid_bottom=0.35, pupil_size=0.55),
-    "smile": EyeParams(eyelid_top=0.35, eyelid_bottom=0.25, pupil_size=0.5),
-    "loving": EyeParams(eyelid_top=0.3, eyelid_bottom=0.2, pupil_size=0.75),
-    
-    # Negative emotions
-    "sad": EyeParams(eyelid_top=0.5, eyelid_bottom=0.0, pupil_size=0.4, gaze_y=0.6),
-    "angry": EyeParams(eyelid_top=0.45, eyelid_bottom=0.4, pupil_size=0.35),
-    "boring": EyeParams(eyelid_top=0.6, eyelid_bottom=0.0, pupil_size=0.4),
-    
-    # Other states
-    "looking": EyeParams(eyelid_top=0.05, eyelid_bottom=0.0, pupil_size=0.7),
-    "surprised": EyeParams(eyelid_top=0.0, eyelid_bottom=0.0, pupil_size=0.8, eye_height=1.1),
-    
-    # Blink (used internally)
-    "blink": EyeParams(eyelid_top=1.0, eyelid_bottom=0.5, pupil_size=0.5),
+    "idle1": EyeParams(
+        eye_width=28, eye_height=40, corner_radius=12,
+        top_lid=0.05, bottom_lid=0.0, top_lid_angle=0.0,
+        pupil_scale=0.55, gaze_x=0.0, gaze_y=0.0,
+        openness=1.0,
+        eye_color=DEFAULT_EYE_COLOR, bg_color=DEFAULT_BG_COLOR,
+    ),
+    "idle2": EyeParams(  # Listening — alert, slightly wider
+        eye_width=30, eye_height=44, corner_radius=12,
+        top_lid=0.0, bottom_lid=0.0, top_lid_angle=0.0,
+        pupil_scale=0.50, gaze_x=0.0, gaze_y=-0.05,
+        openness=1.0,
+        eye_color=(200, 240, 255), bg_color=DEFAULT_BG_COLOR,
+    ),
+    "happy": EyeParams(
+        eye_width=30, eye_height=36, corner_radius=14,
+        top_lid=0.0, bottom_lid=0.35, top_lid_angle=0.0,
+        pupil_scale=0.50, gaze_x=0.0, gaze_y=-0.05,
+        openness=1.0,
+        eye_color=(180, 255, 200), bg_color=DEFAULT_BG_COLOR,  # Warm green tint
+    ),
+    "smile": EyeParams(
+        eye_width=28, eye_height=34, corner_radius=14,
+        top_lid=0.0, bottom_lid=0.25, top_lid_angle=0.0,
+        pupil_scale=0.52, gaze_x=0.0, gaze_y=0.0,
+        openness=1.0,
+        eye_color=(200, 245, 220), bg_color=DEFAULT_BG_COLOR,
+    ),
+    "sad": EyeParams(
+        eye_width=26, eye_height=36, corner_radius=10,
+        top_lid=0.2, bottom_lid=0.0, top_lid_angle=0.5,
+        pupil_scale=0.60, gaze_x=0.0, gaze_y=0.15,
+        openness=0.85,
+        eye_color=(150, 180, 230), bg_color=DEFAULT_BG_COLOR,  # Cool blue tint
+    ),
+    "angry": EyeParams(
+        eye_width=30, eye_height=30, corner_radius=8,
+        top_lid=0.3, bottom_lid=0.05, top_lid_angle=-0.7,
+        pupil_scale=0.45, gaze_x=0.0, gaze_y=0.0,
+        openness=0.9,
+        eye_color=(255, 160, 140), bg_color=DEFAULT_BG_COLOR,  # Red tint
+    ),
+    "looking": EyeParams(  # Curious / searching
+        eye_width=30, eye_height=44, corner_radius=12,
+        top_lid=0.0, bottom_lid=0.0, top_lid_angle=0.0,
+        pupil_scale=0.48, gaze_x=0.3, gaze_y=-0.1,
+        openness=1.0,
+        eye_color=(200, 220, 255), bg_color=DEFAULT_BG_COLOR,
+    ),
+    "boring": EyeParams(  # Sleepy / bored
+        eye_width=28, eye_height=28, corner_radius=14,
+        top_lid=0.45, bottom_lid=0.1, top_lid_angle=0.0,
+        pupil_scale=0.55, gaze_x=0.0, gaze_y=0.1,
+        openness=0.6,
+        eye_color=(160, 170, 180), bg_color=DEFAULT_BG_COLOR,  # Dim/grey
+    ),
+    "loving": EyeParams(  # Soft, warm
+        eye_width=28, eye_height=36, corner_radius=14,
+        top_lid=0.05, bottom_lid=0.2, top_lid_angle=0.15,
+        pupil_scale=0.65, gaze_x=0.0, gaze_y=0.0,
+        openness=0.95,
+        eye_color=(255, 200, 220), bg_color=DEFAULT_BG_COLOR,  # Pink tint
+    ),
 }
 
 
-# === Eye Renderer ===
+# ============================================================================
+# RENDERER — Draws a single frame
+# ============================================================================
+
 class EyeRenderer:
-    """Renders a single eye based on parameters - Vector-style blocky eyes."""
-    
-    def __init__(self, size: int = EYE_SIZE):
-        self.size = size
-        self.center_x = size // 2
-        self.center_y = size // 2
-        
-        # Eye shape constants - Vector style is more rectangular
-        self.eye_width = int(size * 0.75)
-        self.eye_height_base = int(size * 0.55)
-        self.corner_radius = int(size * 0.12)  # Rounded corners
-        self.pupil_max_radius = int(size * 0.18)
-    
-    def _draw_rounded_rect(self, draw, bbox, radius, fill):
-        """Draw a rounded rectangle."""
-        x1, y1, x2, y2 = bbox
-        
-        # Draw main rectangle
-        draw.rectangle([x1 + radius, y1, x2 - radius, y2], fill=fill)
-        draw.rectangle([x1, y1 + radius, x2, y2 - radius], fill=fill)
-        
-        # Draw corners
-        draw.ellipse([x1, y1, x1 + 2*radius, y1 + 2*radius], fill=fill)
-        draw.ellipse([x2 - 2*radius, y1, x2, y1 + 2*radius], fill=fill)
-        draw.ellipse([x1, y2 - 2*radius, x1 + 2*radius, y2], fill=fill)
-        draw.ellipse([x2 - 2*radius, y2 - 2*radius, x2, y2], fill=fill)
-        
-    def render(self, params: EyeParams) -> Image.Image:
-        """Render eye to PIL Image - Vector-style blocky design."""
-        img = Image.new('1', (self.size, self.size), 0)  # Black background
+    """Renders a pair of eyes into a 128x128 RGB image."""
+
+    CANVAS_SIZE = 128
+    # Eye centers (on the 128x128 canvas)
+    LEFT_EYE_CENTER = (32, 64)
+    RIGHT_EYE_CENTER = (96, 64)
+
+    def render(self, params: EyeParams, right_params: Optional[EyeParams] = None,
+               mono: bool = False) -> Image.Image:
+        """
+        Render a full frame with both eyes.
+
+        Args:
+            params: Parameters for left eye (also used for right if right_params is None)
+            right_params: Optional separate params for right eye (for asymmetry)
+            mono: If True, output monochrome '1' mode (for SSD1306 fallback)
+
+        Returns:
+            128x128 PIL Image (RGB or '1' mode)
+        """
+        img = Image.new('RGB', (self.CANVAS_SIZE, self.CANVAS_SIZE), params.bg_color)
         draw = ImageDraw.Draw(img)
-        
-        # Calculate dimensions
-        eye_h = int(self.eye_height_base * params.eye_height)
-        top_y = self.center_y - eye_h // 2
-        bottom_y = self.center_y + eye_h // 2
-        
-        # Eye bounds
-        left_x = self.center_x - self.eye_width // 2
-        right_x = self.center_x + self.eye_width // 2
-        
-        # Apply eyelids by adjusting the visible region
-        lid_top_y = top_y + int(eye_h * params.eyelid_top)
-        lid_bottom_y = bottom_y - int(eye_h * params.eyelid_bottom)
-        
-        visible_h = lid_bottom_y - lid_top_y
-        
-        if visible_h > 4:  # Only draw if eye is open enough
-            # Draw eye white as rounded rectangle
-            self._draw_rounded_rect(
-                draw, 
-                [left_x, lid_top_y, right_x, lid_bottom_y],
-                min(self.corner_radius, visible_h // 3),
-                fill=1
-            )
-            
-            # Draw pupil as smaller rounded rectangle (Vector style)
-            pupil_w = int(self.pupil_max_radius * 2 * params.pupil_size)
-            pupil_h = int(pupil_w * 1.2)  # Slightly taller than wide
-            
-            # Gaze offset
-            max_offset_x = (self.eye_width // 2) - pupil_w // 2 - 4
-            max_offset_y = (visible_h // 2) - pupil_h // 2 - 2
-            
-            gaze_offset_x = int((params.gaze_x - 0.5) * 2 * max(0, max_offset_x))
-            gaze_offset_y = int((params.gaze_y - 0.5) * 2 * max(0, max_offset_y))
-            
-            pupil_cx = self.center_x + gaze_offset_x
-            pupil_cy = (lid_top_y + lid_bottom_y) // 2 + gaze_offset_y
-            
-            # Draw pupil as rounded rect
-            pupil_radius = min(pupil_w // 4, pupil_h // 4, 3)
-            self._draw_rounded_rect(
-                draw,
-                [pupil_cx - pupil_w // 2, pupil_cy - pupil_h // 2,
-                 pupil_cx + pupil_w // 2, pupil_cy + pupil_h // 2],
-                pupil_radius,
-                fill=0
-            )
-        
+
+        rp = right_params if right_params else params
+
+        self._draw_eye(draw, self.LEFT_EYE_CENTER, params, is_left=True)
+        self._draw_eye(draw, self.RIGHT_EYE_CENTER, rp, is_left=False)
+
+        if mono:
+            return img.convert('1')
         return img
 
+    def _draw_eye(self, draw: ImageDraw.Draw, center: Tuple[int, int],
+                  params: EyeParams, is_left: bool):
+        """Draw a single eye with eyelid masks."""
+        cx, cy = center
+        cy += params.y_offset
+        cx += params.x_offset
 
-# === Main Procedural Eyes Class ===
-class ProceduralEyes:
+        # Effective dimensions
+        w = params.eye_width * params.openness
+        h = params.eye_height * params.openness
+        r = min(params.corner_radius, w / 2, h / 2)
+
+        if w < 2 or h < 2:
+            return  # Eye is closed
+
+        # --- Draw eye (rounded rectangle) ---
+        x0 = cx - w / 2
+        y0 = cy - h / 2
+        x1 = cx + w / 2
+        y1 = cy + h / 2
+
+        draw.rounded_rectangle(
+            [x0, y0, x1, y1],
+            radius=int(r),
+            fill=params.eye_color
+        )
+
+        # --- Draw eyelids (black masks over the eye) ---
+        self._draw_eyelids(draw, cx, cy, w, h, params, is_left)
+
+    def _draw_eyelids(self, draw: ImageDraw.Draw, cx: float, cy: float,
+                      w: float, h: float, params: EyeParams, is_left: bool):
+        """Draw top and bottom eyelid masks."""
+        half_w = w / 2 + 2  # Slight overflow to ensure clean mask
+        half_h = h / 2
+        bg = params.bg_color
+
+        # --- Top eyelid ---
+        if params.top_lid > 0.01:
+            lid_drop = half_h * params.top_lid * 2  # How far the lid drops
+
+            # Angle: create asymmetric droop
+            angle = params.top_lid_angle
+            if not is_left:
+                angle = -angle
+
+            left_drop = lid_drop + angle * half_h * 0.4
+            right_drop = lid_drop - angle * half_h * 0.4
+
+            # Draw as polygon (trapezoid mask)
+            points = [
+                (cx - half_w - 2, cy - half_h - 2),
+                (cx + half_w + 2, cy - half_h - 2),
+                (cx + half_w + 2, cy - half_h + right_drop),
+                (cx - half_w - 2, cy - half_h + left_drop),
+            ]
+            draw.polygon(points, fill=bg)
+
+        # --- Bottom eyelid ---
+        if params.bottom_lid > 0.01:
+            lid_rise = half_h * params.bottom_lid * 2
+
+            points = [
+                (cx - half_w - 2, cy + half_h + 2),
+                (cx + half_w + 2, cy + half_h + 2),
+                (cx + half_w + 2, cy + half_h - lid_rise),
+                (cx - half_w - 2, cy + half_h - lid_rise),
+            ]
+            draw.polygon(points, fill=bg)
+
+
+# ============================================================================
+# LIFE ENGINE — Adds organic micro-behaviors
+# ============================================================================
+
+class LifeEngine:
     """
-    Main class for procedural eye animation.
-    Manages both eyes, animation state, and OLED output.
+    Manages all the subtle autonomous behaviors that make eyes feel alive.
+    Runs independently from emotion state — these happen on top of everything.
     """
-    
+
+    def __init__(self):
+        self._lock = threading.Lock()
+
+        # Saccade state
+        self._saccade_x = 0.0
+        self._saccade_y = 0.0
+        self._next_saccade_time = 0.0
+
+        # Micro-drift state (slow wandering)
+        self._drift_x = 0.0
+        self._drift_y = 0.0
+        self._drift_target_x = 0.0
+        self._drift_target_y = 0.0
+        self._drift_speed = 0.3
+
+        # Breathing state
+        self._breath_phase = random.uniform(0, math.pi * 2)
+
+        # Blink state
+        self._blink_progress = 0.0
+        self._is_blinking = False
+        self._blink_phase = "idle"  # idle, closing, closed, opening
+        self._blink_timer = 0.0
+        self._next_blink_time = time.time() + random.uniform(2.0, 5.0)
+        self._double_blink = False
+        self._double_blink_done = False
+
+        # Squint variation
+        self._squint_offset = 0.0
+        self._squint_target = 0.0
+        self._next_squint_time = time.time() + random.uniform(5.0, 15.0)
+
+        # Timing
+        self._last_update = time.time()
+
+    def update(self, dt: float) -> dict:
+        """
+        Update all life behaviors and return offsets to apply.
+
+        Returns:
+            Dict with offset values to add to current eye params
+        """
+        now = time.time()
+
+        with self._lock:
+            offsets = {
+                'gaze_x': 0.0,
+                'gaze_y': 0.0,
+                'y_offset': 0.0,
+                'top_lid': 0.0,
+                'bottom_lid': 0.0,
+                'openness_mult': 1.0,
+            }
+
+            self._update_saccades(now, offsets)
+            self._update_drift(dt, offsets)
+            self._update_breathing(dt, offsets)
+            self._update_blink(now, dt, offsets)
+            self._update_squint(now, dt, offsets)
+
+            return offsets
+
+    def _update_saccades(self, now: float, offsets: dict):
+        """Quick, tiny pupil jumps."""
+        if now >= self._next_saccade_time:
+            magnitude = random.gauss(0, 0.04)
+            angle = random.uniform(0, math.pi * 2)
+            self._saccade_x = magnitude * math.cos(angle)
+            self._saccade_y = magnitude * math.sin(angle) * 0.5
+            self._next_saccade_time = now + random.uniform(0.3, 1.2)
+
+        offsets['gaze_x'] += self._saccade_x
+        offsets['gaze_y'] += self._saccade_y
+
+    def _update_drift(self, dt: float, offsets: dict):
+        """Slow, continuous pupil drift."""
+        if random.random() < dt * 0.15:
+            self._drift_target_x = random.gauss(0, 0.06)
+            self._drift_target_y = random.gauss(0, 0.04)
+
+        self._drift_x += (self._drift_target_x - self._drift_x) * self._drift_speed * dt
+        self._drift_y += (self._drift_target_y - self._drift_y) * self._drift_speed * dt
+
+        offsets['gaze_x'] += self._drift_x
+        offsets['gaze_y'] += self._drift_y
+
+    def _update_breathing(self, dt: float, offsets: dict):
+        """Subtle sinusoidal vertical oscillation ~0.2 Hz."""
+        self._breath_phase += dt * 0.2 * math.pi * 2
+        if self._breath_phase > math.pi * 2:
+            self._breath_phase -= math.pi * 2
+
+        offsets['y_offset'] += math.sin(self._breath_phase) * 1.0
+
+    def _update_blink(self, now: float, dt: float, offsets: dict):
+        """
+        Natural blink with asymmetric timing:
+        - Close: ~60ms (fast)
+        - Hold: ~30ms
+        - Open: ~160ms (slow)
+        """
+        CLOSE_DURATION = 0.06
+        HOLD_DURATION = 0.03
+        OPEN_DURATION = 0.16
+
+        if self._blink_phase == "idle":
+            if now >= self._next_blink_time:
+                self._blink_phase = "closing"
+                self._blink_timer = 0.0
+                self._double_blink = random.random() < 0.15
+                self._double_blink_done = False
+
+        elif self._blink_phase == "closing":
+            self._blink_timer += dt
+            t = min(1.0, self._blink_timer / CLOSE_DURATION)
+            self._blink_progress = ease_in_quad(t)
+            if t >= 1.0:
+                self._blink_phase = "closed"
+                self._blink_timer = 0.0
+
+        elif self._blink_phase == "closed":
+            self._blink_timer += dt
+            self._blink_progress = 1.0
+            if self._blink_timer >= HOLD_DURATION:
+                self._blink_phase = "opening"
+                self._blink_timer = 0.0
+
+        elif self._blink_phase == "opening":
+            self._blink_timer += dt
+            t = min(1.0, self._blink_timer / OPEN_DURATION)
+            self._blink_progress = 1.0 - ease_out_quad(t)
+            if t >= 1.0:
+                self._blink_progress = 0.0
+                if self._double_blink and not self._double_blink_done:
+                    self._blink_phase = "closing"
+                    self._blink_timer = 0.0
+                    self._double_blink_done = True
+                else:
+                    self._blink_phase = "idle"
+                    self._next_blink_time = now + random.uniform(2.5, 6.0)
+
+        if self._blink_progress > 0.01:
+            offsets['openness_mult'] = 1.0 - self._blink_progress * 0.95
+
+    def _update_squint(self, now: float, dt: float, offsets: dict):
+        """Occasional subtle eyelid micro-adjustments."""
+        if now >= self._next_squint_time:
+            self._squint_target = random.gauss(0, 0.03)
+            self._next_squint_time = now + random.uniform(4.0, 12.0)
+
+        self._squint_offset += (self._squint_target - self._squint_offset) * 0.5 * dt
+        offsets['top_lid'] += max(0, self._squint_offset)
+        offsets['bottom_lid'] += max(0, -self._squint_offset)
+
+    def force_blink(self):
+        """Trigger an immediate blink."""
+        with self._lock:
+            self._blink_phase = "closing"
+            self._blink_timer = 0.0
+            self._double_blink = False
+
+
+# ============================================================================
+# EYE DISPLAY CONTROLLER — Ties it all together
+# ============================================================================
+
+class ProceduralEyeDisplay:
+    """
+    Main controller for the procedural eye system.
+
+    Usage:
+        display = ProceduralEyeDisplay()
+        display.set_emotion("happy")
+        frame = display.render_frame(dt)  # Call at ~30fps
+    """
+
+    TRANSITION_SPEED = 3.5  # Higher = faster emotion transitions
+
     def __init__(self):
         self.renderer = EyeRenderer()
-        
-        # Current and target parameters
-        self.current = EyeParams()
-        self.target = EyeParams()
-        self.base_emotion = "idle1"  # For returning after blink
-        
-        # Animation state
-        self.transition_start = 0.0
-        self.transition_duration = TRANSITION_DURATION
-        self.start_params: Optional[EyeParams] = None
-        
-        # Blink state
-        self.is_blinking = False
-        self.blink_start = 0.0
-        self.next_blink_time = time.time() + 3.0
-        
-        # Micro-movement state
-        self.micro_offset_x = 0.0
-        self.micro_offset_y = 0.0
-        self.last_micro_update = 0.0
-        
-        # OLED devices
-        self.left_device = None
-        self.right_device = None
-        
-        # Thread control
-        self.running = False
-        self.thread: Optional[threading.Thread] = None
-    
-    def _setup_devices(self):
-        """Initialize OLED displays."""
-        if not LUMA_AVAILABLE:
-            print("⚠️ OLED not available")
-            return False
-        
-        try:
-            serial_left = i2c(port=I2C_PORT, address=LEFT_OLED_ADDRESS)
-            self.left_device = ssd1306(serial_left)
-            print(f"✅ LEFT OLED initialized")
-            
-            serial_right = i2c(port=I2C_PORT, address=RIGHT_OLED_ADDRESS)
-            self.right_device = ssd1306(serial_right)
-            print(f"✅ RIGHT OLED initialized")
-            
-            return True
-        except Exception as e:
-            print(f"⚠️ OLED init failed: {e}")
-            return False
-    
-    def start(self) -> bool:
-        """Start the animation thread."""
-        if self.running:
-            return True
-        
-        if not self._setup_devices():
-            print("⚠️ Running in headless mode (no OLED)")
-        
-        self.running = True
-        self.thread = threading.Thread(target=self._animation_loop, daemon=True)
-        self.thread.start()
-        print(f"👀 Procedural eyes started ({TARGET_FPS} FPS)")
-        return True
-    
-    def stop(self):
-        """Stop animation and clear displays."""
-        self.running = False
-        if self.thread:
-            self.thread.join(timeout=1.0)
-        
-        if self.left_device:
-            self.left_device.clear()
-        if self.right_device:
-            self.right_device.clear()
-        
-        print("👀 Procedural eyes stopped")
-    
-    def set_emotion(self, emotion: str, duration: float = TRANSITION_DURATION):
-        """
-        Transition to an emotion.
-        
-        Args:
-            emotion: Name of emotion preset
-            duration: Transition time in seconds
-        """
+        self.life = LifeEngine()
+
+        # Current interpolated parameters
+        self._current_params = EyeParams(
+            eye_color=DEFAULT_EYE_COLOR, bg_color=DEFAULT_BG_COLOR
+        )
+        # Target emotion parameters
+        self._target_params = EyeParams(
+            eye_color=DEFAULT_EYE_COLOR, bg_color=DEFAULT_BG_COLOR
+        )
+        self._target_emotion = "idle1"
+
+        self._lock = threading.Lock()
+
+    def set_emotion(self, emotion_name: str):
+        """Set the target emotion. Eyes will smoothly transition to it."""
+        emotion = emotion_name.strip().lower()
         if emotion not in EMOTION_PRESETS:
-            print(f"⚠️ Unknown emotion: {emotion}")
-            return
-        
-        print(f"🎭 Setting emotion: {emotion}")
-        self.base_emotion = emotion
-        self.target = EMOTION_PRESETS[emotion].copy()
-        self.start_params = self.current.copy()
-        self.transition_start = time.time()
-        self.transition_duration = duration
-    
-    def blink(self):
-        """Trigger a blink animation."""
-        if self.is_blinking:
-            return
-        
-        self.is_blinking = True
-        self.blink_start = time.time()
-        self.start_params = self.current.copy()
-    
-    def look_at(self, x: float, y: float, duration: float = 0.2):
+            print(f"⚠️ Unknown emotion '{emotion}', defaulting to idle1")
+            emotion = "idle1"
+
+        with self._lock:
+            if emotion != self._target_emotion:
+                self._target_emotion = emotion
+                self._target_params = EMOTION_PRESETS[emotion]
+
+    def get_emotion(self) -> str:
+        """Get the current target emotion name."""
+        return self._target_emotion
+
+    def render_frame(self, dt: float, mono: bool = False) -> Image.Image:
         """
-        Move gaze to position.
-        
+        Generate one frame of animation.
+
         Args:
-            x: 0=left, 0.5=center, 1=right
-            y: 0=up, 0.5=center, 1=down
+            dt: Delta time since last frame in seconds
+            mono: If True, output monochrome '1' mode (SSD1306 fallback)
+
+        Returns:
+            128x128 PIL Image (RGB or '1')
         """
-        new_target = self.target.copy()
-        new_target.gaze_x = max(0, min(1, x))
-        new_target.gaze_y = max(0, min(1, y))
-        
-        self.target = new_target
-        self.start_params = self.current.copy()
-        self.transition_start = time.time()
-        self.transition_duration = duration
-    
-    def _update_animation(self):
-        """Update current parameters based on animation state."""
-        now = time.time()
-        
-        # Handle blink
-        if self.is_blinking:
-            blink_progress = (now - self.blink_start) / BLINK_DURATION
-            
-            if blink_progress >= 1.0:
-                # Blink complete
-                self.is_blinking = False
-                self.current = EMOTION_PRESETS[self.base_emotion].copy()
-            elif blink_progress < 0.5:
-                # Closing
-                t = ease_out_quad(blink_progress * 2)
-                self.current = self.start_params.lerp_to(EMOTION_PRESETS["blink"], t)
-            else:
-                # Opening
-                t = ease_out_quad((blink_progress - 0.5) * 2)
-                self.current = EMOTION_PRESETS["blink"].lerp_to(EMOTION_PRESETS[self.base_emotion], t)
-            return
-        
-        # Handle emotion transition
-        if self.start_params and self.transition_duration > 0:
-            elapsed = now - self.transition_start
-            progress = min(1.0, elapsed / self.transition_duration)
-            t = ease_in_out_cubic(progress)
-            self.current = self.start_params.lerp_to(self.target, t)
-            
-            if progress >= 1.0:
-                self.start_params = None
-        
-        # Add micro-movements for idle
-        if now - self.last_micro_update > 2.0:
-            self.micro_offset_x = (math.sin(now * 0.5) * 0.03)
-            self.micro_offset_y = (math.cos(now * 0.7) * 0.02)
-            self.last_micro_update = now
-        
-        # Apply micro-movements
-        self.current.gaze_x = self.target.gaze_x + self.micro_offset_x
-        self.current.gaze_y = self.target.gaze_y + self.micro_offset_y
-        
-        # Auto-blink
-        if now > self.next_blink_time:
-            self.blink()
-            self.next_blink_time = now + 3.0 + (math.sin(now) + 1) * 2  # 3-7 seconds
-    
-    def _render_frame(self) -> Tuple[Image.Image, Image.Image]:
-        """Render both eyes."""
-        # Left eye (mirror gaze_x for natural looking)
-        left_params = self.current.copy()
-        left_params.gaze_x = 1.0 - self.current.gaze_x  # Mirror
-        left_img = self.renderer.render(left_params)
-        
-        # Right eye
-        right_img = self.renderer.render(self.current)
-        
-        return left_img, right_img
-    
-    def _display_frame(self, left_img: Image.Image, right_img: Image.Image):
-        """Send frame to OLED displays."""
-        # OLED is 128x64. We render 64x64 eyes.
-        # We need to create 128x64 canvas, center the eye, and rotate.
-        
-        if self.left_device:
-            # Create 128x64 canvas (will become 64x128 after rotation, but OLED handles this)
-            # Actually the OLED is in portrait mode, so we create 64x128, put eye in center
-            canvas = Image.new('1', (64, 128), 0)  # Create tall canvas
-            # Paste 64x64 eye centered vertically
-            canvas.paste(left_img, (0, 32))  # Center at (0, 32) -> eye fills 32-96
-            # Rotate for OLED orientation
-            left_rotated = canvas.rotate(-90, expand=True)  # Now 128x64
-            self.left_device.display(left_rotated)
-        
-        if self.right_device:
-            canvas = Image.new('1', (64, 128), 0)
-            canvas.paste(right_img, (0, 32))
-            right_rotated = canvas.rotate(90, expand=True)  # Now 128x64
-            self.right_device.display(right_rotated)
-    
-    def _animation_loop(self):
-        """Main animation loop running in thread."""
-        while self.running:
-            start = time.time()
-            
-            # Update animation state
-            self._update_animation()
-            
-            # Render and display
-            left_img, right_img = self._render_frame()
-            self._display_frame(left_img, right_img)
-            
-            # Maintain frame rate
-            elapsed = time.time() - start
-            sleep_time = FRAME_TIME - elapsed
-            if sleep_time > 0:
-                time.sleep(sleep_time)
+        with self._lock:
+            # 1. Blend current params toward target emotion
+            blend_t = min(1.0, self.TRANSITION_SPEED * dt)
+            blend_t = ease_in_out_cubic(blend_t)
+            self._current_params = blend_params(
+                self._current_params, self._target_params, blend_t
+            )
+
+        # 2. Get life behavior offsets
+        life_offsets = self.life.update(dt)
+
+        # 3. Create final render params with life overlays
+        left_params = EyeParams(
+            eye_width=self._current_params.eye_width,
+            eye_height=self._current_params.eye_height,
+            corner_radius=self._current_params.corner_radius,
+            top_lid=max(0, self._current_params.top_lid + life_offsets['top_lid']),
+            bottom_lid=max(0, self._current_params.bottom_lid + life_offsets['bottom_lid']),
+            top_lid_angle=self._current_params.top_lid_angle,
+            pupil_scale=self._current_params.pupil_scale,
+            gaze_x=self._current_params.gaze_x + life_offsets['gaze_x'],
+            gaze_y=self._current_params.gaze_y + life_offsets['gaze_y'],
+            y_offset=self._current_params.y_offset + life_offsets['y_offset'],
+            x_offset=self._current_params.x_offset,
+            openness=self._current_params.openness * life_offsets['openness_mult'],
+            eye_color=self._current_params.eye_color,
+            bg_color=self._current_params.bg_color,
+        )
+
+        # Right eye: slight asymmetry
+        right_params = EyeParams(
+            eye_width=left_params.eye_width,
+            eye_height=left_params.eye_height,
+            corner_radius=left_params.corner_radius,
+            top_lid=left_params.top_lid,
+            bottom_lid=left_params.bottom_lid,
+            top_lid_angle=left_params.top_lid_angle,
+            pupil_scale=left_params.pupil_scale,
+            gaze_x=left_params.gaze_x,
+            gaze_y=left_params.gaze_y,
+            y_offset=left_params.y_offset + 0.3,  # Tiny vertical offset
+            x_offset=left_params.x_offset,
+            openness=left_params.openness,
+            eye_color=left_params.eye_color,
+            bg_color=left_params.bg_color,
+        )
+
+        # 4. Render
+        return self.renderer.render(left_params, right_params, mono=mono)
 
 
-# === Module-level interface (matches oled_display.py) ===
-_eyes: Optional[ProceduralEyes] = None
-DISPLAY_RUNNING = False
+# ============================================================================
+# STANDALONE TEST
+# ============================================================================
 
-
-def setup_and_start_display():
-    """Start procedural eyes. Call at agent startup."""
-    global _eyes, DISPLAY_RUNNING
-    
-    _eyes = ProceduralEyes()
-    if _eyes.start():
-        DISPLAY_RUNNING = True
-        return _eyes.thread
-    return None
-
-
-def display_emotion(emotion: str) -> bool:
-    """Display an emotion (one-shot, returns to idle)."""
-    global _eyes
-    if _eyes and DISPLAY_RUNNING:
-        _eyes.set_emotion(emotion)
-        return True
-    return False
-
-
-def start_emotion(emotion: str) -> bool:
-    """Start playing an emotion (looping mode)."""
-    return display_emotion(emotion)
-
-
-def stop_emotion() -> bool:
-    """Return to idle state."""
-    global _eyes
-    if _eyes and DISPLAY_RUNNING:
-        _eyes.set_emotion("idle1")
-        return True
-    return False
-
-
-def stop_display():
-    """Stop the display."""
-    global _eyes, DISPLAY_RUNNING
-    if _eyes:
-        _eyes.stop()
-    DISPLAY_RUNNING = False
-
-
-# === Test ===
 if __name__ == "__main__":
-    print("Testing Procedural Eyes\n" + "=" * 40)
-    
-    eyes = ProceduralEyes()
-    eyes.start()
-    
-    # Test emotions
-    emotions = ["idle1", "happy", "sad", "angry", "looking", "loving"]
-    
-    try:
-        for emotion in emotions:
-            print(f"\n>>> {emotion}")
-            eyes.set_emotion(emotion)
-            time.sleep(2)
-        
-        print("\n>>> Testing blink")
-        eyes.blink()
-        time.sleep(1)
-        
-        print("\n>>> Testing look_at")
-        eyes.look_at(0.2, 0.3)
-        time.sleep(1)
-        eyes.look_at(0.8, 0.7)
-        time.sleep(1)
-        
-        print("\nPress Ctrl+C to stop...")
-        while True:
-            time.sleep(1)
-            
-    except KeyboardInterrupt:
-        print("\nStopping...")
-    
-    eyes.stop()
+    import os
+
+    print("🔬 Procedural Eyes — Standalone Test (Color ST7735)")
+    print("=" * 50)
+
+    display = ProceduralEyeDisplay()
+
+    output_dir = "/tmp/procedural_eyes_test"
+    os.makedirs(output_dir, exist_ok=True)
+
+    emotions = ["idle1", "happy", "sad", "angry", "looking", "smile", "boring", "loving", "idle2"]
+
+    frame_count = 0
+    dt = 1.0 / 30.0
+
+    for emotion in emotions:
+        print(f"\n  Testing: {emotion}")
+        display.set_emotion(emotion)
+
+        # Render 45 frames (~1.5s) per emotion
+        for i in range(45):
+            frame = display.render_frame(dt)
+
+            # Save every 15th frame
+            if i % 15 == 0:
+                path = os.path.join(output_dir, f"frame_{frame_count:04d}_{emotion}_{i:03d}.png")
+                frame_resized = frame.resize((256, 256), Image.NEAREST)
+                frame_resized.save(path)
+
+            frame_count += 1
+
+    print(f"\n✅ Test complete! {frame_count} frames rendered")
+    print(f"   Sample frames saved to: {output_dir}")
+    print(f"   Total emotions tested: {len(emotions)}")
+    print(f"   Mode: RGB color (for ST7735 TFT)")
