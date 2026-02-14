@@ -23,8 +23,9 @@ chromadb
 # Use system numpy via: python3 -m venv --system-site-packages venv
 # This avoids version conflicts with picamera2/simplejpeg
 
-# OLED emotion display
+# Display drivers (auto-detected: ST7735 color TFT preferred, SSD1306 mono fallback)
 luma.oled
+luma.lcd
 
 # Sentiment analysis for emotion sync
 vaderSentiment
