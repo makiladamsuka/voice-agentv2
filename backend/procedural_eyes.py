@@ -16,9 +16,9 @@ BG_COLOR = (0, 0, 0)      # Black
 EYE_SIZE = 120           # Base size
 FLOOR_Y = SCREEN_HEIGHT - 5
 
-# Blink Speed (Higher = Faster close/open)
-BLINK_CLOSE_SPEED = 0.35  # Fraction of height per frame to close
-BLINK_OPEN_SPEED  = 0.28  # Fraction of height per frame to open
+# Blink Speed (Higher = Faster)
+BLINK_SPEED_MIN = 8.0   # Was 3.5 — now much snappier
+BLINK_SPEED_MAX = 12.0  # Was 5.0
 
 # --- Emotion Presets ---
 EMOTION_PRESETS = {
@@ -98,9 +98,14 @@ class BlockyEye:
         # Speech reactivity
         self.speech_amplitude = 0.0  # 0.0 to 1.0
 
-    def start_blink(self, saccade=False):
+    def start_blink(self, speed_mult=None, saccade=False):
         if self.blink_state == "IDLE":
-            self.blink_state = "CLOSING"
+            self.blink_state = "DROPPING"
+            if speed_mult is not None:
+                self.blink_speed_mult = speed_mult
+            else:
+                self.blink_speed_mult = random.uniform(BLINK_SPEED_MIN, BLINK_SPEED_MAX)
+            self.vy = 40 * self.blink_speed_mult
             self.saccade_pending = saccade
             if saccade:
                 self.saccade_offset = [
@@ -223,34 +228,47 @@ class BlockyEye:
             self.target_w = (self.base_w * self.scale_w) + breath_w + (move_stretch_x * 0.5)
             self.target_h = (self.base_h * self.scale_h) + breath_h - (move_stretch_y * 0.2)
 
-        elif self.blink_state == "CLOSING":
-            # Fast eyelid-style close: reduce height in place
-            close_amount = self.base_h * BLINK_CLOSE_SPEED
-            self.current_h -= close_amount
-            self.current_w = self.base_w  # Stay same width
+        elif self.blink_state == "DROPPING":
+            self.vy += 10 * self.blink_speed_mult
+            self.current_pos[1] += self.vy
+            self.current_w = self.base_w - 10
+            self.current_h = self.base_h + 20
             self.target_w = self.current_w
             self.target_h = self.current_h
 
-            if self.current_h <= 4:
-                self.current_h = 4
-                # SACCADE: jump position while eye is fully closed
+            if self.current_pos[1] + self.current_h // 2 >= FLOOR_Y:
+                self.current_pos[1] = FLOOR_Y - self.current_h // 2
+                self.blink_state = "SQUASHING"
+                self.velocity = [0.0, 0.0]
+
+        elif self.blink_state == "SQUASHING":
+            squeeze_speed = 65 * self.blink_speed_mult
+            spread_speed = 40 * self.blink_speed_mult
+            self.current_h -= squeeze_speed
+            self.current_w += spread_speed
+            self.current_pos[1] = FLOOR_Y - self.current_h // 2
+
+            if self.current_h <= 22:
+                self.current_h = 22
                 if self.saccade_pending:
                     self.target_pos[0] = self.base_x + self.saccade_offset[0]
                     self.target_pos[1] = self.base_y + self.saccade_offset[1]
                     self.current_pos[0] = self.target_pos[0]
-                    self.current_pos[1] = self.target_pos[1]
                     self.saccade_pending = False
-                self.blink_state = "OPENING"
+                self.blink_state = "JUMPING"
 
-        elif self.blink_state == "OPENING":
-            # Fast eyelid-style open: restore height in place
-            open_amount = self.base_h * BLINK_OPEN_SPEED
-            self.current_h += open_amount
-            self.current_w = self.base_w
-            self.target_w = self.current_w
-            self.target_h = self.current_h
+        elif self.blink_state == "JUMPING":
+            recovery_speed = max(0.15, min(0.95, 0.85 * self.blink_speed_mult))
+            self.current_h += (self.base_h - self.current_h) * recovery_speed
+            self.current_w += (self.base_w - self.current_w) * recovery_speed
 
-            if self.current_h >= self.base_h:
+            self.vel_x = (self.vel_x + (self.target_pos[0] - self.current_pos[0]) * 0.1) * 0.8
+            self.current_pos[0] += self.vel_x
+
+            target_y = self.target_pos[1]
+            self.current_pos[1] += (target_y - self.current_pos[1]) * 0.8
+
+            if abs(self.current_h - self.base_h) < 5 and abs(self.current_pos[1] - target_y) < 5:
                 self.current_h = self.base_h
                 self.current_w = self.base_w
                 self.blink_state = "IDLE"
@@ -396,10 +414,10 @@ class ProceduralEyeDisplay:
     def render_frame(self, dt: float, mono: bool = False):
         # Update shared blink logic
         if time.time() > self.next_blink_time:
-            # ~30% of blinks are saccade blinks (vanish + reappear in new spot)
+            blink_speed = random.uniform(BLINK_SPEED_MIN, BLINK_SPEED_MAX)
             do_saccade = (random.random() < 0.30)
-            self.left_eye.start_blink(saccade=do_saccade)
-            self.right_eye.start_blink(saccade=do_saccade)
+            self.left_eye.start_blink(blink_speed, saccade=do_saccade)
+            self.right_eye.start_blink(blink_speed, saccade=do_saccade)
             self.next_blink_time = time.time() + random.uniform(3.5, 7.0)
             
         # Smooth tracking (from face monitor)
