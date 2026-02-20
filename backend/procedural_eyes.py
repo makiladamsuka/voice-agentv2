@@ -41,7 +41,7 @@ EMOTION_PRESETS = {
     "suspicious": {"scale_w": 1.1, "scale_h": 0.55, "top_lid": 0.45, "bottom_lid": 0.45, "lid_angle": 0.0, "mirror_angle": True},
     "sleepy": {"scale_w": 1.1, "scale_h": 1.0,  "top_lid": 0.65, "bottom_lid": 0.0,  "lid_angle": 0.0,  "mirror_angle": True},
     "looking": {"scale_w": 1.0, "scale_h": 0.9, "top_lid": 0.28, "bottom_lid": 0.0,  "lid_angle": -8.0, "mirror_angle": False},
-    "thinking": {"scale_w": 1.05, "scale_h": 1.05, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},  # Wide alert eyes — actively processing
+    "thinking": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.22, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},  # Squinted + alert gaze movement
 }
 
 class BlockyEye:
