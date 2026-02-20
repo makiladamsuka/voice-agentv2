@@ -64,9 +64,12 @@ class BlockyEye:
         self.rot_speed = random.uniform(0.15, 0.25)
 
         self.is_left = is_left
+        # Blink state
         self.blink_state = "IDLE"
         self.vy = 0
         self.blink_speed_mult = 1.0
+        self.saccade_pending = False  # Will shift position mid-blink
+        self.saccade_offset = [0.0, 0.0]  # Random shift during blink
 
         self.target_scale_w = 1.0
         self.target_scale_h = 1.0
@@ -95,7 +98,7 @@ class BlockyEye:
         # Speech reactivity
         self.speech_amplitude = 0.0  # 0.0 to 1.0
 
-    def start_blink(self, speed_mult=None):
+    def start_blink(self, speed_mult=None, saccade=False):
         if self.blink_state == "IDLE":
             self.blink_state = "DROPPING"
             if speed_mult is not None:
@@ -103,6 +106,13 @@ class BlockyEye:
             else:
                 self.blink_speed_mult = random.uniform(BLINK_SPEED_MIN, BLINK_SPEED_MAX)
             self.vy = 40 * self.blink_speed_mult
+            self.saccade_pending = saccade
+            if saccade:
+                # Pick a random offset to appear at after the blink
+                self.saccade_offset = [
+                    random.uniform(-18, 18),
+                    random.uniform(-12, 12)
+                ]
 
     def set_emotion(self, emotion_name: str, intensity: float = 1.0):
         if emotion_name not in EMOTION_PRESETS:
@@ -243,6 +253,12 @@ class BlockyEye:
 
             if self.current_h <= 22:
                 self.current_h = 22
+                # SACCADE: secretly shift target position while eye is flat
+                if self.saccade_pending:
+                    self.target_pos[0] = self.base_x + self.saccade_offset[0]
+                    self.target_pos[1] = self.base_y + self.saccade_offset[1]
+                    self.current_pos[0] = self.target_pos[0]
+                    self.saccade_pending = False
                 self.blink_state = "JUMPING"
 
         elif self.blink_state == "JUMPING":
@@ -403,20 +419,26 @@ class ProceduralEyeDisplay:
         # Update shared blink logic
         if time.time() > self.next_blink_time:
             blink_speed = random.uniform(BLINK_SPEED_MIN, BLINK_SPEED_MAX)
-            self.left_eye.start_blink(blink_speed)
-            self.right_eye.start_blink(blink_speed)
+            # ~30% of blinks are saccade blinks (vanish + reappear in new spot)
+            do_saccade = (random.random() < 0.30)
+            self.left_eye.start_blink(blink_speed, saccade=do_saccade)
+            self.right_eye.start_blink(blink_speed, saccade=do_saccade)
             self.next_blink_time = time.time() + random.uniform(3.5, 7.0)
             
-        # Smooth tracking
+        # Smooth tracking (from face monitor)
         smooth_alpha = 0.15
         self.smoothed_x_off += (self.target_x_off - self.smoothed_x_off) * smooth_alpha
         self.smoothed_y_off += (self.target_y_off - self.smoothed_y_off) * smooth_alpha
         
         # Update eyes
         for eye in (self.left_eye, self.right_eye):
-            # Apply tracking offset (ignoring thinking/happy wander for base pos)
-            eye.target_pos[0] = eye.base_x + self.smoothed_x_off
-            eye.target_pos[1] = eye.base_y + self.smoothed_y_off
+            # The saccade_offset lives inside BlockyEye.target_pos directly.
+            # When not in a saccade, track face + smoothed offset.
+            # After a saccade, slowly let eyes drift back to base + tracking.
+            if eye.blink_state == "IDLE" and not eye.saccade_pending:
+                # Gently return saccade drift to tracking position
+                eye.target_pos[0] += (eye.base_x + self.smoothed_x_off - eye.target_pos[0]) * 0.015
+                eye.target_pos[1] += (eye.base_y + self.smoothed_y_off - eye.target_pos[1]) * 0.015
             # Physics update
             eye.update()
             
