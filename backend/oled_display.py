@@ -38,6 +38,7 @@ disp_r = None
 DISPLAY_RUNNING = False
 _stop_event = threading.Event()
 current_emotion = "idle"
+speech_amplitude = 0.0  # 0.0 to 1.0, driven by audio output
 
 def setup_and_start_display():
     global _eye_display, _display_thread, disp_l, disp_r, DISPLAY_RUNNING
@@ -137,6 +138,17 @@ def update_face_target(x, y):
     """
     if _eye_display:
         _eye_display.set_face_target(x, y)
+
+def set_speech_amplitude(amplitude: float):
+    """
+    Set the current speech amplitude (0.0 to 1.0).
+    Called from audio output stream to drive eye reactivity.
+    """
+    global speech_amplitude
+    speech_amplitude = max(0.0, min(1.0, amplitude))
+    if _eye_display:
+        _eye_display.left_eye.speech_amplitude = speech_amplitude
+        _eye_display.right_eye.speech_amplitude = speech_amplitude
 
 def _display_loop():
     last_frame = time.time()
