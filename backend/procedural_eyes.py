@@ -25,7 +25,7 @@ EMOTION_PRESETS = {
     "idle":  {"scale_w": 1.0, "scale_h": 1.0,  "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},
     "idle1": {"scale_w": 1.0, "scale_h": 1.0,  "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},  # Alias
     "idle2": {"scale_w": 1.0, "scale_h": 1.02, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},  # Listening: barely wider, very still
-    "happy": {"scale_w": 1.15, "scale_h": 0.85, "top_lid": 0.0, "bottom_lid": 0.45, "lid_angle": 0.0, "mirror_angle": True},  # Squint-smile: tall enough to see, bottom lid creates crescent
+    "happy": {"scale_w": 1.0,  "scale_h": 0.82, "top_lid": 0.0, "bottom_lid": 0.42, "lid_angle": 0.0, "mirror_angle": True},  # Squint-smile, safe scale
     "sad":   {"scale_w": 1.1, "scale_h": 1.1,  "top_lid": 0.4,  "bottom_lid": 0.0,  "lid_angle": 18.0,  "mirror_angle": True},
     "angry": {"scale_w": 1.0, "scale_h": 0.85, "top_lid": 0.45, "bottom_lid": 0.0,  "lid_angle": -22.0, "mirror_angle": True},
     "surprised": {"scale_w": 0.9, "scale_h": 1.5, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},
@@ -95,6 +95,10 @@ class BlockyEye:
         # Thinking animation state
         self.thinking_phase = 0.0
         
+        # Happy hop state: occasional left/right jump
+        self.happy_jump_x = 0.0       # Current hop offset
+        self.next_happy_jump = 0.0    # When to next hop
+        
         # Speech reactivity
         self.speech_amplitude = 0.0  # 0.0 to 1.0
 
@@ -160,13 +164,17 @@ class BlockyEye:
                 target_y_phys -= 4.0  # Slight upward attentive look
 
             if self.current_emotion == "happy":
-                ht = time.time() * 4.0 + self.happy_phase
-                # Side-to-side shake + slight upward drift
-                target_x_phys += math.sin(ht * 1.3) * 3.5
-                target_y_phys -= 3.0 + math.sin(ht * 0.7) * 2.0
-                # Clamp so top never overflows screen
-                min_y = self.base_h * self.scale_h * 0.5 + 4
-                target_y_phys = max(target_y_phys, min_y)
+                # Occasional left/right hop, otherwise stay still
+                now = time.time()
+                if now > self.next_happy_jump:
+                    self.happy_jump_x = random.choice([-12.0, 12.0])
+                    self.next_happy_jump = now + random.uniform(2.0, 4.0)
+                # Spring decay back toward 0
+                self.happy_jump_x *= 0.88
+                target_x_phys += self.happy_jump_x
+                # Tiny upward nudge, hard-clamped so it never overflows
+                target_y_phys -= 2.0
+                target_y_phys = max(target_y_phys, self.base_h * 0.45)
                 
             # Thinking animation: Look up and slightly left/right
             if self.current_emotion == "thinking":
@@ -174,16 +182,11 @@ class BlockyEye:
                 target_y_phys -= 15.0  # Look up
                 target_x_phys += math.sin(self.thinking_phase) * 5.0
 
-            # Speech Reactivity: Squint with speech amplitude
-            # This only applies when 'happy' (talking) state is active.
+            # Speech Reactivity: only squint bottom lid with amplitude (no scale change)
             if self.current_emotion == "happy" and self.speech_amplitude > 0.05:
-                # Squint bottom lid slightly (makes eyes look "active" when speaking)
-                squint = self.speech_amplitude * 0.25
-                self.target_bottom_lid = max(self.target_bottom_lid, squint)
-                # Also slightly boost the vertical scale (energized eye)
-                self.target_scale_h = max(self.target_scale_h, self.target_scale_h + self.speech_amplitude * 0.08)
-                # Micro bounce upward
-                target_y_phys -= self.speech_amplitude * 3.0
+                squint = self.speech_amplitude * 0.20
+                preset_lid = EMOTION_PRESETS["happy"]["bottom_lid"]
+                self.target_bottom_lid = min(preset_lid + squint, preset_lid + 0.15)
 
             dx = target_x_phys - self.current_pos[0]
             dy = target_y_phys - self.current_pos[1]
