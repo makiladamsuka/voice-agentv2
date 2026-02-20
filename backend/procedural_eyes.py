@@ -20,12 +20,6 @@ FLOOR_Y = SCREEN_HEIGHT - 5
 BLINK_SPEED_MIN = 8.0
 BLINK_SPEED_MAX = 12.0
 
-# Thinking: asymmetric — one eye bigger/higher with tilt, then switch dominance
-# dominant: which eye is bigger/higher. tilt: lid angle for left eye (right mirrors)
-THINKING_PHASES = [
-    {"dominant": "left",  "tilt":  8.0, "pos_y": 0.30, "dur": (1.2, 1.8)},
-    {"dominant": "right", "tilt": -8.0, "pos_y": 0.28, "dur": (1.2, 1.8)},
-]
 
 # --- Emotion Presets ---
 EMOTION_PRESETS = {
@@ -39,7 +33,7 @@ EMOTION_PRESETS = {
     "suspicious": {"scale_w": 1.1, "scale_h": 0.55, "top_lid": 0.45, "bottom_lid": 0.45, "lid_angle": 0.0, "mirror_angle": True},
     "sleepy": {"scale_w": 1.1, "scale_h": 1.0,  "top_lid": 0.65, "bottom_lid": 0.0,  "lid_angle": 0.0,  "mirror_angle": True},
     "looking": {"scale_w": 1.0, "scale_h": 0.9, "top_lid": 0.28, "bottom_lid": 0.0,  "lid_angle": -8.0, "mirror_angle": False},
-    "thinking": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.18, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},  # Squinted, asymmetric animation handles size
+    "thinking": {"scale_w": 0.9, "scale_h": 0.9, "top_lid": 0.3, "bottom_lid": 0.1, "lid_angle": 0.0, "mirror_angle": True},
 }
 
 class BlockyEye:
@@ -99,10 +93,8 @@ class BlockyEye:
 
         self.noise_t = random.uniform(0, 100)
         
-        # Thinking animation state (shared value set by ProceduralEyeDisplay for sync)
-        self.thinking_gaze_x = 18.0    # Set externally to keep both eyes in sync
-        self.thinking_gaze_y = 0.0
-        self.thinking_look_up = -8.0   # Slight upward gaze
+        # Thinking animation state
+        self.thinking_phase = 0.0
         
         # Happy hop state: occasional left/right jump with vertical bounce
         self.happy_jump_x = 0.0       # Current hop X offset
@@ -188,7 +180,11 @@ class BlockyEye:
                 # Lower resting position slightly (push down)
                 target_y_phys += 6.0
                 
-            # Thinking: gaze driven by ProceduralEyeDisplay target_pos directly — skip here
+            # Thinking animation: Look up and slightly left/right
+            if self.current_emotion == "thinking":
+                self.thinking_phase += 0.1
+                target_y_phys -= 15.0  # Look up
+                target_x_phys += math.sin(self.thinking_phase) * 5.0
 
             # Clamp so eye never leaves screen
             half_w = self.base_w * self.scale_w * 0.5
@@ -411,10 +407,6 @@ class ProceduralEyeDisplay:
         
         self.next_blink_time = time.time() + random.uniform(3, 6)
         
-        # Thinking phase state machine
-        self.thinking_phase_idx = -1
-        self.thinking_phase_end = 0.0
-        
         self.target_x_off = 0.0
         self.target_y_off = 0.0
         self.smoothed_x_off = 0.0
@@ -429,11 +421,6 @@ class ProceduralEyeDisplay:
         
         self.left_eye.set_emotion(emotion_name)
         self.right_eye.set_emotion(emotion_name)
-        
-        # Reset thinking phase so animation starts fresh immediately
-        if emotion_name == "thinking":
-            self.thinking_phase_idx = -1
-            self.thinking_phase_end = time.time()  # Fire phase 0 immediately
 
     def set_face_target(self, x, y):
         """
@@ -458,35 +445,7 @@ class ProceduralEyeDisplay:
                 self.right_eye.start_blink(blink_speed, saccade=do_saccade)
             self.next_blink_time = time.time() + random.uniform(3.5, 7.0)
 
-        # Thinking: asymmetric float — dominant eye bigger/higher, tilt switches
-        if self.left_eye.current_emotion == "thinking":
-            now = time.time()
-            if now >= self.thinking_phase_end:
-                self.thinking_phase_idx = (self.thinking_phase_idx + 1) % len(THINKING_PHASES)
-                phase = THINKING_PHASES[self.thinking_phase_idx]
-                self.thinking_phase_end = now + random.uniform(*phase["dur"])
 
-            phase = THINKING_PHASES[self.thinking_phase_idx]
-            preset_h = EMOTION_PRESETS["thinking"]["scale_h"]
-            preset_w = EMOTION_PRESETS["thinking"]["scale_w"]
-            center_x = SCREEN_WIDTH * 0.50
-            base_y   = SCREEN_HEIGHT * phase["pos_y"]
-            tilt     = phase["tilt"]
-
-            for eye in (self.left_eye, self.right_eye):
-                is_dominant = (phase["dominant"] == "left") == eye.is_left
-                eye.target_pos[0] = center_x
-                if is_dominant:
-                    eye.target_pos[1] = base_y - 8   # Float higher
-                    eye.target_scale_h = preset_h * 1.20  # Bigger
-                    eye.target_scale_w = preset_w * 1.12
-                else:
-                    eye.target_pos[1] = base_y + 5   # Slightly lower
-                    eye.target_scale_h = preset_h * 0.88  # Smaller
-                    eye.target_scale_w = preset_w * 0.94
-                # Tilt (mirrored between eyes)
-                eye.target_lid_angle = tilt if eye.is_left else -tilt
-            
         # Smooth tracking (from face monitor)
         smooth_alpha = 0.15
         self.smoothed_x_off += (self.target_x_off - self.smoothed_x_off) * smooth_alpha
