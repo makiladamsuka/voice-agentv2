@@ -9,6 +9,7 @@ import json
 import asyncio
 import re
 import signal
+import numpy as np
 from pathlib import Path
 from image_manager import ImageManager
 from image_server import ImageServer
@@ -681,6 +682,56 @@ async def entrypoint(ctx: agents.JobContext):
         
         # NOW start background greeting monitor
         asyncio.create_task(monitor_and_greet())
+        
+        # Start audio amplitude monitor for speech-reactive eyes
+        async def audio_amplitude_monitor():
+            """Reads agent audio output and drives eye reactivity in real time."""
+            print("🎵 Audio amplitude monitor started")
+            smooth_amp = 0.0
+            
+            try:
+                # Get the agent's audio output track via session
+                # We subscribe to audio frames published by the local participant
+                audio_stream = None
+                
+                # Wait for audio track to appear
+                for _ in range(20):
+                    for pub in ctx.room.local_participant.track_publications.values():
+                        if pub.track and pub.track.kind == rtc.TrackKind.KIND_AUDIO:
+                            audio_stream = rtc.AudioStream(pub.track)
+                            break
+                    if audio_stream:
+                        break
+                    await asyncio.sleep(0.5)
+                
+                if not audio_stream:
+                    print("⚠️ Audio track not found for amplitude monitor.")
+                    return
+                
+                print("✅ Audio stream found - monitoring amplitude")
+                
+                async for event in audio_stream:
+                    frame = event.frame
+                    # Convert raw PCM to numpy for RMS computation
+                    samples = np.frombuffer(frame.data, dtype=np.int16).astype(np.float32)
+                    if len(samples) == 0:
+                        continue
+                    rms = np.sqrt(np.mean(samples ** 2))
+                    # Normalize roughly: 16-bit PCM max = 32768
+                    norm = min(rms / 8000.0, 1.0)
+                    # Smooth: fast attack, slow decay
+                    if norm > smooth_amp:
+                        smooth_amp = smooth_amp * 0.3 + norm * 0.7  # Fast attack
+                    else:
+                        smooth_amp = smooth_amp * 0.85 + norm * 0.15  # Slow decay
+                    
+                    if oled_display.DISPLAY_RUNNING:
+                        oled_display.set_speech_amplitude(smooth_amp)
+                    
+            except Exception as e:
+                print(f"⚠️ Audio amplitude monitor error: {e}")
+        
+        asyncio.create_task(audio_amplitude_monitor())
         
         # Keep session alive
         while ctx.room.connection_state == rtc.ConnectionState.CONN_CONNECTED:

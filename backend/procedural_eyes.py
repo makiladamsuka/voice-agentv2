@@ -91,6 +91,9 @@ class BlockyEye:
         
         # Thinking animation state
         self.thinking_phase = 0.0
+        
+        # Speech reactivity
+        self.speech_amplitude = 0.0  # 0.0 to 1.0
 
     def start_blink(self, speed_mult=None):
         if self.blink_state == "IDLE":
@@ -156,6 +159,17 @@ class BlockyEye:
                 target_y_phys -= 15.0 # Look up
                 # wander x slightly
                 target_x_phys += math.sin(self.thinking_phase) * 5.0
+
+            # Speech Reactivity: Squint with speech amplitude
+            # This only applies when 'happy' (talking) state is active.
+            if self.current_emotion == "happy" and self.speech_amplitude > 0.05:
+                # Squint bottom lid slightly (makes eyes look "active" when speaking)
+                squint = self.speech_amplitude * 0.25
+                self.target_bottom_lid = max(self.target_bottom_lid, squint)
+                # Also slightly boost the vertical scale (energized eye)
+                self.target_scale_h = max(self.target_scale_h, self.target_scale_h + self.speech_amplitude * 0.08)
+                # Micro bounce upward
+                target_y_phys -= self.speech_amplitude * 3.0
 
             dx = target_x_phys - self.current_pos[0]
             dy = target_y_phys - self.current_pos[1]
