@@ -24,7 +24,7 @@ BLINK_SPEED_MAX = 12.0  # Was 5.0
 EMOTION_PRESETS = {
     "idle":  {"scale_w": 1.0, "scale_h": 1.0,  "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},
     "idle1": {"scale_w": 1.0, "scale_h": 1.0,  "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},  # Alias
-    "idle2": {"scale_w": 1.0, "scale_h": 1.3,  "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},  # Listening: wide eyes
+    "idle2": {"scale_w": 1.0, "scale_h": 1.02, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},  # Listening: barely wider, very still
     "happy": {"scale_w": 1.2, "scale_h": 0.65, "top_lid": 0.0,  "bottom_lid": 0.5,  "lid_angle": -8.0,  "mirror_angle": True},  # Squint-smile
     "sad":   {"scale_w": 1.1, "scale_h": 1.1,  "top_lid": 0.4,  "bottom_lid": 0.0,  "lid_angle": 18.0,  "mirror_angle": True},
     "angry": {"scale_w": 1.0, "scale_h": 0.85, "top_lid": 0.45, "bottom_lid": 0.0,  "lid_angle": -22.0, "mirror_angle": True},
@@ -155,6 +155,12 @@ class BlockyEye:
                 self.target_bottom_lid = max(self.target_bottom_lid, 0.9)
                 self.target_lid_angle = 0.0
 
+            # idle2 (listening): go very still, slight upward drift — attentive gaze
+            if self.current_emotion == "idle2":
+                noise_x *= 0.1  # Almost completely still
+                noise_y *= 0.1
+                target_y_phys -= 4.0  # Slight upward attentive look
+
             if self.current_emotion == "happy":
                 ht = time.time() * 6.0 + self.happy_phase
                 target_y_phys -= 2.5 + math.sin(ht) * 2.0
@@ -163,9 +169,7 @@ class BlockyEye:
             # Thinking animation: Look up and slightly left/right
             if self.current_emotion == "thinking":
                 self.thinking_phase += 0.1
-                # Rapid eye movement or looking up
-                target_y_phys -= 15.0 # Look up
-                # wander x slightly
+                target_y_phys -= 15.0  # Look up
                 target_x_phys += math.sin(self.thinking_phase) * 5.0
 
             # Speech Reactivity: Squint with speech amplitude
