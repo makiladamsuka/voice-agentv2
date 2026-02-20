@@ -32,7 +32,7 @@ EMOTION_PRESETS = {
     "idle1": {"scale_w": 1.0, "scale_h": 1.0,  "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},  # Alias
     "idle2": {"scale_w": 1.0, "scale_h": 1.02, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},  # Listening: barely wider, very still
     "happy": {"scale_w": 1.0,  "scale_h": 0.82, "top_lid": 0.0, "bottom_lid": 0.42, "lid_angle": 0.0, "mirror_angle": True},  # Squint-smile, safe scale
-    "sad":   {"scale_w": 1.1, "scale_h": 1.1,  "top_lid": 0.0,  "bottom_lid": 0.6,  "lid_angle": -15.0, "mirror_angle": True},
+    "sad":   {"scale_w": 1.0, "scale_h": 0.85, "top_lid": 0.5,  "bottom_lid": 0.15, "lid_angle": 12.0,  "mirror_angle": True},
     "angry": {"scale_w": 1.0, "scale_h": 0.85, "top_lid": 0.45, "bottom_lid": 0.0,  "lid_angle": -22.0, "mirror_angle": True},
     "surprised": {"scale_w": 0.9, "scale_h": 1.5, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},
     "suspicious": {"scale_w": 1.1, "scale_h": 0.55, "top_lid": 0.45, "bottom_lid": 0.45, "lid_angle": 0.0, "mirror_angle": True},
@@ -184,6 +184,10 @@ class BlockyEye:
                 target_y_phys += self.happy_jump_y
                 # Lower resting position slightly (push down)
                 target_y_phys += 6.0
+
+            if self.current_emotion == "sad":
+                # Droop down physically for "pity" look
+                target_y_phys += 12.0
                 
             # Thinking: position driven by render_frame phase machine
             if self.current_emotion == "thinking":
