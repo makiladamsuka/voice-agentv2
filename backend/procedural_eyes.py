@@ -32,7 +32,7 @@ EMOTION_PRESETS = {
     "idle1": {"scale_w": 1.0, "scale_h": 1.0,  "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},  # Alias
     "idle2": {"scale_w": 1.0, "scale_h": 1.02, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},  # Listening: barely wider, very still
     "happy": {"scale_w": 1.0,  "scale_h": 0.82, "top_lid": 0.0, "bottom_lid": 0.42, "lid_angle": 0.0, "mirror_angle": True},  # Squint-smile, safe scale
-    "sad":   {"scale_w": 1.1, "scale_h": 1.1,  "top_lid": 0.4,  "bottom_lid": 0.0,  "lid_angle": 18.0,  "mirror_angle": True},
+    "sad":   {"scale_w": 1.1, "scale_h": 1.1,  "top_lid": 0.0,  "bottom_lid": 0.6,  "lid_angle": -15.0, "mirror_angle": True},
     "angry": {"scale_w": 1.0, "scale_h": 0.85, "top_lid": 0.45, "bottom_lid": 0.0,  "lid_angle": -22.0, "mirror_angle": True},
     "surprised": {"scale_w": 0.9, "scale_h": 1.5, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},
     "suspicious": {"scale_w": 1.1, "scale_h": 0.55, "top_lid": 0.45, "bottom_lid": 0.45, "lid_angle": 0.0, "mirror_angle": True},
