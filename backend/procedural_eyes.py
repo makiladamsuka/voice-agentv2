@@ -20,6 +20,11 @@ FLOOR_Y = SCREEN_HEIGHT - 5
 BLINK_SPEED_MIN = 8.0
 BLINK_SPEED_MAX = 12.0
 
+# Thinking: Hover between top-left and top-right corners
+THINKING_PHASES = [
+    {"x": 0.22, "y": 0.25, "dur": (1.5, 2.5)},  # Top-Left
+    {"x": 0.78, "y": 0.25, "dur": (1.5, 2.5)},  # Top-Right
+]
 
 # --- Emotion Presets ---
 EMOTION_PRESETS = {
@@ -180,11 +185,9 @@ class BlockyEye:
                 # Lower resting position slightly (push down)
                 target_y_phys += 6.0
                 
-            # Thinking animation: Look up and slightly left/right
+            # Thinking: position driven by render_frame phase machine
             if self.current_emotion == "thinking":
-                self.thinking_phase += 0.1
-                target_y_phys -= 15.0  # Look up
-                target_x_phys += math.sin(self.thinking_phase) * 5.0
+                pass  # target_pos set externally in ProceduralEyeDisplay
 
             # Clamp so eye never leaves screen
             half_w = self.base_w * self.scale_w * 0.5
@@ -407,6 +410,10 @@ class ProceduralEyeDisplay:
         
         self.next_blink_time = time.time() + random.uniform(3, 6)
         
+        # Thinking phase state machine
+        self.thinking_phase_idx = -1
+        self.thinking_phase_end = 0.0
+        
         self.target_x_off = 0.0
         self.target_y_off = 0.0
         self.smoothed_x_off = 0.0
@@ -421,6 +428,10 @@ class ProceduralEyeDisplay:
         
         self.left_eye.set_emotion(emotion_name)
         self.right_eye.set_emotion(emotion_name)
+        
+        if emotion_name == "thinking":
+            self.thinking_phase_idx = -1
+            self.thinking_phase_end = time.time()
 
     def set_face_target(self, x, y):
         """
@@ -445,8 +456,21 @@ class ProceduralEyeDisplay:
                 self.right_eye.start_blink(blink_speed, saccade=do_saccade)
             self.next_blink_time = time.time() + random.uniform(3.5, 7.0)
 
+        # Thinking: hover between corners
+        if self.left_eye.current_emotion == "thinking":
+            now = time.time()
+            if now >= self.thinking_phase_end:
+                self.thinking_phase_idx = (self.thinking_phase_idx + 1) % len(THINKING_PHASES)
+                phase = THINKING_PHASES[self.thinking_phase_idx]
+                self.thinking_phase_end = now + random.uniform(*phase["dur"])
 
-        # Smooth tracking (from face monitor)
+            phase = THINKING_PHASES[self.thinking_phase_idx]
+            target_x = SCREEN_WIDTH * phase["x"]
+            target_y = SCREEN_HEIGHT * phase["y"]
+            for eye in (self.left_eye, self.right_eye):
+                eye.target_pos[0] = target_x
+                eye.target_pos[1] = target_y
+
         smooth_alpha = 0.15
         self.smoothed_x_off += (self.target_x_off - self.smoothed_x_off) * smooth_alpha
         self.smoothed_y_off += (self.target_y_off - self.smoothed_y_off) * smooth_alpha
