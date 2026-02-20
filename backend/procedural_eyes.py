@@ -20,11 +20,13 @@ FLOOR_Y = SCREEN_HEIGHT - 5
 BLINK_SPEED_MIN = 8.0
 BLINK_SPEED_MAX = 12.0
 
-# Thinking keyframe sequence: smooth slow position drifts only — no scale changes
+# Thinking: classic visual-memory-access eye pattern — purposeful, alert
 THINKING_PHASES = [
-    {"x": 0.20, "y": 0.30, "dur": (1.0, 1.6)},   # left
-    {"x": 0.80, "y": 0.26, "dur": (1.0, 1.6)},   # right up
-    {"x": 0.80, "y": 0.62, "dur": (0.9, 1.4)},   # right down
+    {"x": 0.72, "y": 0.22, "dur": (0.6, 1.0)},   # upper-right (main thinking look)
+    {"x": 0.50, "y": 0.38, "dur": (0.3, 0.5)},   # brief center pause
+    {"x": 0.28, "y": 0.25, "dur": (0.5, 0.8)},   # upper-left
+    {"x": 0.72, "y": 0.22, "dur": (0.5, 0.7)},   # back upper-right
+    {"x": 0.65, "y": 0.30, "dur": (0.4, 0.6)},   # slight down-right
 ]
 
 # --- Emotion Presets ---
@@ -39,7 +41,7 @@ EMOTION_PRESETS = {
     "suspicious": {"scale_w": 1.1, "scale_h": 0.55, "top_lid": 0.45, "bottom_lid": 0.45, "lid_angle": 0.0, "mirror_angle": True},
     "sleepy": {"scale_w": 1.1, "scale_h": 1.0,  "top_lid": 0.65, "bottom_lid": 0.0,  "lid_angle": 0.0,  "mirror_angle": True},
     "looking": {"scale_w": 1.0, "scale_h": 0.9, "top_lid": 0.28, "bottom_lid": 0.0,  "lid_angle": -8.0, "mirror_angle": False},
-    "thinking": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.12, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},  # Barely squinted, no size change
+    "thinking": {"scale_w": 1.05, "scale_h": 1.05, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},  # Wide alert eyes — actively processing
 }
 
 class BlockyEye:
@@ -202,9 +204,9 @@ class BlockyEye:
                 preset_lid = EMOTION_PRESETS["happy"]["bottom_lid"]
                 self.target_bottom_lid = min(preset_lid + squint, preset_lid + 0.15)
 
-            # Spring-damper for position: very slow drift
-            spring_k = 0.022   # Very slow approach
-            spring_d = 0.80    # Smooth, controlled
+            # Spring-damper — alert/purposeful speed for thinking
+            spring_k = 0.050
+            spring_d = 0.80
             self.vel_x = (self.vel_x + (target_x_phys - self.current_pos[0]) * spring_k) * spring_d
             self.vel_y = (self.vel_y + (target_y_phys - self.current_pos[1]) * spring_k) * spring_d
             self.current_pos[0] += self.vel_x
