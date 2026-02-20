@@ -32,7 +32,7 @@ EMOTION_PRESETS = {
     "suspicious": {"scale_w": 1.1, "scale_h": 0.55, "top_lid": 0.45, "bottom_lid": 0.45, "lid_angle": 0.0, "mirror_angle": True},
     "sleepy": {"scale_w": 1.1, "scale_h": 1.0,  "top_lid": 0.65, "bottom_lid": 0.0,  "lid_angle": 0.0,  "mirror_angle": True},
     "looking": {"scale_w": 1.0, "scale_h": 0.9, "top_lid": 0.28, "bottom_lid": 0.0,  "lid_angle": -8.0, "mirror_angle": False},
-    "thinking": {"scale_w": 0.88, "scale_h": 0.72, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},  # Narrowed by scale, no hard lid edges
+    "thinking": {"scale_w": 0.9, "scale_h": 0.9, "top_lid": 0.3, "bottom_lid": 0.1, "lid_angle": 0.0,  "mirror_angle": True},  # Squint-think
 }
 
 class BlockyEye:
@@ -337,28 +337,36 @@ class BlockyEye:
             draw.rounded_rectangle([x0, y0, x1, y1], radius=cur_radius, fill=cur_color)
 
     def draw_eyelids(self, eye_img, rect):
+        from PIL import ImageFilter
         x0, y0, x1, y1 = rect
         w = int(x1 - x0)
         h = int(y1 - y0)
         lid_color = BG_COLOR
+        blur_r = 5  # Soften lid edge to match eye's rounded shape
 
         if self.top_lid > 0.01:
             lid_h = int(h * self.top_lid)
-            lid_src = Image.new("RGBA", (int(w + 20), int(lid_h + 20)), (*lid_color, 255))
+            lid_src = Image.new("RGBA", (int(w + 40), int(lid_h + 20)), (*lid_color, 255))
+            lid_src = lid_src.filter(ImageFilter.GaussianBlur(radius=blur_r))
             if abs(self.lid_angle) > 0.1:
                 lid_src = lid_src.rotate(self.lid_angle, resample=Image.BICUBIC, expand=True)
             lid_x = int(x0 + w / 2 - lid_src.width / 2)
             lid_y = int(y0 - 10)
-            eye_img.alpha_composite(lid_src, (lid_x, lid_y))
+            paste_x = max(0, lid_x)
+            paste_y = max(0, lid_y)
+            eye_img.alpha_composite(lid_src, (paste_x, paste_y))
 
         if self.bottom_lid > 0.01:
             lid_h = int(h * self.bottom_lid)
-            lid_src = Image.new("RGBA", (int(w + 20), int(lid_h + 20)), (*lid_color, 255))
+            lid_src = Image.new("RGBA", (int(w + 40), int(lid_h + 20)), (*lid_color, 255))
+            lid_src = lid_src.filter(ImageFilter.GaussianBlur(radius=blur_r))
             if abs(self.lid_angle) > 0.1:
                 lid_src = lid_src.rotate(self.lid_angle, resample=Image.BICUBIC, expand=True)
             lid_x = int(x0 + w / 2 - lid_src.width / 2)
             lid_y = int(y1 + 10 - lid_src.height)
-            eye_img.alpha_composite(lid_src, (lid_x, lid_y))
+            paste_x = max(0, lid_x)
+            paste_y = max(0, lid_y)
+            eye_img.alpha_composite(lid_src, (paste_x, paste_y))
 
     def draw(self):
         draw_w = max(4, int(self.w))
