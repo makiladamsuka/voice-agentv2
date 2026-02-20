@@ -430,6 +430,11 @@ class ProceduralEyeDisplay:
         
         self.left_eye.set_emotion(emotion_name)
         self.right_eye.set_emotion(emotion_name)
+        
+        # Reset thinking gaze timer so switching starts immediately
+        if emotion_name == "thinking":
+            self.thinking_gaze_x = 18.0  # Start right
+            self.next_thinking_shift = time.time()  # Fire immediately on first frame
 
     def set_face_target(self, x, y):
         """
