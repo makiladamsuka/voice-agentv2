@@ -32,7 +32,7 @@ EMOTION_PRESETS = {
     "suspicious": {"scale_w": 1.1, "scale_h": 0.55, "top_lid": 0.45, "bottom_lid": 0.45, "lid_angle": 0.0, "mirror_angle": True},
     "sleepy": {"scale_w": 1.1, "scale_h": 1.0,  "top_lid": 0.65, "bottom_lid": 0.0,  "lid_angle": 0.0,  "mirror_angle": True},
     "looking": {"scale_w": 1.0, "scale_h": 0.9, "top_lid": 0.28, "bottom_lid": 0.0,  "lid_angle": -8.0, "mirror_angle": False},
-    "thinking": {"scale_w": 0.9, "scale_h": 0.9, "top_lid": 0.3, "bottom_lid": 0.1, "lid_angle": 0.0,  "mirror_angle": True},  # Squint-think
+    "thinking": {"scale_w": 0.88, "scale_h": 0.72, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},  # Narrowed by scale, no hard lid edges
 }
 
 class BlockyEye:
@@ -93,7 +93,9 @@ class BlockyEye:
         self.noise_t = random.uniform(0, 100)
         
         # Thinking animation state
-        self.thinking_phase = 0.0
+        self.thinking_gaze_x = 18.0    # Start looking right
+        self.next_thinking_shift = time.time() + random.uniform(2.0, 3.5)
+        self.thinking_look_up = -8.0   # Slight upward gaze
         
         # Happy hop state: occasional left/right jump with vertical bounce
         self.happy_jump_x = 0.0       # Current hop X offset
@@ -179,11 +181,15 @@ class BlockyEye:
                 # Lower resting position slightly (push down)
                 target_y_phys += 6.0
                 
-            # Thinking animation: Look up and slightly left/right
+            # Thinking: look right, then after a while shift left — no blinking
             if self.current_emotion == "thinking":
-                self.thinking_phase += 0.1
-                target_y_phys -= 15.0  # Look up
-                target_x_phys += math.sin(self.thinking_phase) * 5.0
+                now = time.time()
+                if now > self.next_thinking_shift:
+                    # Toggle gaze direction
+                    self.thinking_gaze_x = -self.thinking_gaze_x
+                    self.next_thinking_shift = now + random.uniform(2.0, 3.5)
+                target_x_phys += self.thinking_gaze_x
+                target_y_phys += self.thinking_look_up  # Slight upward look
 
             # Speech Reactivity: only squint bottom lid with amplitude (no scale change)
             if self.current_emotion == "happy" and self.speech_amplitude > 0.05:
@@ -425,10 +431,10 @@ class ProceduralEyeDisplay:
         self.target_y_off = y * MAX_Y_OFFSET
 
     def render_frame(self, dt: float, mono: bool = False):
-        # Update shared blink logic — suppress blinks during happy (just shake instead)
-        is_happy = (self.left_eye.current_emotion == "happy")
+        # Suppress blinks during happy and thinking — those states have their own animations
+        is_animated = (self.left_eye.current_emotion in ("happy", "thinking"))
         if time.time() > self.next_blink_time:
-            if not is_happy:
+            if not is_animated:
                 blink_speed = random.uniform(BLINK_SPEED_MIN, BLINK_SPEED_MAX)
                 do_saccade = (random.random() < 0.30)
                 self.left_eye.start_blink(blink_speed, saccade=do_saccade)
