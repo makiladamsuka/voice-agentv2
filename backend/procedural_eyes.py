@@ -20,12 +20,11 @@ FLOOR_Y = SCREEN_HEIGHT - 5
 BLINK_SPEED_MIN = 8.0
 BLINK_SPEED_MAX = 12.0
 
-# Thinking keyframe sequence: left-up → squish → teleport right-up → right-down
+# Thinking keyframe sequence: smooth slow position drifts only — no scale changes
 THINKING_PHASES = [
-    {"x": 0.20, "y": 0.28, "squish": False, "teleport": False, "dur": (0.8, 1.2)},   # left up  - hold long
-    {"x": 0.20, "y": 0.28, "squish": True,  "teleport": False, "dur": (0.22, 0.30)},  # squish / vanish
-    {"x": 0.80, "y": 0.26, "squish": False, "teleport": True,  "dur": (0.7, 1.0)},    # teleport right up
-    {"x": 0.80, "y": 0.62, "squish": False, "teleport": False, "dur": (0.6, 0.9)},    # right down
+    {"x": 0.20, "y": 0.30, "dur": (1.0, 1.6)},   # left
+    {"x": 0.80, "y": 0.26, "dur": (1.0, 1.6)},   # right up
+    {"x": 0.80, "y": 0.62, "dur": (0.9, 1.4)},   # right down
 ]
 
 # --- Emotion Presets ---
@@ -40,7 +39,7 @@ EMOTION_PRESETS = {
     "suspicious": {"scale_w": 1.1, "scale_h": 0.55, "top_lid": 0.45, "bottom_lid": 0.45, "lid_angle": 0.0, "mirror_angle": True},
     "sleepy": {"scale_w": 1.1, "scale_h": 1.0,  "top_lid": 0.65, "bottom_lid": 0.0,  "lid_angle": 0.0,  "mirror_angle": True},
     "looking": {"scale_w": 1.0, "scale_h": 0.9, "top_lid": 0.28, "bottom_lid": 0.0,  "lid_angle": -8.0, "mirror_angle": False},
-    "thinking": {"scale_w": 0.9, "scale_h": 0.9, "top_lid": 0.3, "bottom_lid": 0.1, "lid_angle": 0.0,  "mirror_angle": True},  # Squint-think
+    "thinking": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.12, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},  # Barely squinted, no size change
 }
 
 class BlockyEye:
@@ -203,9 +202,9 @@ class BlockyEye:
                 preset_lid = EMOTION_PRESETS["happy"]["bottom_lid"]
                 self.target_bottom_lid = min(preset_lid + squint, preset_lid + 0.15)
 
-            # Spring-damper for position: enables natural overshoot/bounce on large moves
-            spring_k = 0.055   # Lower = slower approach
-            spring_d = 0.76    # Lower damping = more overshoot/bounce
+            # Spring-damper for position: very slow drift
+            spring_k = 0.022   # Very slow approach
+            spring_d = 0.80    # Smooth, controlled
             self.vel_x = (self.vel_x + (target_x_phys - self.current_pos[0]) * spring_k) * spring_d
             self.vel_y = (self.vel_y + (target_y_phys - self.current_pos[1]) * spring_k) * spring_d
             self.current_pos[0] += self.vel_x
@@ -459,39 +458,20 @@ class ProceduralEyeDisplay:
                 self.right_eye.start_blink(blink_speed, saccade=do_saccade)
             self.next_blink_time = time.time() + random.uniform(3.5, 7.0)
 
-        # Thinking: keyframe phase state machine
+        # Thinking: smooth slow position-only phase machine (no scale changes)
         if self.left_eye.current_emotion == "thinking":
             now = time.time()
-            ph_preset_h = EMOTION_PRESETS["thinking"]["scale_h"]
-            ph_preset_w = EMOTION_PRESETS["thinking"]["scale_w"]
-
             if now >= self.thinking_phase_end:
-                # Advance to next phase
                 self.thinking_phase_idx = (self.thinking_phase_idx + 1) % len(THINKING_PHASES)
                 phase = THINKING_PHASES[self.thinking_phase_idx]
                 self.thinking_phase_end = now + random.uniform(*phase["dur"])
 
-                if phase["teleport"]:
-                    # Snap position while eye is still squished (invisible)
-                    snap_x = SCREEN_WIDTH * phase["x"]
-                    snap_y = SCREEN_HEIGHT * phase["y"]
-                    for eye in (self.left_eye, self.right_eye):
-                        eye.current_pos[0] = snap_x
-                        eye.current_pos[1] = snap_y
-
             phase = THINKING_PHASES[self.thinking_phase_idx]
             target_x = SCREEN_WIDTH * phase["x"]
             target_y = SCREEN_HEIGHT * phase["y"]
-
             for eye in (self.left_eye, self.right_eye):
                 eye.target_pos[0] = target_x
                 eye.target_pos[1] = target_y
-                if phase["squish"]:
-                    eye.target_scale_h = 0.04  # Squish flat
-                    eye.target_scale_w = 0.25  # Narrow too
-                else:
-                    eye.target_scale_h = ph_preset_h
-                    eye.target_scale_w = ph_preset_w
             
         # Smooth tracking (from face monitor)
         smooth_alpha = 0.15
