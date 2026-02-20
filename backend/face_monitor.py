@@ -18,7 +18,7 @@ except ImportError:
     HAS_PICAMERA = False
     class Picamera2: pass # Dummy class to prevent type errors
 
-from object_detector import ObjectDetector
+# from object_detector import ObjectDetector
 
 # --- DEBUG SETTINGS ---
 SHOW_DEBUG_VIDEO = False   # Set True to show camera window on HDMI display
@@ -56,6 +56,9 @@ class FaceMonitor:
         self.fresh_people: Set[str] = set()  # Most recent detection (not cached)
         self.last_greeted: Dict[str, float] = {}  # Track when we greeted each person
         
+        # Face Tracking Coordinates (Normalized -1.0 to 1.0)
+        self.last_face_center: Optional[tuple] = None
+        
         # Object detection cache (last 5 seconds)
         self.object_cache = []  # List of (timestamp, detections)
         self.cache_duration = 5.0  # Keep last 5 seconds
@@ -63,7 +66,7 @@ class FaceMonitor:
         # YOLO disablccessories: She has a visible tattoo on her left forearm and is wearing silver anklets on both ankles.ed for better performance on Raspberry Pi
         print("🔍 YOLO disabled for better performance on Raspberry Pi")
         self.yolo_active = False
-        self.detector = ObjectDetector(load_yolo=False)
+        self.detector = None # ObjectDetector(load_yolo=False)
     
     # ==================== MULTI-PERSON API ====================
     
@@ -149,6 +152,12 @@ class FaceMonitor:
         with self.lock:
             return self.current_person
 
+    def get_face_center(self) -> Optional[tuple]:
+        """Get the normalized coordinates (x, y) of the largest face.
+        Range: -1.0 to 1.0. Returns None if no face visible."""
+        with self.lock:
+            return self.last_face_center
+
     def get_current_frame(self):
         with self.lock:
             return self.current_frame
@@ -181,24 +190,25 @@ class FaceMonitor:
     
     def get_recent_objects(self, seconds: float = 5.0) -> List[Dict]:
         """Get all unique objects detected in last N seconds"""
-        current_time = time.time()
-        cutoff_time = current_time - seconds
+        return []
+        # current_time = time.time()
+        # cutoff_time = current_time - seconds
         
-        with self.lock:
-            recent = []
-            for timestamp, detections in self.object_cache:
-                if timestamp > cutoff_time:
-                    recent.extend(detections)
-            
-            unique_objects = {}
-            for det in recent:
-                class_name = det['class']
-                if class_name not in unique_objects:
-                    unique_objects[class_name] = det
-                elif det['confidence'] > unique_objects[class_name]['confidence']:
-                    unique_objects[class_name] = det
-            
-            return list(unique_objects.values())
+        # with self.lock:
+        #     recent = []
+        #     for timestamp, detections in self.object_cache:
+        #         if timestamp > cutoff_time:
+        #             recent.extend(detections)
+        #     
+        #     unique_objects = {}
+        #     for det in recent:
+        #         class_name = det['class']
+        #         if class_name not in unique_objects:
+        #             unique_objects[class_name] = det
+        #         elif det['confidence'] > unique_objects[class_name]['confidence']:
+        #             unique_objects[class_name] = det
+        #     
+        #     return list(unique_objects.values())
     
     # ==================== LIFECYCLE ====================
         
@@ -271,15 +281,36 @@ class FaceMonitor:
                 if frame_count % 5 == 0:
                     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     
+                    width = rgb_frame.shape[1]
+                    height = rgb_frame.shape[0]
+                    
                     # Face Detection - tracks ALL faces
                     face_locs = face_recognition.face_locations(rgb_frame)
                     detected_names: Set[str] = set()
                     
+                    # Find largest face for tracking
+                    largest_face_center = None
+                    max_area = 0
+
                     if len(face_locs) > 0:
                         encs = face_recognition.face_encodings(rgb_frame, face_locs)
                         
-                        for i, enc in enumerate(encs):
+                        for i, (top, right, bottom, left) in enumerate(face_locs):
+                            # Tracking calculation for largest face
+                            area = (bottom - top) * (right - left)
+                            if area > max_area:
+                                max_area = area
+                                cx = (left + right) / 2
+                                cy = (top + bottom) / 2
+                                # Normalize to -1.0 (left/up) to 1.0 (right/down)
+                                norm_x = (cx / width - 0.5) * 2.0
+                                norm_y = (cy / height - 0.5) * 2.0
+                                largest_face_center = (norm_x, norm_y)
+
+                            # Recognition
+                            enc = encs[i]
                             match_name = "Unknown"
+                            # ... (recognition logic) ...
                             for kname, kencs in self.known_faces.items():
                                 matches = face_recognition.compare_faces(kencs, enc, tolerance=0.5)
                                 if True in matches: 
@@ -288,6 +319,9 @@ class FaceMonitor:
                             detected_names.add(match_name)
                     
                     with self.lock:
+                        # Update face coordinates
+                        self.last_face_center = largest_face_center
+                        
                         # Update face cache (handles stability)
                         self._update_face_cache(detected_names)
                         self._last_face_locs = face_locs

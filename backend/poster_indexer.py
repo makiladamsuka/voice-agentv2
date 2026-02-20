@@ -1,130 +1,69 @@
-"""
-Poster Indexer - Extracts text from event posters using OCR
-Uses pytesseract (Tesseract OCR) which is lighter and compatible with Pi.
-"""
-
-try:
-    import pytesseract
-    HAS_TESSERACT = True
-except ImportError:
-    print("⚠️ Pytesseract not found. OCR functionality will be disabled.")
-    HAS_TESSERACT = False
-    # Mock pytesseract
-    class pytesseract:
-        @staticmethod
-        def image_to_string(image):
-            return ""
-from PIL import Image
 from pathlib import Path
-from typing import Dict, List
-import re
+import json
+import base64
+from openai import OpenAI
+import os
 
-class PosterIndexer:
-    """Extracts text from event poster images using Tesseract OCR"""
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
+
+def index_posters(assets_dir: Path):
+    """
+    Scans the assets_dir for image files, sends them to a VLM (OpenAI) 
+    to extract event details, and returns a list of event dictionaries.
+    """
+    events_dir = assets_dir / "events"
+    if not events_dir.exists():
+        print(f"⚠️ Events directory not found: {events_dir}")
+        return []
+
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=os.getenv("OPENROUTER_API_KEY"),
+    )
+
+    events = []
     
-    def __init__(self, assets_dir: Path = None):
-        if assets_dir is None:
-            assets_dir = Path(__file__).parent / "assets"
-        self.assets_dir = assets_dir
-        self.events_dir = assets_dir / "events"
-        print("📖 OCR engine ready (Tesseract)")
-    
-    def extract_text(self, image_path: Path) -> str:
-        """Extract all text from an image"""
-        if not HAS_TESSERACT:
-            return ""
+    # Supported image extensions
+    valid_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+
+    print(f"🔍 Scanning for posters in {events_dir}...")
+
+    for file_path in events_dir.iterdir():
+        if file_path.suffix.lower() in valid_extensions:
+            print(f"   Processing {file_path.name}...")
+            try:
+                base64_image = encode_image(file_path)
+                
+                response = client.chat.completions.create(
+                    model="google/gemini-2.0-flash-001", # Good, cheap vision model
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "Extract event details from this poster. Return JSON with keys: title, date, time, location, description. If not an event poster, return null."},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}"
+                                    },
+                                },
+                            ],
+                        }
+                    ],
+                    response_format={"type": "json_object"} 
+                )
+                
+                content = response.choices[0].message.content
+                if content:
+                    event_data = json.loads(content)
+                    if event_data:
+                        event_data['source_file'] = file_path.name
+                        events.append(event_data)
+                        print(f"   ✅ Extracted: {event_data.get('title', 'Unknown Event')}")
             
-        try:
-            image = Image.open(image_path)
-            text = pytesseract.image_to_string(image)
-            return text.strip()
-        except Exception as e:
-            print(f"⚠️ OCR error for {image_path}: {e}")
-            return ""
-    
-    def extract_event_info(self, image_path: Path) -> Dict:
-        """
-        Extract structured event info from poster.
-        Returns dict with: name, date, time, venue, description
-        """
-        raw_text = self.extract_text(image_path)
-        
-        # Basic extraction - get event name from filename
-        event_name = image_path.stem.replace("-", " ").replace("_", " ").title()
-        
-        # Try to find date patterns (e.g., "Jan 25", "25/01/2026", "25th January")
-        date_patterns = [
-            r'\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b',  # 25/01/2026
-            r'\b(\d{1,2}(?:st|nd|rd|th)?\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*)\b',  # 25th January
-            r'\b((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:st|nd|rd|th)?)\b',  # January 25th
-        ]
-        
-        date_found = None
-        for pattern in date_patterns:
-            match = re.search(pattern, raw_text, re.IGNORECASE)
-            if match:
-                date_found = match.group(1)
-                break
-        
-        # Try to find time patterns (e.g., "10:00 AM", "10am - 6pm")
-        time_pattern = r'\b(\d{1,2}(?::\d{2})?\s*(?:am|pm|AM|PM)?(?:\s*[-–]\s*\d{1,2}(?::\d{2})?\s*(?:am|pm|AM|PM)?)?)\b'
-        time_match = re.search(time_pattern, raw_text, re.IGNORECASE)
-        time_found = time_match.group(1) if time_match else None
-        
-        # Try to find venue (look for keywords)
-        venue_keywords = ['hall', 'auditorium', 'room', 'lab', 'ground', 'court', 'building', 'center', 'centre']
-        venue_found = None
-        for keyword in venue_keywords:
-            pattern = rf'\b(\w+\s+{keyword}|\w+\s+\w+\s+{keyword})\b'
-            match = re.search(pattern, raw_text, re.IGNORECASE)
-            if match:
-                venue_found = match.group(1)
-                break
-        
-        return {
-            "name": event_name,
-            "filename": image_path.name,
-            "raw_text": raw_text,
-            "date": date_found,
-            "time": time_found,
-            "venue": venue_found,
-            "description": raw_text[:200] if len(raw_text) > 200 else raw_text
-        }
-    
-    def index_all_posters(self) -> List[Dict]:
-        """Scan all event posters and extract info"""
-        events = []
-        
-        if not self.events_dir.exists():
-            print(f"⚠️ Events directory not found: {self.events_dir}")
-            return events
-        
-        # Scan all image files
-        image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
-        for image_path in self.events_dir.iterdir():
-            if image_path.suffix.lower() in image_extensions:
-                print(f"📸 Scanning: {image_path.name}")
-                event_info = self.extract_event_info(image_path)
-                events.append(event_info)
-                print(f"   → Found: {event_info['name']}")
-                if event_info['date']:
-                    print(f"   → Date: {event_info['date']}")
-        
-        print(f"✅ Indexed {len(events)} event posters")
-        return events
+            except Exception as e:
+                print(f"   ❌ Failed to process {file_path.name}: {e}")
 
-
-# Test if run directly
-if __name__ == "__main__":
-    indexer = PosterIndexer()
-    events = indexer.index_all_posters()
-    
-    print("\n" + "="*50)
-    print("INDEXED EVENTS:")
-    print("="*50)
-    for event in events:
-        print(f"\n📌 {event['name']}")
-        print(f"   Date: {event['date'] or 'Not found'}")
-        print(f"   Time: {event['time'] or 'Not found'}")
-        print(f"   Venue: {event['venue'] or 'Not found'}")
-        print(f"   Text preview: {event['raw_text'][:100]}...")
+    return events
