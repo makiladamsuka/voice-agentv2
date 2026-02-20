@@ -17,8 +17,17 @@ EYE_SIZE = 120           # Base size
 FLOOR_Y = SCREEN_HEIGHT - 5
 
 # Blink Speed (Higher = Faster)
-BLINK_SPEED_MIN = 8.0   # Was 3.5 — now much snappier
-BLINK_SPEED_MAX = 12.0  # Was 5.0
+BLINK_SPEED_MIN = 8.0
+BLINK_SPEED_MAX = 12.0
+
+# Thinking keyframe sequence: left-up → squish → teleport right-up → right-down
+# x/y are fractions of screen size. squish=True collapses scale. teleport=True snaps current_pos.
+THINKING_PHASES = [
+    {"x": 0.20, "y": 0.30, "squish": False, "teleport": False, "dur": (0.35, 0.55)},  # left up
+    {"x": 0.20, "y": 0.30, "squish": True,  "teleport": False, "dur": (0.18, 0.25)},  # squish / vanish
+    {"x": 0.80, "y": 0.28, "squish": False, "teleport": True,  "dur": (0.3,  0.5)},   # teleport right up
+    {"x": 0.80, "y": 0.60, "squish": False, "teleport": False, "dur": (0.3,  0.5)},   # right down
+]
 
 # --- Emotion Presets ---
 EMOTION_PRESETS = {
@@ -411,10 +420,9 @@ class ProceduralEyeDisplay:
         
         self.next_blink_time = time.time() + random.uniform(3, 6)
         
-        # Shared thinking gaze state (drives both eyes in sync)
-        self.thinking_gaze_x = 18.0
-        self.thinking_gaze_y = 0.0
-        self.next_thinking_shift = time.time() + random.uniform(2.0, 3.5)
+        # Thinking phase state machine
+        self.thinking_phase_idx = -1
+        self.thinking_phase_end = 0.0
         
         self.target_x_off = 0.0
         self.target_y_off = 0.0
@@ -431,10 +439,10 @@ class ProceduralEyeDisplay:
         self.left_eye.set_emotion(emotion_name)
         self.right_eye.set_emotion(emotion_name)
         
-        # Reset thinking gaze timer so switching starts immediately
+        # Reset thinking phase so animation starts fresh immediately
         if emotion_name == "thinking":
-            self.thinking_gaze_x = 18.0  # Start right
-            self.next_thinking_shift = time.time()  # Fire immediately on first frame
+            self.thinking_phase_idx = -1
+            self.thinking_phase_end = time.time()  # Fire phase 0 immediately
 
     def set_face_target(self, x, y):
         """
@@ -459,18 +467,39 @@ class ProceduralEyeDisplay:
                 self.right_eye.start_blink(blink_speed, saccade=do_saccade)
             self.next_blink_time = time.time() + random.uniform(3.5, 7.0)
 
-        # Thinking: pin eyes hard to one side — never return to center
+        # Thinking: keyframe phase state machine
         if self.left_eye.current_emotion == "thinking":
             now = time.time()
-            if now > self.next_thinking_shift:
-                self.thinking_gaze_x = -self.thinking_gaze_x  # Flip side
-                self.next_thinking_shift = now + random.uniform(0.4, 1.0)
-            # Calculate hard side position (near screen edge)
-            side_x = SCREEN_WIDTH * (0.78 if self.thinking_gaze_x > 0 else 0.22)
-            look_up_y = SCREEN_HEIGHT * 0.38  # Slightly above center
+            ph_preset_h = EMOTION_PRESETS["thinking"]["scale_h"]
+            ph_preset_w = EMOTION_PRESETS["thinking"]["scale_w"]
+
+            if now >= self.thinking_phase_end:
+                # Advance to next phase
+                self.thinking_phase_idx = (self.thinking_phase_idx + 1) % len(THINKING_PHASES)
+                phase = THINKING_PHASES[self.thinking_phase_idx]
+                self.thinking_phase_end = now + random.uniform(*phase["dur"])
+
+                if phase["teleport"]:
+                    # Snap position while eye is still squished (invisible)
+                    snap_x = SCREEN_WIDTH * phase["x"]
+                    snap_y = SCREEN_HEIGHT * phase["y"]
+                    for eye in (self.left_eye, self.right_eye):
+                        eye.current_pos[0] = snap_x
+                        eye.current_pos[1] = snap_y
+
+            phase = THINKING_PHASES[self.thinking_phase_idx]
+            target_x = SCREEN_WIDTH * phase["x"]
+            target_y = SCREEN_HEIGHT * phase["y"]
+
             for eye in (self.left_eye, self.right_eye):
-                eye.target_pos[0] = side_x
-                eye.target_pos[1] = look_up_y
+                eye.target_pos[0] = target_x
+                eye.target_pos[1] = target_y
+                if phase["squish"]:
+                    eye.target_scale_h = 0.04  # Squish flat
+                    eye.target_scale_w = 0.25  # Narrow too
+                else:
+                    eye.target_scale_h = ph_preset_h
+                    eye.target_scale_w = ph_preset_w
             
         # Smooth tracking (from face monitor)
         smooth_alpha = 0.15
