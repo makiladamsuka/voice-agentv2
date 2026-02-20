@@ -380,7 +380,9 @@ class BlockyEye:
         eye_img = Image.new("RGBA", (eye_img_size, eye_img_size), (0, 0, 0, 0))
         eye_draw = ImageDraw.Draw(eye_img)
 
-        base_radius = int(min(self.base_w, self.base_h) * 0.45)  # Rounder corners
+        # Thinking gets slightly rounder corners; all others keep original shape
+        radius_factor = 0.36 if self.current_emotion == "thinking" else 0.25
+        base_radius = int(min(self.base_w, self.base_h) * radius_factor)
         corner_radius = min(base_radius, int(min(draw_w, draw_h) / 2))
         off_x = max(-1, min(1, (self.current_pos[0] - self.base_x) / 30.0))
         off_y = max(-1, min(1, (self.current_pos[1] - self.base_y) / 20.0))
