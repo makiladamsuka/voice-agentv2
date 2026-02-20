@@ -92,10 +92,9 @@ class BlockyEye:
 
         self.noise_t = random.uniform(0, 100)
         
-        # Thinking animation state
-        self.thinking_gaze_x = 18.0    # Start looking right
-        self.thinking_gaze_y = 0.0     # Upward arc when switching direction
-        self.next_thinking_shift = time.time() + random.uniform(2.0, 3.5)
+        # Thinking animation state (shared value set by ProceduralEyeDisplay for sync)
+        self.thinking_gaze_x = 18.0    # Set externally to keep both eyes in sync
+        self.thinking_gaze_y = 0.0
         self.thinking_look_up = -8.0   # Slight upward gaze
         
         # Happy hop state: occasional left/right jump with vertical bounce
@@ -182,16 +181,17 @@ class BlockyEye:
                 # Lower resting position slightly (push down)
                 target_y_phys += 6.0
                 
-            # Thinking: look right, then after a while shift left — no blinking
+            # Thinking: gaze is set externally (ProceduralEyeDisplay) so both eyes sync
             if self.current_emotion == "thinking":
-                now = time.time()
-                if now > self.next_thinking_shift:
-                    self.thinking_gaze_x = -self.thinking_gaze_x
-                    self.thinking_gaze_y = -14.0  # Arc upward on direction change
-                    self.next_thinking_shift = now + random.uniform(2.0, 3.5)
-                self.thinking_gaze_y *= 0.88  # Decay arc back to center
+                self.thinking_gaze_y *= 0.88  # Decay arc each frame
                 target_x_phys += self.thinking_gaze_x
                 target_y_phys += self.thinking_look_up + self.thinking_gaze_y
+
+            # Clamp so eye never leaves screen
+            half_w = self.base_w * self.scale_w * 0.5
+            half_h = self.base_h * self.scale_h * 0.5
+            target_x_phys = max(half_w + 4, min(SCREEN_WIDTH - half_w - 4, target_x_phys))
+            target_y_phys = max(half_h + 4, min(SCREEN_HEIGHT - half_h - 4, target_y_phys))
 
             # Speech Reactivity: only squint bottom lid with amplitude (no scale change)
             if self.current_emotion == "happy" and self.speech_amplitude > 0.05:
@@ -415,6 +415,11 @@ class ProceduralEyeDisplay:
         
         self.next_blink_time = time.time() + random.uniform(3, 6)
         
+        # Shared thinking gaze state (drives both eyes in sync)
+        self.thinking_gaze_x = 18.0
+        self.thinking_gaze_y = 0.0
+        self.next_thinking_shift = time.time() + random.uniform(2.0, 3.5)
+        
         self.target_x_off = 0.0
         self.target_y_off = 0.0
         self.smoothed_x_off = 0.0
@@ -452,6 +457,19 @@ class ProceduralEyeDisplay:
                 self.left_eye.start_blink(blink_speed, saccade=do_saccade)
                 self.right_eye.start_blink(blink_speed, saccade=do_saccade)
             self.next_blink_time = time.time() + random.uniform(3.5, 7.0)
+
+        # Sync thinking gaze across both eyes
+        if self.left_eye.current_emotion == "thinking":
+            now = time.time()
+            if now > self.next_thinking_shift:
+                self.thinking_gaze_x = -self.thinking_gaze_x
+                self.thinking_gaze_y = -14.0  # Arc upward on switch
+                self.next_thinking_shift = now + random.uniform(2.0, 3.5)
+            # Push same gaze to both eyes
+            self.left_eye.thinking_gaze_x = self.thinking_gaze_x
+            self.left_eye.thinking_gaze_y = self.thinking_gaze_y
+            self.right_eye.thinking_gaze_x = self.thinking_gaze_x
+            self.right_eye.thinking_gaze_y = self.thinking_gaze_y
             
         # Smooth tracking (from face monitor)
         smooth_alpha = 0.15
