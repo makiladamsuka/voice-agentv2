@@ -181,11 +181,7 @@ class BlockyEye:
                 # Lower resting position slightly (push down)
                 target_y_phys += 6.0
                 
-            # Thinking: gaze is set externally (ProceduralEyeDisplay) so both eyes sync
-            if self.current_emotion == "thinking":
-                self.thinking_gaze_y *= 0.88  # Decay arc each frame
-                target_x_phys += self.thinking_gaze_x
-                target_y_phys += self.thinking_look_up + self.thinking_gaze_y
+            # Thinking: gaze driven by ProceduralEyeDisplay target_pos directly — skip here
 
             # Clamp so eye never leaves screen
             half_w = self.base_w * self.scale_w * 0.5
@@ -458,18 +454,18 @@ class ProceduralEyeDisplay:
                 self.right_eye.start_blink(blink_speed, saccade=do_saccade)
             self.next_blink_time = time.time() + random.uniform(3.5, 7.0)
 
-        # Sync thinking gaze across both eyes
+        # Thinking: pin eyes hard to one side — never return to center
         if self.left_eye.current_emotion == "thinking":
             now = time.time()
             if now > self.next_thinking_shift:
-                self.thinking_gaze_x = -self.thinking_gaze_x
-                self.thinking_gaze_y = -14.0  # Arc upward on switch
+                self.thinking_gaze_x = -self.thinking_gaze_x  # Flip side
                 self.next_thinking_shift = now + random.uniform(2.0, 3.5)
-            # Push same gaze to both eyes
-            self.left_eye.thinking_gaze_x = self.thinking_gaze_x
-            self.left_eye.thinking_gaze_y = self.thinking_gaze_y
-            self.right_eye.thinking_gaze_x = self.thinking_gaze_x
-            self.right_eye.thinking_gaze_y = self.thinking_gaze_y
+            # Calculate hard side position (near screen edge)
+            side_x = SCREEN_WIDTH * (0.78 if self.thinking_gaze_x > 0 else 0.22)
+            look_up_y = SCREEN_HEIGHT * 0.38  # Slightly above center
+            for eye in (self.left_eye, self.right_eye):
+                eye.target_pos[0] = side_x
+                eye.target_pos[1] = look_up_y
             
         # Smooth tracking (from face monitor)
         smooth_alpha = 0.15
@@ -478,14 +474,10 @@ class ProceduralEyeDisplay:
         
         # Update eyes
         for eye in (self.left_eye, self.right_eye):
-            # The saccade_offset lives inside BlockyEye.target_pos directly.
-            # When not in a saccade, track face + smoothed offset.
-            # After a saccade, slowly let eyes drift back to base + tracking.
-            if eye.blink_state == "IDLE" and not eye.saccade_pending:
-                # Gently return saccade drift to tracking position
+            # During thinking, target_pos is driven directly above — skip normal drift
+            if eye.blink_state == "IDLE" and not eye.saccade_pending and eye.current_emotion != "thinking":
                 eye.target_pos[0] += (eye.base_x + self.smoothed_x_off - eye.target_pos[0]) * 0.015
                 eye.target_pos[1] += (eye.base_y + self.smoothed_y_off - eye.target_pos[1]) * 0.015
-            # Physics update
             eye.update()
             
         # Render
