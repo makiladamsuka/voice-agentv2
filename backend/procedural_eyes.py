@@ -219,8 +219,9 @@ class BlockyEye:
             breath_w = (math.sin(t * 1.5 + self.base_x) * 1.5 + math.sin(t * 0.5) * 1.0)
             breath_h = (math.cos(t * 1.8 + self.base_y) * 1.5 + math.cos(t * 0.6) * 1.0)
 
-            move_stretch_x = (dx * speed_x) * 2.5
-            move_stretch_y = (dy * speed_y) * 2.5
+            stretch_mult = 1.0 if self.current_emotion != "happy" else 0.4
+            move_stretch_x = (dx * speed_x) * 2.5 * stretch_mult
+            move_stretch_y = (dy * speed_y) * 2.5 * stretch_mult
 
             k = 0.45  # Higher = faster transitions (was 0.22)
             d = 0.65  # Damping (was 0.55)
