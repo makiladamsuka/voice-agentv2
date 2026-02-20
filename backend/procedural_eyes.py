@@ -22,17 +22,17 @@ BLINK_SPEED_MAX = 5.0
 
 # --- Emotion Presets ---
 EMOTION_PRESETS = {
-    "idle": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},
-    "idle1": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True}, # Alias
-    "idle2": {"scale_w": 1.0, "scale_h": 1.1, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True}, # Listening/Alert
-    "happy": {"scale_w": 1.15, "scale_h": 0.78, "top_lid": 0.0, "bottom_lid": 0.38, "lid_angle": -7.0, "mirror_angle": True},
-    "sad": {"scale_w": 1.1, "scale_h": 1.1, "top_lid": 0.35, "bottom_lid": 0.0, "lid_angle": 15.0, "mirror_angle": True},
-    "angry": {"scale_w": 1.0, "scale_h": 0.9, "top_lid": 0.35, "bottom_lid": 0.0, "lid_angle": -20.0, "mirror_angle": True},
-    "surprised": {"scale_w": 0.9, "scale_h": 1.3, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},
-    "suspicious": {"scale_w": 1.1, "scale_h": 0.6, "top_lid": 0.4, "bottom_lid": 0.4, "lid_angle": 0.0, "mirror_angle": True},
-    "sleepy": {"scale_w": 1.1, "scale_h": 1.0, "top_lid": 0.6, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},
-    "looking": {"scale_w": 1.0, "scale_h": 0.9, "top_lid": 0.25, "bottom_lid": 0.0, "lid_angle": -8.0, "mirror_angle": False},
-    "thinking": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.1, "bottom_lid": 0.1, "lid_angle": 0.0, "mirror_angle": True}, # New
+    "idle":  {"scale_w": 1.0, "scale_h": 1.0,  "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},
+    "idle1": {"scale_w": 1.0, "scale_h": 1.0,  "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},  # Alias
+    "idle2": {"scale_w": 1.0, "scale_h": 1.3,  "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},  # Listening: wide eyes
+    "happy": {"scale_w": 1.2, "scale_h": 0.65, "top_lid": 0.0,  "bottom_lid": 0.5,  "lid_angle": -8.0,  "mirror_angle": True},  # Squint-smile
+    "sad":   {"scale_w": 1.1, "scale_h": 1.1,  "top_lid": 0.4,  "bottom_lid": 0.0,  "lid_angle": 18.0,  "mirror_angle": True},
+    "angry": {"scale_w": 1.0, "scale_h": 0.85, "top_lid": 0.45, "bottom_lid": 0.0,  "lid_angle": -22.0, "mirror_angle": True},
+    "surprised": {"scale_w": 0.9, "scale_h": 1.5, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},
+    "suspicious": {"scale_w": 1.1, "scale_h": 0.55, "top_lid": 0.45, "bottom_lid": 0.45, "lid_angle": 0.0, "mirror_angle": True},
+    "sleepy": {"scale_w": 1.1, "scale_h": 1.0,  "top_lid": 0.65, "bottom_lid": 0.0,  "lid_angle": 0.0,  "mirror_angle": True},
+    "looking": {"scale_w": 1.0, "scale_h": 0.9, "top_lid": 0.28, "bottom_lid": 0.0,  "lid_angle": -8.0, "mirror_angle": False},
+    "thinking": {"scale_w": 0.9, "scale_h": 0.9, "top_lid": 0.3, "bottom_lid": 0.1, "lid_angle": 0.0,  "mirror_angle": True},  # Squint-think
 }
 
 class BlockyEye:
@@ -134,8 +134,9 @@ class BlockyEye:
     def update(self):
         if self.blink_state == "IDLE":
             t = time.time() + self.noise_t
-            noise_x = (math.sin(t * 1.3) * 0.2 + math.sin(t * 0.7) * 0.1)
-            noise_y = (math.cos(t * 1.1) * 0.2 + math.cos(t * 0.9) * 0.1)
+            # Larger noise = more visible idle movement
+            noise_x = (math.sin(t * 1.3) * 2.5 + math.sin(t * 0.7) * 1.5)
+            noise_y = (math.cos(t * 1.1) * 2.0 + math.cos(t * 0.9) * 1.2)
 
             target_x_phys = self.target_pos[0] + noise_x
             target_y_phys = self.target_pos[1] + noise_y
@@ -202,8 +203,8 @@ class BlockyEye:
             move_stretch_x = (dx * speed_x) * 2.5
             move_stretch_y = (dy * speed_y) * 2.5
 
-            k = 0.22
-            d = 0.55
+            k = 0.45  # Higher = faster transitions (was 0.22)
+            d = 0.65  # Damping (was 0.55)
             self.scale_w_vel = (self.scale_w_vel + (self.target_scale_w - self.scale_w) * k) * d
             self.scale_h_vel = (self.scale_h_vel + (self.target_scale_h - self.scale_h) * k) * d
             self.scale_w += self.scale_w_vel
