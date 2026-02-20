@@ -95,8 +95,9 @@ class BlockyEye:
         # Thinking animation state
         self.thinking_phase = 0.0
         
-        # Happy hop state: occasional left/right jump
-        self.happy_jump_x = 0.0       # Current hop offset
+        # Happy hop state: occasional left/right jump with vertical bounce
+        self.happy_jump_x = 0.0       # Current hop X offset
+        self.happy_jump_y = 0.0       # Current hop Y offset (upward pop)
         self.next_happy_jump = 0.0    # When to next hop
         
         # Speech reactivity
@@ -164,17 +165,19 @@ class BlockyEye:
                 target_y_phys -= 4.0  # Slight upward attentive look
 
             if self.current_emotion == "happy":
-                # Occasional left/right hop, otherwise stay still
+                # Occasional left/right hop with vertical bounce
                 now = time.time()
                 if now > self.next_happy_jump:
-                    self.happy_jump_x = random.choice([-12.0, 12.0])
+                    self.happy_jump_x = random.choice([-13.0, 13.0])
+                    self.happy_jump_y = -10.0  # Pop upward on hop
                     self.next_happy_jump = now + random.uniform(2.0, 4.0)
                 # Spring decay back toward 0
                 self.happy_jump_x *= 0.88
+                self.happy_jump_y *= 0.82  # Slightly faster decay for snappy bounce
                 target_x_phys += self.happy_jump_x
-                # Tiny upward nudge, hard-clamped so it never overflows
-                target_y_phys -= 2.0
-                target_y_phys = max(target_y_phys, self.base_h * 0.45)
+                target_y_phys += self.happy_jump_y
+                # Lower resting position slightly (push down)
+                target_y_phys += 6.0
                 
             # Thinking animation: Look up and slightly left/right
             if self.current_emotion == "thinking":
