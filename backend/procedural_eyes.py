@@ -459,7 +459,7 @@ class ProceduralEyeDisplay:
             now = time.time()
             if now > self.next_thinking_shift:
                 self.thinking_gaze_x = -self.thinking_gaze_x  # Flip side
-                self.next_thinking_shift = now + random.uniform(2.0, 3.5)
+                self.next_thinking_shift = now + random.uniform(0.4, 1.0)
             # Calculate hard side position (near screen edge)
             side_x = SCREEN_WIDTH * (0.78 if self.thinking_gaze_x > 0 else 0.22)
             look_up_y = SCREEN_HEIGHT * 0.38  # Slightly above center
