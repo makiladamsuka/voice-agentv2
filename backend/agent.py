@@ -150,38 +150,9 @@ class CampusGreetingAgent(Agent):
         else:
             print("⚠️  No face encodings found. Face recognition will be limited.")
         
+        from prompt import SYSTEM_INSTRUCTIONS
         super().__init__(
-            instructions="""You are a friendly campus assistant robot with continuous face recognition.
-
-ABOUT YOUR EMOTIONS:
-Your facial expressions are AUTOMATIC! They sync with what you say.
-- Say something happy → happy eyes appear
-- Say "sorry" → sad eyes appear
-- No need to manage emotions - just speak naturally!
-
-CRITICAL CAPABILITY:
-I can ALWAYS see who is in front of me. Their name appears in system messages.
-
-AUTO-ENROLLMENT:
-When someone introduces themselves (says "I'm [Name]" or "My name is [Name]"):
-1. IMMEDIATELY call enroll_new_face(their_name) 
-2. Then respond warmly: "Nice to meet you, [Name]! I'll remember you now."
-
-NAME USAGE:
-- Use names occasionally and naturally, not every response
-- For UNKNOWN: "Hi there! I don't think we've met. What's your name?"
-- For KNOWN: "Hey [Name]! Good to see you!"
-
-CONVERSATION STYLE:
-- Short, clear sentences
-- Friendly, warm tone
-- Be helpful and responsive
-
-AVAILABLE TOOLS:
-- identify_color, identify_object, count_people_in_room, describe_environment
-- show_event_poster, show_location_map, ask_about_events
-- enroll_new_face(name)
-- get_cpu_temperature, get_system_info, get_cpu_usage, get_memory_usage"""
+            instructions=SYSTEM_INSTRUCTIONS
         )
     
     def get_object_detector(self):
@@ -255,14 +226,17 @@ AVAILABLE TOOLS:
                     oled_display.stop_emotion()
                     print("👀 OLED: Safety fallback returned to idle")
             except: pass
-            
         asyncio.create_task(safety_return_to_idle())
 
     # --- Delegate to Tool Modules ---
 
+    # =========================================================================
+    # 🛠️ GROUP 1: VISION & PERCEPTION TOOLS (User Requested)
+    # =========================================================================
+
     @function_tool
     async def recognize_face(self, mode: str = "identify", context: RunContext = None) -> str:
-        """Identifies who is currently in front of the webcam.
+        """Identifies who is currently in front of the webcam (Manual Trigger).
         
         Args:
             mode: Recognition mode: 'identify' (default) or 'detailed'
@@ -318,6 +292,10 @@ AVAILABLE TOOLS:
         self.vision_tools.face_monitor = self.face_monitor
         return await self.vision_tools.count_people_in_room(context)
     
+    # =========================================================================
+    # 🛠️ GROUP 2: CAMPUS INFORMATION TOOLS (User Requested)
+    # =========================================================================
+
     @function_tool
     async def list_available_events(self, filter_type: str = "all", context: RunContext = None) -> str:
         """Lists all available events on campus.
@@ -341,11 +319,6 @@ AVAILABLE TOOLS:
         return await self.content_tools.show_location_map(location_query, context)
     
     @function_tool
-    async def get_cpu_temperature(self, unit: str = "celsius", context: RunContext = None) -> str:
-        """Gets the CPU temperature of the Raspberry Pi.
-        
-        Args:
-            unit: Temperature unit: 'celsius' (default) or 'fahrenheit'
         """
         print("🌡️ [TOOL] get_cpu_temperature called")
         return await self.system_tools.get_cpu_temperature(context)
@@ -541,9 +514,10 @@ async def entrypoint(ctx: agents.JobContext):
         tts=deepgram.TTS(model="aura-luna-en"),
         vad=silero.VAD.load(),
         llm=openai.LLM(
-            base_url="https://api.groq.com/openai/v1",
-            api_key=os.getenv("GROQ_API_KEY"),
-            model="llama-3.1-8b-instant"  # Smaller model, uses far fewer tokens
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.getenv("OPENROUTER_API_KEY"),
+            # User request: "openrouter/free" routes to available free models
+            model="openrouter/free"
         ),
     )
     
