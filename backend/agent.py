@@ -599,31 +599,30 @@ async def entrypoint(ctx: agents.JobContext):
         # --- Register event listeners BEFORE session.start() ---
         
         # Register user state callback for idle2 (listening) emotion
-        # Register user state callback for idle2 (listening) emotion
         @session.on("user_started_speaking")
-        def on_user_started_speaking():
+        def on_user_started_speaking(*args):
             """Show idle2 when user starts speaking"""
+            print("👂 User speaking - showing idle2")
             try:
                 if oled_display.DISPLAY_RUNNING:
                     oled_display.start_emotion("idle2")
-                    print("👂 User speaking - showing idle2")
             except Exception as e:
                 print(f"⚠️ User speech start error: {e}")
 
         @session.on("user_stopped_speaking")
-        def on_user_stopped_speaking():
+        def on_user_stopped_speaking(*args):
             """Return to idle1 when user stops speaking"""
+            print("👀 User stopped - returning to idle1")
             try:
                 if oled_display.DISPLAY_RUNNING:
                     oled_display.stop_emotion()
-                    print("👀 User stopped - returning to idle1")
             except Exception as e:
                 print(f"⚠️ User speech stop error: {e}")
 
         # Agent THOUGHT start (When LLM starts generating)
         @session.on("agent_speech_committed")
-        def on_agent_speech_committed(ev):
-            print("🤔 Agent thinking...")
+        def on_agent_speech_committed(*args):
+            print("🤔 Agent thinking - EMOTION: thinking")
             try:
                 if oled_display.DISPLAY_RUNNING:
                     oled_display.start_emotion("thinking")
@@ -632,30 +631,30 @@ async def entrypoint(ctx: agents.JobContext):
 
         # Agent SPEECH start
         @session.on("agent_speech_started")
-        def on_agent_speech_started(ev):
-            print("🗣️ Agent speaking...")
+        def on_agent_speech_started(*args):
+            print("🗣️ Agent speaking - EMOTION: happy")
             agent.is_speaking = True
             try:
                 if oled_display.DISPLAY_RUNNING:
-                    oled_display.start_emotion("happy") # Talking state
+                    oled_display.start_emotion("happy")  # Talking state
             except Exception as e:
                 print(f"⚠️ OLED error: {e}")
 
         # Precise emotion finish listeners
         @session.on("agent_speech_stopped")
         @session.on("agent_speech_finished")
-        def on_agent_speech_finished(ev):
-            print(f"🔊 Agent finished speaking")
+        def on_agent_speech_finished(*args):
+            print(f"🔊 Agent finished speaking - EMOTION: idle")
             agent.is_speaking = False
             try:
                 if oled_display.DISPLAY_RUNNING:
-                    oled_display.stop_emotion() # Return to idle
+                    oled_display.stop_emotion()  # Return to idle
             except Exception as e:
                 print(f"⚠️ OLED error: {e}")
 
         @session.on("agent_speech_interrupted")
-        def on_agent_speech_interrupted(ev):
-            print("🔊 Agent interrupted")
+        def on_agent_speech_interrupted(*args):
+            print("🔊 Agent interrupted - EMOTION: idle")
             agent.is_speaking = False
             try:
                 if oled_display.DISPLAY_RUNNING:
