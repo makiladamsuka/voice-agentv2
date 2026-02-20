@@ -451,6 +451,7 @@ async def entrypoint(ctx: agents.JobContext):
     agent = CampusGreetingAgent(_global_image_server, None)  # event_db set later
     agent.room = ctx.room
     agent.face_monitor = None  # Will be set after background init
+    agent.is_speaking = False  # Track speaking state for emotion logic
     
     # Context Injection: LLM always knows who's in front (handles None face_monitor)
     async def inject_person_context(assistant: AgentSession, chat_ctx):
@@ -526,10 +527,19 @@ async def entrypoint(ctx: agents.JobContext):
                 # 1. Face Tracking (High frequency)
                 if agent.face_monitor:
                     face_center = agent.face_monitor.get_face_center()
-                    if face_center and oled_display.DISPLAY_RUNNING:
-                        oled_display.update_face_target(face_center[0], face_center[1])
-                    elif oled_display.DISPLAY_RUNNING:
-                        oled_display.update_face_target(0.0, 0.0)
+                    
+                    if oled_display.DISPLAY_RUNNING:
+                        if face_center:
+                            oled_display.update_face_target(face_center[0], face_center[1])
+                            # Show "Happy" if seeing someone (and not busy doing something else)
+                            # Only override "idle" states. Don't override "thinking", "listening" (idle2), or "talking" (happy)
+                            if oled_display.current_emotion in ["idle", "idle1"]:
+                                oled_display.start_emotion("happy")
+                        else:
+                            oled_display.update_face_target(0.0, 0.0)
+                            # If lost face and was "happy" (and NOT speaking), go back to idle
+                            if oled_display.current_emotion == "happy" and not agent.is_speaking:
+                                oled_display.start_emotion("idle")
 
                 # 2. Greeting Logic (Lower frequency)
                 # Check for new arrivals
@@ -623,6 +633,7 @@ async def entrypoint(ctx: agents.JobContext):
         @session.on("agent_speech_started")
         def on_agent_speech_started(ev):
             print("🗣️ Agent speaking...")
+            agent.is_speaking = True
             try:
                 if oled_display.DISPLAY_RUNNING:
                     oled_display.start_emotion("happy") # Talking state
@@ -634,6 +645,7 @@ async def entrypoint(ctx: agents.JobContext):
         @session.on("agent_speech_finished")
         def on_agent_speech_finished(ev):
             print(f"🔊 Agent finished speaking")
+            agent.is_speaking = False
             try:
                 if oled_display.DISPLAY_RUNNING:
                     oled_display.stop_emotion() # Return to idle
@@ -643,6 +655,7 @@ async def entrypoint(ctx: agents.JobContext):
         @session.on("agent_speech_interrupted")
         def on_agent_speech_interrupted(ev):
             print("🔊 Agent interrupted")
+            agent.is_speaking = False
             try:
                 if oled_display.DISPLAY_RUNNING:
                     oled_display.stop_emotion()
