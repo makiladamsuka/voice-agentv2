@@ -13,11 +13,11 @@ from pathlib import Path
 from image_manager import ImageManager
 from image_server import ImageServer
 from face_monitor import FaceMonitor
-from object_detector import ObjectDetector
+# from object_detector import ObjectDetector
 from greetings import generate_greeting, generate_group_greeting
 from event_database import EventDatabase, build_event_database
-from emotion_parser import parse_emotion, get_emotion_for_context
-from emotion_sync import get_emotion_for_text, analyze_emotion
+# from emotion_parser import parse_emotion, get_emotion_for_context
+# from emotion_sync import get_emotion_for_text, analyze_emotion
 # OLED/TFT display — now uses procedural rendering internally
 import oled_display  # start_emotion(), stop_emotion(), etc.
 
@@ -31,68 +31,66 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 
 
-class EmotionSpeechWrapper:
-    """
-    Wrapper that provides emotional speech with VADER sentiment analysis.
-    Analyzes text segments and syncs OLED emotions with speech.
-    """
-    
-    @staticmethod
-    async def speak_with_emotion(session, text: str):
-        """
-        Speak text with synchronized emotions.
-        Analyzes each sentence and shows matching emotion while speaking.
-        
-        Args:
-            session: AgentSession to use for speaking
-            text: Full text to speak
-        """
-        # Get emotionally segmented text
-        segments = get_emotion_for_text(text)
-        
-        print(f"\n🎭 === EMOTION SYNC DEBUG ===")
-        print(f"📝 Full text: {text}")
-        print(f"📊 Segments: {len(segments)}")
-        for i, seg in enumerate(segments):
-            print(f"   {i+1}. [{seg['emotion']}] {seg['text']}")
-        print(f"🎭 ===========================\n")
-        
-        for segment in segments:
-            emotion = segment["emotion"]
-            segment_text = segment["text"]
-            
-            print(f"🎤 NOW SPEAKING: [{emotion}] {segment_text}")
-            
-            # Start emotion (looping mode) - DISABLED here, handled by tts_node for better sync
-            # try:
-            #     if oled_display.DISPLAY_RUNNING:
-            #         oled_display.start_emotion(emotion)
-            #         print(f"👀 OLED: Started {emotion} emotion")
-            # except Exception as e:
-            #     print(f"⚠️ OLED error: {e}")
-            
-            # Speak the segment
-            try:
-                await session.say(segment_text)
-            except Exception as e:
-                print(f"⚠️ Speech error: {e}")
-            
-            # Small pause between segments
-            await asyncio.sleep(0.1)
-        
-        # Return to idle after all speech - DISABLED here, handled by tts_node and session events
-        # try:
-        #     if oled_display.DISPLAY_RUNNING:
-        #         oled_display.stop_emotion()
-        #         print(f"👀 OLED: Returned to idle")
-        # except Exception as e:
-        #     print(f"⚠️ OLED error: {e}")
+# class EmotionSpeechWrapper:
+#     """
+#     Wrapper that provides emotional speech with VADER sentiment analysis.
+#     Analyzes text segments and syncs OLED emotions with speech.
+#     """
+#     
+#     @staticmethod
+#     async def speak_with_emotion(session, text: str):
+#         """
+#         Speak text with synchronized emotions.
+#         Analyzes each sentence and shows matching emotion while speaking.
+#         
+#         Args:
+#             session: AgentSession to use for speaking
+#             text: Full text to speak
+#         """
+#         # Get emotionally segmented text
+#         # segments = get_emotion_for_text(text)
+#         
+#         # print(f"\n🎭 === EMOTION SYNC DEBUG ===")
+#         # print(f"📝 Full text: {text}")
+#         # print(f"📊 Segments: {len(segments)}")
+#         # for i, seg in enumerate(segments):
+#         #     print(f"   {i+1}. [{seg['emotion']}] {seg['text']}")
+#         # print(f"🎭 ===========================\n")
+#         
+#         # for segment in segments:
+#         #     emotion = segment["emotion"]
+#         #     segment_text = segment["text"]
+#             
+#         #     print(f"🎤 NOW SPEAKING: [{emotion}] {segment_text}")
+#             
+#         #     # Start emotion (looping mode) - DISABLED here, handled by tts_node for better sync
+#         #     # try:
+#         #     #     if oled_display.DISPLAY_RUNNING:
+#         #     #         oled_display.start_emotion(emotion)
+#         #     #         print(f"👀 OLED: Started {emotion} emotion")
+#         #     # except Exception as e:
+#         #     #     print(f"⚠️ OLED error: {e}")
+#             
+#         #     # Speak the segment
+#         #     try:
+#         #         await session.say(segment_text)
+#         #     except Exception as e:
+#         #         print(f"⚠️ Speech error: {e}")
+#             
+#         #     # Small pause between segments
+#         #     await asyncio.sleep(0.1)
+#         
+#         # Return to idle after all speech - DISABLED here, handled by tts_node and session events
+#         # try:
+#         #     if oled_display.DISPLAY_RUNNING:
+#         #         oled_display.stop_emotion()
+#         #         print(f"👀 OLED: Returned to idle")
+#         # except Exception as e:
+#         #     print(f"⚠️ OLED error: {e}")
+#         pass
 
 
-# Convenience function for easier use
-async def emotional_say(session, text: str):
-    """Convenience function to speak with emotions."""
-    await EmotionSpeechWrapper.speak_with_emotion(session, text)
+
 
 
 class CampusGreetingAgent(Agent):
@@ -111,7 +109,7 @@ class CampusGreetingAgent(Agent):
         # Initialize tool helpers
         self.vision_tools = VisionTools(
             face_monitor=None,  # Will set later
-            object_detector_factory=self.get_object_detector
+            object_detector_factory=None # self.get_object_detector (Removed)
         )
         self.content_tools = ContentTools(
             image_manager=self.image_manager,
@@ -155,78 +153,9 @@ class CampusGreetingAgent(Agent):
             instructions=SYSTEM_INSTRUCTIONS
         )
     
-    def get_object_detector(self):
-        """Lazy-load ObjectDetector"""
-        if self._object_detector is None:
-            print("🔍 Loading YOLO model...")
-            self._object_detector = ObjectDetector()
-        return self._object_detector
+
     
-    async def tts_node(self, text_stream, model_settings):
-        """
-        Override tts_node to intercept ALL text going to TTS.
-        Applies VADER sentiment analysis for real-time emotion sync.
-        
-        TIMING: Emotion triggers on FIRST AUDIO FRAME, not text input.
-        This syncs emotion with actual speech output.
-        """
-        accumulated_text = ""
-        detected_emotion = "idle1"
-        emotion_triggered = False
-        chunk_count = 0
-        audio_frame_count = 0
-        
-        print("\n🎭 === TTS_NODE STARTED ===")
-        print(f"👀 OLED Running: {oled_display.DISPLAY_RUNNING}")
-        
-        async def emotion_aware_text_stream():
-            nonlocal accumulated_text, detected_emotion, chunk_count
-            
-            async for text_chunk in text_stream:
-                chunk_count += 1
-                accumulated_text += text_chunk
-                
-                # Analyze emotion but DON'T trigger yet (wait for audio)
-                detected_emotion = analyze_emotion(accumulated_text)
-                print(f"📝 Chunk {chunk_count}: '{text_chunk}' → emotion: [{detected_emotion}]")
-                
-                yield text_chunk
-            
-            print(f"\n📝 TTS Text Complete: {accumulated_text[:60]}...")
-            print(f"🎭 Detected emotion: [{detected_emotion}]")
-        
-        # Call parent's tts_node with our emotion-aware stream
-        async for audio_frame in super().tts_node(emotion_aware_text_stream(), model_settings):
-            audio_frame_count += 1
-            
-            # Trigger emotion on FIRST audio frame (when speech actually starts)
-            if not emotion_triggered and detected_emotion != "idle1":
-                emotion_triggered = True
-                print(f"🔊 Audio frame #{audio_frame_count} - TRIGGERING EMOTION: [{detected_emotion}]")
-                try:
-                    if oled_display.DISPLAY_RUNNING:
-                        oled_display.start_emotion(detected_emotion)
-                        print(f"👀 OLED: {detected_emotion}")
-                except Exception as e:
-                    print(f"⚠️ OLED error: {e}")
-            
-            yield audio_frame
-        
-        # Return to idle after ALL audio frames sent
-        print(f"🔊 Audio complete ({audio_frame_count} frames)")
-        
-        # Safety watchdog: return to idle after buffer clears
-        async def safety_return_to_idle():
-            # Wait for audio buffer to clear (1.5s - 2.5s is safe for typical V/A sync)
-            await asyncio.sleep(2.0) 
-            try:
-                # ONLY if the agent is not in another speech session
-                # This check is basic but helps with back-to-back segments
-                if oled_display.DISPLAY_RUNNING:
-                    oled_display.stop_emotion()
-                    print("👀 OLED: Safety fallback returned to idle")
-            except: pass
-        asyncio.create_task(safety_return_to_idle())
+
 
     # --- Delegate to Tool Modules ---
 
@@ -276,10 +205,11 @@ class CampusGreetingAgent(Agent):
     
     @function_tool
     async def identify_object(self, object_name: str, context: RunContext) -> str:
-        """Finds a specific object and describes it."""
-        print(f"🔍 [TOOL] identify_object called for: {object_name}")
-        self.vision_tools.face_monitor = self.face_monitor
-        return await self.vision_tools.identify_object(object_name, context)
+        """Finds a specific object and describes it (Feature Removed)."""
+        print(f"🔍 [TOOL] identify_object called for: {object_name} (FEATURE REMOVED)")
+        return "I'm sorry, my object detection system has been disabled."
+        # self.vision_tools.face_monitor = self.face_monitor
+        # return await self.vision_tools.identify_object(object_name, context)
     
     @function_tool
     async def count_people_in_room(self, include_details: str = "count", context: RunContext = None) -> str:
@@ -360,36 +290,25 @@ class CampusGreetingAgent(Agent):
     
     @function_tool
     async def ask_about_events(self, question: str, context: RunContext) -> str:
-        """
-        Answers questions about campus events by searching poster information.
-        Use for questions like: "When is the art exhibition?", "What events are happening?", "Where is the sports meet?"
-        
-        Args:
-            question: The question about events to answer
-        """
+        """Answers questions about campus events using the vector database."""
         print(f"📅 [TOOL] ask_about_events called: {question}")
         
         if not self.event_db:
-            return "Event database is not available. I can't answer event questions right now."
-        
-        results = self.event_db.query(question, n_results=3)
+            return "I'm sorry, the event database is not available right now."
+            
+        # Query the database
+        results = self.event_db.query_events(question)
         
         if not results:
-            return "I don't have information about that event. Try asking about art exhibition, freshers sportmeet, or openhouse."
-        
-        # Format response
-        responses = []
-        for r in results:
-            parts = [f"**{r['name']}**"]
-            if r.get('date'):
-                parts.append(f"Date: {r['date']}")
-            if r.get('time'):
-                parts.append(f"Time: {r['time']}")
-            if r.get('venue'):
-                parts.append(f"Venue: {r['venue']}")
-            responses.append(" - ".join(parts))
-        
-        return "Here's what I found:\\n" + "\\n".join(responses)
+            return "I couldn't find any specific events matching your question."
+            
+        # Format context for LLM
+        context_str = "Found these relevant events:\n"
+        for i, event in enumerate(results):
+            context_str += f"{i+1}. {event.get('title', 'Event')} on {event.get('date', 'Unknown Date')}: {event.get('description', '')}\n"
+            
+        print(f"   found {len(results)} events")
+        return context_str
 
 # Global services (shared across all agent instances)
 _global_face_monitor = None
@@ -442,9 +361,11 @@ async def _init_heavy_async(agent):
     loop = asyncio.get_event_loop()
     
     # 2. Build event database from posters (OCR) - can be slow
-    if _global_event_db is None:
+    if _global_event_db is None and build_event_database:
         try:
+            print("📅 Building event database...")
             assets_dir = Path(__file__).parent / "assets"
+            # Run in executor to avoid blocking
             _global_event_db = await loop.run_in_executor(
                 None, build_event_database, assets_dir
             )
@@ -583,79 +504,39 @@ async def entrypoint(ctx: agents.JobContext):
         
     session.before_llm_cb = inject_person_context
     
-    # User speech listener: Show idle2 when user is talking
-    async def on_user_speech(ev):
-        """Handle user speech events - show idle2 when user is speaking"""
-        try:
-            if oled_display.DISPLAY_RUNNING:
-                if hasattr(ev, 'is_speaking'):
-                    if ev.is_speaking:
-                        # User started speaking - show idle2 (attentive/listening)
-                        oled_display.start_emotion("idle2")
-                        print("👂 User speaking - showing idle2")
-                    else:
-                        # User stopped speaking - return to idle1
-                        oled_display.stop_emotion()
-                        print("👀 User stopped - returning to idle1")
-        except Exception as e:
-            print(f"⚠️ User speech OLED error: {e}")
+    
+    # Proactive Greeting Task: Watch for new people (only runs after init completes)
+    # (Unused on_user_speech removed)
     
     # Proactive Greeting Task: Watch for new people (only runs after init completes)
     async def monitor_and_greet():
-        """Background task that greets people when they appear"""
+        """Background task that greets people and TRACKS FACES"""
         # Wait for initialization to complete
         while not _is_ready:
             await asyncio.sleep(1)
         
         await asyncio.sleep(2)  # Additional delay after init
-        print("🔄 Background greeting monitor started (multi-person mode)")
-        
-        while ctx.room.connection_state == rtc.ConnectionState.CONN_CONNECTED:
-            try:
-                if agent.face_monitor is None:
-                    await asyncio.sleep(2)
-                    continue
-                    
-                # Get new arrivals (FaceMonitor handles 5-second cooldown)
-                arrivals = agent.face_monitor.get_new_arrivals()
-                
-                if arrivals:
-                    print(f"👋 New arrivals: {arrivals}")
-                    
-                    # Categorize arrivals
-                    known_people = [p for p in arrivals if p != "Unknown"]
-                    unknown_count = arrivals.count("Unknown")
-                    
-                    # Mark all as greeted
-                    for p in arrivals:
-                        agent.face_monitor.mark_greeted(p)
-                    
-                    try:
-                        if len(known_people) > 0 and unknown_count == 0:
-                            if len(known_people) == 1:
-                                name = known_people[0]
-                                greeting = generate_greeting(name, is_known=True)
                                 print(f"✅ Greeting known person: {name} -> {greeting}")
-                                await emotional_say(session, greeting)
+                                await session.say(greeting)
                             else:
                                 greeting = generate_group_greeting(known_people, 0)
                                 print(f"✅ Greeting multiple known people -> {greeting}")
-                                await emotional_say(session, greeting)
+                                await session.say(greeting)
                         
                         elif known_people and unknown_count > 0:
                             greeting = generate_group_greeting(known_people, unknown_count)
                             print(f"🤔 Greeting mix -> {greeting}")
-                            await emotional_say(session, greeting)
+                            await session.say(greeting)
                         
                         elif unknown_count == 1:
                             greeting = generate_greeting("Unknown", is_known=False)
                             print(f"🤔 Greeting unknown person -> {greeting}")
-                            await emotional_say(session, greeting)
+                            await session.say(greeting)
                         
                         else:
                             greeting = generate_group_greeting([], unknown_count)
                             print(f"👥 Greeting {unknown_count} unknown people -> {greeting}")
-                            await emotional_say(session, greeting)
+                            await session.say(greeting)
                             
                     except RuntimeError:
                         print("⚠️ Session closing, stopping greetings")
@@ -672,41 +553,66 @@ async def entrypoint(ctx: agents.JobContext):
         # --- Register event listeners BEFORE session.start() ---
         
         # Register user state callback for idle2 (listening) emotion
-        @session.on("user_state_changed")
-        def on_user_state_changed(state):
-            """Show idle2 when user is speaking, idle1 when stopped"""
+        # Register user state callback for idle2 (listening) emotion
+        @session.on("user_started_speaking")
+        def on_user_started_speaking():
+            """Show idle2 when user starts speaking"""
             try:
                 if oled_display.DISPLAY_RUNNING:
-                    if state.speaking:
-                        oled_display.start_emotion("idle2")
-                        print("👂 User speaking - showing idle2")
-                    else:
-                        oled_display.stop_emotion()
-                        print("👀 User stopped - returning to idle1")
+                    oled_display.start_emotion("idle2")
+                    print("👂 User speaking - showing idle2")
             except Exception as e:
-                print(f"⚠️ User state OLED error: {e}")
+                print(f"⚠️ User speech start error: {e}")
+
+        @session.on("user_stopped_speaking")
+        def on_user_stopped_speaking():
+            """Return to idle1 when user stops speaking"""
+            try:
+                if oled_display.DISPLAY_RUNNING:
+                    oled_display.stop_emotion()
+                    print("👀 User stopped - returning to idle1")
+            except Exception as e:
+                print(f"⚠️ User speech stop error: {e}")
+
+        # Agent THOUGHT start (When LLM starts generating)
+        @session.on("agent_speech_committed")
+        def on_agent_speech_committed(ev):
+            print("🤔 Agent thinking...")
+            try:
+                if oled_display.DISPLAY_RUNNING:
+                    oled_display.start_emotion("thinking")
+            except Exception as e:
+                print(f"⚠️ OLED error: {e}")
+
+        # Agent SPEECH start
+        @session.on("agent_speech_started")
+        def on_agent_speech_started(ev):
+            print("🗣️ Agent speaking...")
+            try:
+                if oled_display.DISPLAY_RUNNING:
+                    oled_display.start_emotion("happy") # Talking state
+            except Exception as e:
+                print(f"⚠️ OLED error: {e}")
 
         # Precise emotion finish listeners
         @session.on("agent_speech_stopped")
         @session.on("agent_speech_finished")
         def on_agent_speech_finished(ev):
-            print(f"🔊 Session: Speech finish event fired")
+            print(f"🔊 Agent finished speaking")
             try:
                 if oled_display.DISPLAY_RUNNING:
-                    oled_display.stop_emotion()
-                    print("👀 OLED: Returned to idle")
+                    oled_display.stop_emotion() # Return to idle
             except Exception as e:
-                print(f"⚠️ Speech finish OLED error: {e}")
+                print(f"⚠️ OLED error: {e}")
 
         @session.on("agent_speech_interrupted")
         def on_agent_speech_interrupted(ev):
-            print("🔊 Session: agent_speech_interrupted event fired")
+            print("🔊 Agent interrupted")
             try:
                 if oled_display.DISPLAY_RUNNING:
                     oled_display.stop_emotion()
-                    print("👀 OLED: Interrupted - requested idle")
             except Exception as e:
-                print(f"⚠️ Agent speech interrupt OLED error: {e}")
+                print(f"⚠️ OLED error: {e}")
 
         # START SESSION
         print("🚀 Starting LiveKit session...")

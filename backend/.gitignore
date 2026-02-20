@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+event_db/
+legacy/
+.DS_Store
+wandb/
