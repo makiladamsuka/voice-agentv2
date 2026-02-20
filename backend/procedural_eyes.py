@@ -20,11 +20,11 @@ FLOOR_Y = SCREEN_HEIGHT - 5
 BLINK_SPEED_MIN = 8.0
 BLINK_SPEED_MAX = 12.0
 
-# Thinking keyframe sequence: smooth slow position drifts with subtle tilt
+# Thinking keyframe sequence: smooth slow position drifts only — no scale changes
 THINKING_PHASES = [
-    {"x": 0.20, "y": 0.30, "tilt":  6.0, "dur": (1.0, 1.6)},   # left  (tilt left)
-    {"x": 0.80, "y": 0.26, "tilt": -6.0, "dur": (1.0, 1.6)},   # right up (tilt right)
-    {"x": 0.80, "y": 0.62, "tilt": -4.0, "dur": (0.9, 1.4)},   # right down
+    {"x": 0.20, "y": 0.30, "dur": (1.0, 1.6)},   # left
+    {"x": 0.80, "y": 0.26, "dur": (1.0, 1.6)},   # right up
+    {"x": 0.80, "y": 0.62, "dur": (0.9, 1.4)},   # right down
 ]
 
 # --- Emotion Presets ---
@@ -39,7 +39,7 @@ EMOTION_PRESETS = {
     "suspicious": {"scale_w": 1.1, "scale_h": 0.55, "top_lid": 0.45, "bottom_lid": 0.45, "lid_angle": 0.0, "mirror_angle": True},
     "sleepy": {"scale_w": 1.1, "scale_h": 1.0,  "top_lid": 0.65, "bottom_lid": 0.0,  "lid_angle": 0.0,  "mirror_angle": True},
     "looking": {"scale_w": 1.0, "scale_h": 0.9, "top_lid": 0.28, "bottom_lid": 0.0,  "lid_angle": -8.0, "mirror_angle": False},
-    "thinking": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.28, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},  # Squinted, no size change
+    "thinking": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.12, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},  # Barely squinted, no size change
 }
 
 class BlockyEye:
@@ -469,12 +469,9 @@ class ProceduralEyeDisplay:
             phase = THINKING_PHASES[self.thinking_phase_idx]
             target_x = SCREEN_WIDTH * phase["x"]
             target_y = SCREEN_HEIGHT * phase["y"]
-            tilt = phase["tilt"]
             for eye in (self.left_eye, self.right_eye):
                 eye.target_pos[0] = target_x
                 eye.target_pos[1] = target_y
-                # Mirror tilt: left eye tilts one way, right eye mirrors
-                eye.target_lid_angle = tilt if eye.is_left else -tilt
             
         # Smooth tracking (from face monitor)
         smooth_alpha = 0.15
