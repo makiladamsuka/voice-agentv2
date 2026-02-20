@@ -161,9 +161,12 @@ class BlockyEye:
 
             if self.current_emotion == "happy":
                 ht = time.time() * 4.0 + self.happy_phase
-                # Gentle bouncy upward drift + side wiggle
-                target_y_phys -= 5.0 + math.sin(ht) * 3.0
-                target_x_phys += math.sin(ht * 1.3) * 2.0
+                # Side-to-side shake + slight upward drift
+                target_x_phys += math.sin(ht * 1.3) * 3.5
+                target_y_phys -= 3.0 + math.sin(ht * 0.7) * 2.0
+                # Clamp so top never overflows screen
+                min_y = self.base_h * self.scale_h * 0.5 + 4
+                target_y_phys = max(target_y_phys, min_y)
                 
             # Thinking animation: Look up and slightly left/right
             if self.current_emotion == "thinking":
@@ -415,12 +418,14 @@ class ProceduralEyeDisplay:
         self.target_y_off = y * MAX_Y_OFFSET
 
     def render_frame(self, dt: float, mono: bool = False):
-        # Update shared blink logic
+        # Update shared blink logic — suppress blinks during happy (just shake instead)
+        is_happy = (self.left_eye.current_emotion == "happy")
         if time.time() > self.next_blink_time:
-            blink_speed = random.uniform(BLINK_SPEED_MIN, BLINK_SPEED_MAX)
-            do_saccade = (random.random() < 0.30)
-            self.left_eye.start_blink(blink_speed, saccade=do_saccade)
-            self.right_eye.start_blink(blink_speed, saccade=do_saccade)
+            if not is_happy:
+                blink_speed = random.uniform(BLINK_SPEED_MIN, BLINK_SPEED_MAX)
+                do_saccade = (random.random() < 0.30)
+                self.left_eye.start_blink(blink_speed, saccade=do_saccade)
+                self.right_eye.start_blink(blink_speed, saccade=do_saccade)
             self.next_blink_time = time.time() + random.uniform(3.5, 7.0)
             
         # Smooth tracking (from face monitor)
