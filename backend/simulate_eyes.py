@@ -132,10 +132,16 @@ while running:
     # Draw to screen
     screen.fill(BG_COLOR)
     
-    # Border rectangles for visualization
+    # Draw Borders
     pygame.draw.rect(screen, (30, 30, 30), (0, 10, SCREEN_WIDTH, SCREEN_HEIGHT), 1)
     pygame.draw.rect(screen, (30, 30, 30), (SCREEN_WIDTH + GAP, 10, SCREEN_WIDTH, SCREEN_HEIGHT), 1)
     
+    # Draw Instructions
+    font = pygame.font.SysFont("Arial", 14)
+    help_text = "Keys: 1:Idle 2:Happy 3:Sad 4:Angry 5:Surprise 6:Suspicious 7:Sleepy T:Thinking"
+    text_surf = font.render(help_text, True, (150, 150, 150))
+    screen.blit(text_surf, (10, WINDOW_HEIGHT - 25))
+
     # Blit eyes
     screen.blit(surf_l, (0, 10))
     screen.blit(surf_r, (SCREEN_WIDTH + GAP, 10))
