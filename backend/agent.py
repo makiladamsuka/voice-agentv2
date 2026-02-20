@@ -516,6 +516,41 @@ async def entrypoint(ctx: agents.JobContext):
             await asyncio.sleep(1)
         
         await asyncio.sleep(2)  # Additional delay after init
+        
+        while ctx.room.connection_state == rtc.ConnectionState.CONN_CONNECTED:
+            try:
+                if agent.face_monitor is None:
+                    await asyncio.sleep(2)
+                    continue
+                    
+                # 1. Face Tracking (High frequency)
+                if agent.face_monitor:
+                    face_center = agent.face_monitor.get_face_center()
+                    if face_center and oled_display.DISPLAY_RUNNING:
+                        oled_display.update_face_target(face_center[0], face_center[1])
+                    elif oled_display.DISPLAY_RUNNING:
+                        oled_display.update_face_target(0.0, 0.0)
+
+                # 2. Greeting Logic (Lower frequency)
+                # Check for new arrivals
+                arrivals = agent.face_monitor.get_new_arrivals()
+                
+                if arrivals:
+                    print(f"👋 New arrivals: {arrivals}")
+                    
+                    # Categorize arrivals
+                    known_people = [p for p in arrivals if p != "Unknown"]
+                    unknown_count = arrivals.count("Unknown")
+                    
+                    # Mark all as greeted
+                    for p in arrivals:
+                        agent.face_monitor.mark_greeted(p)
+                    
+                    try:
+                        if len(known_people) > 0 and unknown_count == 0:
+                            if len(known_people) == 1:
+                                name = known_people[0]
+                                greeting = generate_greeting(name, is_known=True)
                                 print(f"✅ Greeting known person: {name} -> {greeting}")
                                 await session.say(greeting)
                             else:
@@ -547,7 +582,7 @@ async def entrypoint(ctx: agents.JobContext):
                 import traceback
                 traceback.print_exc()
                 
-            await asyncio.sleep(2)
+            await asyncio.sleep(0.1)
     
     try:
         # --- Register event listeners BEFORE session.start() ---
