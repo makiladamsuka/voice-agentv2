@@ -20,6 +20,13 @@ FLOOR_Y = SCREEN_HEIGHT - 5
 BLINK_SPEED_MIN = 8.0
 BLINK_SPEED_MAX = 12.0
 
+# Thinking: left-upper -> squish -> teleport right-upper -> squish -> repeat
+THINKING_PHASES = [
+    {"x": 0.22, "y": 0.25, "squish": False, "teleport": True,  "dur": (0.9, 1.3)},  # reappear left
+    {"x": 0.22, "y": 0.25, "squish": True,  "teleport": False, "dur": (0.18, 0.25)}, # vanish left
+    {"x": 0.78, "y": 0.25, "squish": False, "teleport": True,  "dur": (0.9, 1.3)},  # reappear right
+    {"x": 0.78, "y": 0.25, "squish": True,  "teleport": False, "dur": (0.18, 0.25)}, # vanish right
+]
 
 # --- Emotion Presets ---
 EMOTION_PRESETS = {
@@ -180,11 +187,9 @@ class BlockyEye:
                 # Lower resting position slightly (push down)
                 target_y_phys += 6.0
                 
-            # Thinking animation: Look up and slightly left/right
+            # Thinking: position driven by render_frame phase machine
             if self.current_emotion == "thinking":
-                self.thinking_phase += 0.1
-                target_y_phys -= 15.0  # Look up
-                target_x_phys += math.sin(self.thinking_phase) * 5.0
+                pass  # target_pos set externally in ProceduralEyeDisplay
 
             # Clamp so eye never leaves screen
             half_w = self.base_w * self.scale_w * 0.5
@@ -198,9 +203,9 @@ class BlockyEye:
                 preset_lid = EMOTION_PRESETS["happy"]["bottom_lid"]
                 self.target_bottom_lid = min(preset_lid + squint, preset_lid + 0.15)
 
-            # Spring-damper — gentle float speed
-            spring_k = 0.035
-            spring_d = 0.82
+            # Spring-damper — smooth float
+            spring_k = 0.05
+            spring_d = 0.80
             self.vel_x = (self.vel_x + (target_x_phys - self.current_pos[0]) * spring_k) * spring_d
             self.vel_y = (self.vel_y + (target_y_phys - self.current_pos[1]) * spring_k) * spring_d
             self.current_pos[0] += self.vel_x
@@ -406,6 +411,10 @@ class ProceduralEyeDisplay:
         self.right_eye = BlockyEye(center_x, center_y, scale=1.0, is_left=False)
         
         self.next_blink_time = time.time() + random.uniform(3, 6)
+
+        # Thinking phase state machine
+        self.thinking_phase_idx = -1
+        self.thinking_phase_end = 0.0
         
         self.target_x_off = 0.0
         self.target_y_off = 0.0
@@ -421,6 +430,10 @@ class ProceduralEyeDisplay:
         
         self.left_eye.set_emotion(emotion_name)
         self.right_eye.set_emotion(emotion_name)
+
+        if emotion_name == "thinking":
+            self.thinking_phase_idx = -1
+            self.thinking_phase_end = time.time()
 
     def set_face_target(self, x, y):
         """
@@ -445,8 +458,30 @@ class ProceduralEyeDisplay:
                 self.right_eye.start_blink(blink_speed, saccade=do_saccade)
             self.next_blink_time = time.time() + random.uniform(3.5, 7.0)
 
+        # Thinking: squish/vanish teleport between left-upper and right-upper
+        if self.left_eye.current_emotion == "thinking":
+            now = time.time()
+            if now >= self.thinking_phase_end:
+                self.thinking_phase_idx = (self.thinking_phase_idx + 1) % len(THINKING_PHASES)
+                phase = THINKING_PHASES[self.thinking_phase_idx]
+                self.thinking_phase_end = now + random.uniform(*phase["dur"])
+                if phase["teleport"]:
+                    snap_x = SCREEN_WIDTH * phase["x"]
+                    snap_y = SCREEN_HEIGHT * phase["y"]
+                    for eye in (self.left_eye, self.right_eye):
+                        eye.current_pos[0] = snap_x
+                        eye.current_pos[1] = snap_y
 
-        # Smooth tracking (from face monitor)
+            phase = THINKING_PHASES[self.thinking_phase_idx]
+            ph = EMOTION_PRESETS["thinking"]
+            target_x = SCREEN_WIDTH * phase["x"]
+            target_y = SCREEN_HEIGHT * phase["y"]
+            for eye in (self.left_eye, self.right_eye):
+                eye.target_pos[0] = target_x
+                eye.target_pos[1] = target_y
+                eye.target_scale_h = 0.05 if phase["squish"] else ph["scale_h"]
+                eye.target_scale_w = 0.20 if phase["squish"] else ph["scale_w"]
+
         smooth_alpha = 0.15
         self.smoothed_x_off += (self.target_x_off - self.smoothed_x_off) * smooth_alpha
         self.smoothed_y_off += (self.target_y_off - self.smoothed_y_off) * smooth_alpha
