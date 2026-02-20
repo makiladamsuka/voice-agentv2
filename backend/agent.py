@@ -319,6 +319,11 @@ class CampusGreetingAgent(Agent):
         return await self.content_tools.show_location_map(location_query, context)
     
     @function_tool
+    async def get_cpu_temperature(self, unit: str = "celsius", context: RunContext = None) -> str:
+        """Gets the CPU temperature of the Raspberry Pi.
+        
+        Args:
+            unit: Temperature unit: 'celsius' (default) or 'fahrenheit'
         """
         print("🌡️ [TOOL] get_cpu_temperature called")
         return await self.system_tools.get_cpu_temperature(context)
