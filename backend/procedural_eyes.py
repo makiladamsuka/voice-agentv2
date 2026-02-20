@@ -25,7 +25,7 @@ EMOTION_PRESETS = {
     "idle":  {"scale_w": 1.0, "scale_h": 1.0,  "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},
     "idle1": {"scale_w": 1.0, "scale_h": 1.0,  "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},  # Alias
     "idle2": {"scale_w": 1.0, "scale_h": 1.02, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0,   "mirror_angle": True},  # Listening: barely wider, very still
-    "happy": {"scale_w": 1.2, "scale_h": 0.65, "top_lid": 0.0,  "bottom_lid": 0.5,  "lid_angle": -8.0,  "mirror_angle": True},  # Squint-smile
+    "happy": {"scale_w": 1.15, "scale_h": 0.85, "top_lid": 0.0, "bottom_lid": 0.45, "lid_angle": 0.0, "mirror_angle": True},  # Squint-smile: tall enough to see, bottom lid creates crescent
     "sad":   {"scale_w": 1.1, "scale_h": 1.1,  "top_lid": 0.4,  "bottom_lid": 0.0,  "lid_angle": 18.0,  "mirror_angle": True},
     "angry": {"scale_w": 1.0, "scale_h": 0.85, "top_lid": 0.45, "bottom_lid": 0.0,  "lid_angle": -22.0, "mirror_angle": True},
     "surprised": {"scale_w": 0.9, "scale_h": 1.5, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "mirror_angle": True},
@@ -150,10 +150,8 @@ class BlockyEye:
 
             burst_active = time.time() < self.happy_burst_until
             if burst_active:
-                target_y_phys -= 8.0
-                self.target_top_lid = max(self.target_top_lid, 0.9)
-                self.target_bottom_lid = max(self.target_bottom_lid, 0.9)
-                self.target_lid_angle = 0.0
+                # Gentle pop upward — no lid slamming shut
+                target_y_phys -= 10.0
 
             # idle2 (listening): go very still, slight upward drift — attentive gaze
             if self.current_emotion == "idle2":
@@ -162,9 +160,10 @@ class BlockyEye:
                 target_y_phys -= 4.0  # Slight upward attentive look
 
             if self.current_emotion == "happy":
-                ht = time.time() * 6.0 + self.happy_phase
-                target_y_phys -= 2.5 + math.sin(ht) * 2.0
-                target_x_phys += math.sin(ht * 1.7) * 1.2
+                ht = time.time() * 4.0 + self.happy_phase
+                # Gentle bouncy upward drift + side wiggle
+                target_y_phys -= 5.0 + math.sin(ht) * 3.0
+                target_x_phys += math.sin(ht * 1.3) * 2.0
                 
             # Thinking animation: Look up and slightly left/right
             if self.current_emotion == "thinking":
