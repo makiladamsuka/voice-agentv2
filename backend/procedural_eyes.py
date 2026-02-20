@@ -94,6 +94,7 @@ class BlockyEye:
         
         # Thinking animation state
         self.thinking_gaze_x = 18.0    # Start looking right
+        self.thinking_gaze_y = 0.0     # Upward arc when switching direction
         self.next_thinking_shift = time.time() + random.uniform(2.0, 3.5)
         self.thinking_look_up = -8.0   # Slight upward gaze
         
@@ -185,11 +186,12 @@ class BlockyEye:
             if self.current_emotion == "thinking":
                 now = time.time()
                 if now > self.next_thinking_shift:
-                    # Toggle gaze direction
                     self.thinking_gaze_x = -self.thinking_gaze_x
+                    self.thinking_gaze_y = -14.0  # Arc upward on direction change
                     self.next_thinking_shift = now + random.uniform(2.0, 3.5)
+                self.thinking_gaze_y *= 0.88  # Decay arc back to center
                 target_x_phys += self.thinking_gaze_x
-                target_y_phys += self.thinking_look_up  # Slight upward look
+                target_y_phys += self.thinking_look_up + self.thinking_gaze_y
 
             # Speech Reactivity: only squint bottom lid with amplitude (no scale change)
             if self.current_emotion == "happy" and self.speech_amplitude > 0.05:
@@ -378,7 +380,7 @@ class BlockyEye:
         eye_img = Image.new("RGBA", (eye_img_size, eye_img_size), (0, 0, 0, 0))
         eye_draw = ImageDraw.Draw(eye_img)
 
-        base_radius = int(min(self.base_w, self.base_h) * 0.25)
+        base_radius = int(min(self.base_w, self.base_h) * 0.45)  # Rounder corners
         corner_radius = min(base_radius, int(min(draw_w, draw_h) / 2))
         off_x = max(-1, min(1, (self.current_pos[0] - self.base_x) / 30.0))
         off_y = max(-1, min(1, (self.current_pos[1] - self.base_y) / 20.0))
