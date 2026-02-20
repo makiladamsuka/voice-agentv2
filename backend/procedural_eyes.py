@@ -21,12 +21,11 @@ BLINK_SPEED_MIN = 8.0
 BLINK_SPEED_MAX = 12.0
 
 # Thinking keyframe sequence: left-up → squish → teleport right-up → right-down
-# x/y are fractions of screen size. squish=True collapses scale. teleport=True snaps current_pos.
 THINKING_PHASES = [
-    {"x": 0.20, "y": 0.30, "squish": False, "teleport": False, "dur": (0.35, 0.55)},  # left up
-    {"x": 0.20, "y": 0.30, "squish": True,  "teleport": False, "dur": (0.18, 0.25)},  # squish / vanish
-    {"x": 0.80, "y": 0.28, "squish": False, "teleport": True,  "dur": (0.3,  0.5)},   # teleport right up
-    {"x": 0.80, "y": 0.60, "squish": False, "teleport": False, "dur": (0.3,  0.5)},   # right down
+    {"x": 0.20, "y": 0.28, "squish": False, "teleport": False, "dur": (0.8, 1.2)},   # left up  - hold long
+    {"x": 0.20, "y": 0.28, "squish": True,  "teleport": False, "dur": (0.22, 0.30)},  # squish / vanish
+    {"x": 0.80, "y": 0.26, "squish": False, "teleport": True,  "dur": (0.7, 1.0)},    # teleport right up
+    {"x": 0.80, "y": 0.62, "squish": False, "teleport": False, "dur": (0.6, 0.9)},    # right down
 ]
 
 # --- Emotion Presets ---
@@ -204,21 +203,13 @@ class BlockyEye:
                 preset_lid = EMOTION_PRESETS["happy"]["bottom_lid"]
                 self.target_bottom_lid = min(preset_lid + squint, preset_lid + 0.15)
 
-            dx = target_x_phys - self.current_pos[0]
-            dy = target_y_phys - self.current_pos[1]
-
-            speed_x = 0.20
-            speed_y = 0.22
-            if dy < -1.0:
-                speed_y = 0.14
-            elif dy > 1.0:
-                speed_y = 0.38
-
-            self.current_pos[0] += dx * speed_x
-            self.current_pos[1] += dy * speed_y
-
-            self.vel_x = dx * speed_x
-            self.vel_y = dy * speed_y
+            # Spring-damper for position: enables natural overshoot/bounce on large moves
+            spring_k = 0.055   # Lower = slower approach
+            spring_d = 0.76    # Lower damping = more overshoot/bounce
+            self.vel_x = (self.vel_x + (target_x_phys - self.current_pos[0]) * spring_k) * spring_d
+            self.vel_y = (self.vel_y + (target_y_phys - self.current_pos[1]) * spring_k) * spring_d
+            self.current_pos[0] += self.vel_x
+            self.current_pos[1] += self.vel_y
 
             rel_x = self.current_pos[0] - self.base_x
             rel_y = self.current_pos[1] - self.base_y
@@ -232,12 +223,13 @@ class BlockyEye:
             breath_w = (math.sin(t * 1.5 + self.base_x) * 1.5 + math.sin(t * 0.5) * 1.0)
             breath_h = (math.cos(t * 1.8 + self.base_y) * 1.5 + math.cos(t * 0.6) * 1.0)
 
+            # move_stretch uses spring velocity for squash/stretch on fast moves
             stretch_mult = 1.0 if self.current_emotion != "happy" else 0.4
-            move_stretch_x = (dx * speed_x) * 2.5 * stretch_mult
-            move_stretch_y = (dy * speed_y) * 2.5 * stretch_mult
+            move_stretch_x = self.vel_x * 2.5 * stretch_mult
+            move_stretch_y = self.vel_y * 2.5 * stretch_mult
 
-            k = 0.45  # Higher = faster transitions (was 0.22)
-            d = 0.65  # Damping (was 0.55)
+            k = 0.18  # Softer spring = slower, bouncier emotion transitions
+            d = 0.78  # Higher damping ratio for controlled overshoot
             self.scale_w_vel = (self.scale_w_vel + (self.target_scale_w - self.scale_w) * k) * d
             self.scale_h_vel = (self.scale_h_vel + (self.target_scale_h - self.scale_h) * k) * d
             self.scale_w += self.scale_w_vel
