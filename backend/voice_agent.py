@@ -487,7 +487,15 @@ def _handle_signal(sig, frame):
 async def entrypoint(ctx: agents.JobContext):
     global _global_face_monitor, _global_image_server, _global_event_db, _is_ready, _active_agent_session
     
-    await ctx.connect(rtc.ConnectOptions(auto_subscribe=True))
+    # --- SPEED OPTIMIZATION: START HARDWARE IN PARALLEL ---
+    loop = asyncio.get_running_loop()
+    # hardware init is sync, run in executor to not block entrypoint
+    hw_future = loop.run_in_executor(None, _initialize_hardware_globally)
+    
+    connect_task = asyncio.create_task(ctx.connect(rtc.ConnectOptions(auto_subscribe=True)))
+    
+    # Wait for connection (usually fast)
+    await connect_task
     print(f"📡 Connected to room: {ctx.room.name}")
     
     # Register signal handlers for Ctrl+C and termination
@@ -518,15 +526,17 @@ async def entrypoint(ctx: agents.JobContext):
     agent.room = ctx.room
     
     # --- SESSION-SCOPED HARDWARE INIT ---
-    print("🔋 Initializing hardware for this session...")
-    _initialize_hardware_globally()
+    print("🔋 Synchronizing with hardware init...")
+    await asyncio.wrap_future(hw_future)
     agent.face_monitor = _global_face_monitor
 
     session = AgentSession(
         vad=silero.VAD(),
         stt=deepgram.STT(),
-        llm=openai.LLM(model="meta-llama/llama-3.1-8b-instruct:free"),
+        llm=openai.LLM(model="meta-llama/llama-3.2-3b-instruct:free"), # Switch to a faster, smaller model
         tts=openai.TTS(),
+        preemptive_generation=True,          # START GENERATING BEFORE USER FINISHES
+        min_endpointing_delay=0.4,           # FASTER TURN DETECTION
     )
 
     # TRACK ACTIVE SESSION GLOBALLY
@@ -631,16 +641,12 @@ async def entrypoint(ctx: agents.JobContext):
         print("🚀 Starting LiveKit session...")
         await session.start(agent, room=ctx.room)
         
-        # Send loading message right away
-        print("💬 Sending loading message...")
-        await session.say("Give me a moment to wake up. I'm loading my systems...")
+        # Start background initialization (NON-BLOCKING)
+        print("🔄 Starting background ML initialization...")
+        asyncio.create_task(_init_heavy_async(agent))
         
-        # Start background initialization
-        print("🔄 Starting background initialization...")
-        await _init_heavy_async(agent)
-        
-        # Announce readiness
-        print("🎉 Initialization complete - announcing readiness")
+        # Announce readiness IMMEDIATELY
+        print("🎉 Announcing readiness")
         if display_manager.DISPLAY_RUNNING:
             # Chain: Surprised -> Happy (Wake up effect)
             display_manager.start_emotion("surprised", duration=0.6, chain="joy")
