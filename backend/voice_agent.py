@@ -332,6 +332,11 @@ async def _init_heavy_async(agent):
     
     # Update agent with initialized components
     agent.face_monitor = _global_face_monitor
+    
+    # Enable live camera streaming via ImageServer
+    if _global_image_server:
+        _global_image_server.set_face_monitor(_global_face_monitor)
+    
     agent.known_faces = _global_face_monitor.known_faces
     agent.event_db = _global_event_db
     

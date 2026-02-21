@@ -16,8 +16,12 @@ class ImageServer:
         self.port = port
         self.host = host
         self.server = None
-        self.thread = None
         self._server_host = None
+        self.face_monitor = None
+        
+    def set_face_monitor(self, monitor):
+        """Link face monitor for live streaming"""
+        self.face_monitor = monitor
         
     def _get_local_ip(self):
         """Get the local network IP address"""
@@ -45,9 +49,68 @@ class ImageServer:
         
         class CustomHandler(BaseHTTPRequestHandler):
             def do_GET(self):
-                """Handle GET requests - serve static files"""
-                self._serve_static_file(parent_dir)
-            
+                """Handle GET requests - serve static files or camera stream"""
+                if self.path == '/camera/mjpeg':
+                    self._serve_mjpeg_stream()
+                elif self.path == '/camera/live.jpg':
+                    self._serve_single_frame()
+                else:
+                    self._serve_static_file(parent_dir)
+
+            def _serve_mjpeg_stream(self):
+                """Serve a continuous MJPEG stream from the camera"""
+                if not hasattr(self.server, 'face_monitor') or self.server.face_monitor is None:
+                    self.send_error(503, "Camera not initialized")
+                    return
+
+                try:
+                    import cv2
+                    import time
+                    
+                    self.send_response(200)
+                    self.send_header('Content-type', 'multipart/x-mixed-replace; boundary=--frame')
+                    self.end_headers()
+
+                    while True:
+                        frame = self.server.face_monitor.get_current_frame()
+                        if frame is not None:
+                            # Encode frame as JPEG
+                            _, jpeg = cv2.imencode('.jpg', frame)
+                            self.wfile.write(b'--frame\r\n')
+                            self.send_header('Content-Type', 'image/jpeg')
+                            self.send_header('Content-Length', str(len(jpeg)))
+                            self.end_headers()
+                            self.wfile.write(jpeg.tobytes())
+                            self.wfile.write(b'\r\n')
+                        
+                        time.sleep(0.1)  # Limit to 10 FPS to save bandwidth
+                except (ConnectionResetError, BrokenPipeError):
+                    pass # Client disconnected
+                except Exception as e:
+                    print(f"⚠️ MJPEG Stream Error: {e}")
+
+            def _serve_single_frame(self):
+                """Serve a single JPEG frame from the camera"""
+                if not hasattr(self.server, 'face_monitor') or self.server.face_monitor is None:
+                    self.send_error(503, "Camera not initialized")
+                    return
+
+                try:
+                    import cv2
+                    frame = self.server.face_monitor.get_current_frame()
+                    if frame is not None:
+                        _, jpeg = cv2.imencode('.jpg', frame)
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'image/jpeg')
+                        self.send_header('Content-Length', str(len(jpeg)))
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        self.wfile.write(jpeg.tobytes())
+                    else:
+                        self.send_error(503, "No frame available")
+                except Exception as e:
+                    self.send_error(500, str(e))
+
             def _serve_static_file(self, base_dir):
                 """Serve static files from the base directory"""
                 try:
