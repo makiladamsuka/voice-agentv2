@@ -38,8 +38,8 @@ except ImportError:
     print("⚠️ adafruit-circuitpython-rgb-display not found (Headless Mode)")
 
 # --- Configuration ---
-SCREEN_WIDTH = 128
-SCREEN_HEIGHT = 160
+SCREEN_WIDTH = 160
+SCREEN_HEIGHT = 128
 DESIRED_FPS = 30
 FRAME_DELAY = 1.0 / DESIRED_FPS
 
@@ -71,7 +71,7 @@ def setup_and_start_display():
             spi0 = board.SPI()
             disp_l = st7735.ST7735R(
                 spi0, 
-                rotation=0, 
+                rotation=90, # Landscape
                 baudrate=24000000, 
                 bgr=True,
                 cs=digitalio.DigitalInOut(board.CE1),   
@@ -84,7 +84,7 @@ def setup_and_start_display():
             spi1 = busio.SPI(clock=board.D21, MOSI=board.D20, MISO=board.D19)
             disp_r = st7735.ST7735R(
                 spi1, 
-                rotation=0, 
+                rotation=90, # Landscape
                 baudrate=24000000, 
                 bgr=True,
                 cs=digitalio.DigitalInOut(board.D18),   
@@ -177,9 +177,9 @@ def _display_loop():
         print("📺 Initializing Pygame Preview Window (Background Thread)...")
         try:
             pygame.init()
-            # Wider window for spatial padding: Margin(20) + Eye(128) + Gap(140) + Eye(128) + Margin(20) = 436
-            _preview_screen = pygame.display.set_mode((436, SCREEN_HEIGHT + 60))
-            pygame.display.set_caption("Voice Agent Eyes - Preview")
+            # Wider window for landscape: Margin(20) + Eye(160) + Gap(100) + Eye(160) + Margin(20) = 460
+            _preview_screen = pygame.display.set_mode((460, SCREEN_HEIGHT + 60))
+            pygame.display.set_caption("Voice Agent Eyes - Preview (Landscape)")
             print("✅ Pygame Preview Ready")
         except Exception as e:
             print(f"⚠️ Could not init pygame preview: {e}")
@@ -218,9 +218,9 @@ def _display_loop():
                 
                 _preview_screen.fill((20, 20, 20)) # Dark gray bg
                 
-                # Layout: [20px margin] [Eye L] [140px gap] [Eye R] [20px margin]
+                # Layout: [20px margin] [Eye L] [100px gap] [Eye R] [20px margin]
                 _preview_screen.blit(surf_l, (20, 30))
-                _preview_screen.blit(surf_r, (SCREEN_WIDTH + 160, 30))
+                _preview_screen.blit(surf_r, (SCREEN_WIDTH + 120, 30))
                 pygame.display.flip()
 
         # FPS Lock
