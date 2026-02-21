@@ -592,6 +592,21 @@ async def entrypoint(ctx: agents.JobContext):
             except Exception as e:
                 print(f"⚠️ user_state_changed error: {e}")
 
+        # Helper to cycle thinking emotions
+        agent.thinking_task = None
+
+        async def _thinking_cycle():
+            """Cycles through thinking-related emotions while processing."""
+            thinking_emotions = ["thinking", "concentrating", "remembering", "shy", "skeptical"]
+            try:
+                while True:
+                    emo = random.choice(thinking_emotions)
+                    print(f"🤔 Thinking cycle: {emo}")
+                    display_manager.start_emotion(emo)
+                    await asyncio.sleep(random.uniform(2.2, 3.8))
+            except asyncio.CancelledError:
+                pass
+
         @session.on("agent_state_changed")
         def on_agent_state_changed(ev):
             try:
@@ -599,10 +614,14 @@ async def entrypoint(ctx: agents.JobContext):
                     return
                 new_state = ev.new_state  # "thinking", "speaking", "listening", "idle"
 
+                # Stop any existing thinking cycle
+                if agent.thinking_task:
+                    agent.thinking_task.cancel()
+                    agent.thinking_task = None
+
                 if new_state == "thinking":
-                    emotion = random.choice(["thinking", "concentrating"])
-                    print(f"🤔 Agent thinking - EMOTION: {emotion}")
-                    display_manager.start_emotion(emotion)
+                    # Start dynamic thinking cycle
+                    agent.thinking_task = asyncio.create_task(_thinking_cycle())
 
                 elif new_state == "speaking":
                     agent.is_speaking = True
