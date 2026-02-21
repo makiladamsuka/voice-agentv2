@@ -579,13 +579,13 @@ async def entrypoint(ctx: agents.JobContext):
 
                 if new_state == "speaking":
                     # User starts talking — look attentive
-                    emotion = random.choice(["friendly", "curious", "shy"])
+                    emotion = random.choice(["friendly", "curious", "skeptical", "amused"])
                     print(f"👂 User speaking - EMOTION: {emotion}")
                     display_manager.start_emotion(emotion, blink_shift=True)
 
                 elif new_state == "listening":
                     # User stopped — agent is processing
-                    emotion = random.choice(["curious", "concentrating", "remembering", "skeptical"])
+                    emotion = random.choice(["curious", "concentrating", "remembering", "skeptical", "amused"])
                     print(f"👀 User stopped - EMOTION: {emotion}")
                     display_manager.start_emotion(emotion, duration=2.5)
 
@@ -597,7 +597,7 @@ async def entrypoint(ctx: agents.JobContext):
 
         async def _thinking_cycle():
             """Cycles through thinking-related emotions while processing."""
-            thinking_emotions = ["thinking", "concentrating", "remembering", "shy", "skeptical"]
+            thinking_emotions = ["thinking", "concentrating", "remembering", "skeptical", "amused", "curious"]
             try:
                 while True:
                     emo = random.choice(thinking_emotions)
@@ -625,7 +625,7 @@ async def entrypoint(ctx: agents.JobContext):
 
                 elif new_state == "speaking":
                     agent.is_speaking = True
-                    emotion = random.choice(["joy", "excited", "amused", "friendly", "proud", "happy"])
+                    emotion = random.choice(["joy", "amused", "curious", "friendly", "proud", "happy"])
                     print(f"🗣️ Agent speaking - EMOTION: {emotion}")
                     display_manager.start_emotion(emotion, blink_shift=True)
 
@@ -712,6 +712,10 @@ async def entrypoint(ctx: agents.JobContext):
                         fatigue_state = "tired"
                         print("😴 Idle fatigue: TIRED")
                         display_manager.start_emotion("tired")
+                    elif fatigue_state == "tired" and random.random() < 0.15:
+                        # Occasional glitch when VERY tired
+                        print("👾 Fatigue GLITCH")
+                        display_manager.start_emotion("glitch", duration=0.8)
                     elif elapsed >= BORED_THRESHOLD and fatigue_state != "bored":
                         fatigue_state = "bored"
                         print("😐 Idle fatigue: BORED")
