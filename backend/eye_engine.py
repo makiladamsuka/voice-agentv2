@@ -43,6 +43,7 @@ EMOTION_PRESETS = {
     "skeptical": {"scale_w": 1.05, "scale_h": 0.7, "top_lid": 0.0, "bottom_lid": 0.4, "lid_angle": 0.0, "pos": (30, 0)},
     "angry": {"scale_w": 1.0, "scale_h": 0.85, "top_lid": 0.45, "bottom_lid": 0.0,  "lid_angle": 15.0, "pos": (0, 15)},
     "shy": {"scale_w": 0.9, "scale_h": 0.9, "top_lid": 0.2, "bottom_lid": 0.0, "lid_angle": 6.0, "pos": (-25, 25)},
+    "searching": {"scale_w": 1.1, "scale_h": 1.1, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "pos": (0, 0), "behavior": "scan"},
     "glitch": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "behavior": "glitch"},
     # --- Aliases for Agent.py Compatibility ---
     "happy": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 10.0, "pos": (0, -15)}, # Alias for joy
@@ -215,6 +216,10 @@ class BlockyEye:
                 if random.random() < 0.15:
                     self.jitter_x = random.uniform(-4, 4)
                     self.jitter_y = random.uniform(-4, 4)
+            elif behavior == "scan":
+                # Wide horizontal scanning for searching
+                b_off_x = math.sin(now * 0.8) * 35.0
+                b_off_y = math.cos(now * 0.4) * 5.0
 
             # 4. Anticipation Dip
             anticipate_x, anticipate_y = 0.0, 0.0
