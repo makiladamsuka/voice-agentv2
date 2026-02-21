@@ -24,8 +24,8 @@ BLINK_SPEED_MAX = 12.0
 # Ported 1:1 from debug_pygame_eyes.py for "perfect" behavior
 EMOTION_PRESETS = {
     "idle":  {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0, "pos": (0, 0)},
-    "joy":   {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 10.0, "pos": (0, -15)},
-    "excited": {"scale_w": 0.9, "scale_h": 1.3, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "pos": (0, 0), "behavior": "bounce"},
+    "joy":   {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 10.0, "pos": (0, -15), "behavior": "vocal"},
+    "excited": {"scale_w": 0.9, "scale_h": 1.3, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "pos": (0, 0), "behavior": "vocal"},
     "amused": {"scale_w": 1.0, "scale_h": 0.8, "top_lid": 0.0, "bottom_lid": 0.2, "lid_angle": 0.0, "pos": (15, -15), "asym": True},
     "friendly": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "pos": (0, 0)},
     "proud": {"scale_w": 1.0, "scale_h": 0.9, "top_lid": 0.3, "bottom_lid": 0.0, "lid_angle": 0.0, "pos": (0, -25)},
@@ -46,8 +46,8 @@ EMOTION_PRESETS = {
     "searching": {"scale_w": 1.1, "scale_h": 1.1, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "pos": (0, 0), "behavior": "scan"},
     "glitch": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "behavior": "glitch"},
     # --- Aliases for Agent.py Compatibility ---
-    "happy": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 10.0, "pos": (0, -15)}, # Alias for joy
-    "talking": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 10.0, "pos": (0, -15)}, # Alias for happy/joy
+    "happy": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 10.0, "pos": (0, -15), "behavior": "vocal"}, # Alias for joy
+    "talking": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 10.0, "pos": (0, -15), "behavior": "vocal"}, # Alias for happy/joy
     "idle1": {"scale_w": 1.0, "scale_h": 1.0, "top_lid": 0.0,  "bottom_lid": 0.0,  "lid_angle": 0.0, "pos": (0, 0)},   # Alias for idle
     "idle2": {"scale_w": 1.02, "scale_h": 1.0, "top_lid": 0.0, "bottom_lid": 0.0, "lid_angle": 0.0, "pos": (0, -5)}, # Listening state
 }
@@ -220,6 +220,13 @@ class BlockyEye:
                 # Wide horizontal scanning for searching
                 b_off_x = math.sin(now * 0.8) * 35.0
                 b_off_y = math.cos(now * 0.4) * 5.0
+            elif behavior == "vocal":
+                # Reactive bouncing for speech
+                b_off_y = -self.speech_amplitude * 18.0
+                # Scale widening
+                self.target_scale_w += self.speech_amplitude * 0.25
+                # Lid lifting
+                self.target_top_lid -= self.speech_amplitude * 0.35
 
             # 4. Anticipation Dip
             anticipate_x, anticipate_y = 0.0, 0.0
