@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 from livekit import agents, rtc
 from livekit.agents import Agent, AgentSession, RunContext, llm
-from livekit.agents.pipeline import VoicePipelineAgent
 from livekit.agents.llm import function_tool, ChatContext
 from livekit.plugins import openai, deepgram, silero
 import os
@@ -42,7 +41,7 @@ load_dotenv(env_path)
 
 
 class CampusGreetingAgent(Agent):
-    def __init__(self, image_server, event_db=None):
+    def __init__(self, image_server, chat_ctx=None, event_db=None):
         # Initialize image manager
         assets_dir = Path(__file__).parent / "assets"
         self.image_manager = ImageManager(assets_dir)
@@ -98,8 +97,46 @@ class CampusGreetingAgent(Agent):
         
         from prompt import SYSTEM_INSTRUCTIONS
         super().__init__(
-            instructions=SYSTEM_INSTRUCTIONS
+            instructions=SYSTEM_INSTRUCTIONS,
+            chat_ctx=chat_ctx
         )
+
+    async def on_user_turn_completed(self, turn_ctx: llm.ChatContext, new_message: llm.ChatMessage) -> None:
+        """Context Injection: LLM always knows who's in front."""
+        if self.face_monitor is None:
+            from livekit.agents.llm import ChatMessage, ChatRole
+            context_msg = ChatMessage(
+                role=ChatRole.SYSTEM,
+                content="System is still initializing. Face recognition not yet available."
+            )
+            turn_ctx.messages.insert(0, context_msg)
+            return
+
+        # Use thread-safe FRESH people getter (most recent detection)
+        fresh = self.face_monitor.get_fresh_people()
+        
+        # Categorize
+        known = [p for p in fresh if p != "Unknown"]
+        unknown_count = sum(1 for p in fresh if p == "Unknown")
+        
+        from livekit.agents.llm import ChatMessage, ChatRole
+        
+        # Debug: log what we're injecting
+        print(f"🎯 Context injection - Fresh: {fresh}, Known: {known}")
+        
+        if known:
+            names = ", ".join(known)
+            if unknown_count:
+                content = f"CURRENT PERSON IN FRONT OF YOU: {names}. There's also someone you don't recognize. When asked 'who am I', answer with: {names}"
+            else:
+                content = f"CURRENT PERSON IN FRONT OF YOU: {names}. When asked 'who am I', answer with: {names}"
+        elif unknown_count:
+            content = "CURRENT: Unknown person. You don't recognize them. Ask for their name."
+        else:
+            content = "No one is visible right now."
+
+        context_msg = ChatMessage(role=ChatRole.SYSTEM, content=content)
+        turn_ctx.messages.insert(0, context_msg)
     
 
     
@@ -474,24 +511,17 @@ async def entrypoint(ctx: agents.JobContext):
         # Note: We don't exit here, we let the runner clean up the rest
 
     
-    # Create agent instance
-    agent = CampusGreetingAgent(_global_image_server, None)
+    # Setup Agent Session (v1.3.12 API)
+    initial_ctx = ChatContext()
+    agent = CampusGreetingAgent(_global_image_server, chat_ctx=initial_ctx, event_db=None)
     agent.room = ctx.room
     agent.face_monitor = _global_face_monitor
 
-    # Setup Voice Pipeline Agent
-    initial_ctx = ChatContext().append(
-        role="system",
-        text=agent.instructions
-    )
-    
-    session = VoicePipelineAgent(
+    session = AgentSession(
         vad=silero.VAD(),
         stt=deepgram.STT(),
         llm=openai.LLM(model="meta-llama/llama-3.1-8b-instruct:free"),
         tts=openai.TTS(),
-        chat_ctx=initial_ctx,
-        fnc_ctx=agent
     )
 
     # TRACK ACTIVE SESSION GLOBALLY
@@ -500,57 +530,8 @@ async def entrypoint(ctx: agents.JobContext):
     
     print("🤝 Session connected - plugging into global hardware.")
     
-    # Context Injection: LLM always knows who's in front (handles None face_monitor)
-    async def inject_person_context(assistant: AgentSession, chat_ctx):
-        # Check if face monitor is ready
-        if not _is_ready or agent.face_monitor is None:
-            from livekit.agents.llm import ChatMessage, ChatRole
-            context_msg = ChatMessage(
-                role=ChatRole.SYSTEM,
-                content="System is still initializing. Face recognition not yet available."
-            )
-            chat_ctx.messages.insert(0, context_msg)
-            return chat_ctx
-            
-        # Use thread-safe FRESH people getter (most recent detection)
-        fresh = agent.face_monitor.get_fresh_people()
-        
-        # Categorize
-        known = [p for p in fresh if p != "Unknown"]
-        unknown_count = sum(1 for p in fresh if p == "Unknown")
-        
-        from livekit.agents.llm import ChatMessage, ChatRole
-        
-        # Debug: log what we're injecting
-        print(f"🎯 Context injection - Fresh: {fresh}, Known: {known}")
-        
-        if known:
-            names = ", ".join(known)
-            if unknown_count:
-                context_msg = ChatMessage(
-                    role=ChatRole.SYSTEM,
-                    content=f"CURRENT PERSON IN FRONT OF YOU: {names}. There's also someone you don't recognize. When asked 'who am I', answer with: {names}"
-                )
-            else:
-                context_msg = ChatMessage(
-                    role=ChatRole.SYSTEM,
-                    content=f"CURRENT PERSON IN FRONT OF YOU: {names}. When asked 'who am I', answer with: {names}"
-                )
-        elif unknown_count:
-            context_msg = ChatMessage(
-                role=ChatRole.SYSTEM,
-                content="CURRENT: Unknown person. You don't recognize them. Ask for their name."
-            )
-        else:
-            context_msg = ChatMessage(
-                role=ChatRole.SYSTEM,
-                content="No one is visible right now."
-            )
-        
-        chat_ctx.messages.insert(0, context_msg)
-        return chat_ctx
-        
-    session.before_llm_cb = inject_person_context
+    # Face tracking context injection is now handled inside 
+    # CampusGreetingAgent.on_user_turn_completed
     
     
     # Proactive Greeting Task: Watch for new people (only runs after init completes)
@@ -643,7 +624,7 @@ async def entrypoint(ctx: agents.JobContext):
 
         # START SESSION
         print("🚀 Starting LiveKit session...")
-        await session.start(room=ctx.room, agent=agent)
+        await session.start(agent, room=ctx.room)
         
         # Send loading message right away
         print("💬 Sending loading message...")
