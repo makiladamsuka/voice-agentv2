@@ -393,8 +393,8 @@ async def entrypoint(ctx: agents.JobContext):
         llm=openai.LLM(
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY"),
-            # Reverted to Gemma 2 9B (Llama 3.1 8B endpoint is down/404)
-            model="google/gemma-2-9b-it:free"
+            # Switched to openrouter/auto for better resilience (Gemma/Llama endpoints failing)
+            model="openrouter/auto"
         ),
     )
     
