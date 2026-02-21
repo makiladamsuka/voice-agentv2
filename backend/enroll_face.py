@@ -76,7 +76,7 @@ def enroll_face(name):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python enroll_face.py <Name>")
+        print("Usage: python user_enroller.py <Name>")
     else:
         name = sys.argv[1]
         enroll_face(name)

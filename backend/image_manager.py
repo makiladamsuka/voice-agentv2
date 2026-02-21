@@ -1,6 +1,6 @@
 """
-Image Manager for Voice Agent V2
-Handles fuzzy matching and serving of event posters and location maps.
+Media Manager for Voice Agent V2
+Handles fuzzy matching and serving of media assets (posters, maps).
 """
 
 import os
@@ -23,7 +23,7 @@ class ImageManager:
         self.maps_dir.mkdir(parents=True, exist_ok=True)
         self.fallback_dir.mkdir(parents=True, exist_ok=True)
         
-        print(f"✅ ImageManager initialized")
+        print(f"✅ MediaManager initialized")
         print(f"   Events: {self.events_dir}")
         print(f"   Maps: {self.maps_dir}")
         print(f"   Fallback: {self.fallback_dir}")

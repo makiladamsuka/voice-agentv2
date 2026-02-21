@@ -44,4 +44,4 @@ EXPOSE 8080
 ENV PYTHONUNBUFFERED=1
 
 # Default command to run the greeting agent
-CMD ["python", "greeting_agent.py", "dev"]
+CMD ["python", "agent.py", "dev"]
