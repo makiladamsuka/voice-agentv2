@@ -533,6 +533,8 @@ class ProceduralEyeDisplay:
         self.target_y_off = 0.0
         self.smoothed_x_off = 0.0
         self.smoothed_y_off = 0.0
+        self.target_face_rotation = 0.0
+        self.smoothed_face_rotation = 0.0
         
         # Shared Saccade (Parallel scanning)
         self.saccade_timer = 0.0
@@ -549,7 +551,7 @@ class ProceduralEyeDisplay:
             self.thinking_phase_idx = -1
             self.thinking_phase_end = time.time()
 
-    def set_face_target(self, x, y):
+    def set_face_target(self, x, y, rotation=0.0):
         """
         Set target from face tracking.
         x, y should be normalized (-1.0 to 1.0)
@@ -560,6 +562,7 @@ class ProceduralEyeDisplay:
         # Target offsets
         self.target_x_off = x * MAX_X_OFFSET
         self.target_y_off = y * MAX_Y_OFFSET
+        self.target_face_rotation = rotation
 
     def render_frame(self, dt: float, mono: bool = False):
         now = time.time()
@@ -600,6 +603,7 @@ class ProceduralEyeDisplay:
         smooth_alpha = 0.15
         self.smoothed_x_off += (self.target_x_off - self.smoothed_x_off) * smooth_alpha
         self.smoothed_y_off += (self.target_y_off - self.smoothed_y_off) * smooth_alpha
+        self.smoothed_face_rotation += (self.target_face_rotation - self.smoothed_face_rotation) * 0.1
         
         # Update eyes
         for eye in (self.left_eye, self.right_eye):
@@ -611,6 +615,7 @@ class ProceduralEyeDisplay:
                 if eye.current_emotion in ("idle", "idle1"):
                     eye.target_pos[0] += (eye.base_x + self.smoothed_x_off - eye.target_pos[0]) * 0.015
                     eye.target_pos[1] += (eye.base_y + self.smoothed_y_off - eye.target_pos[1]) * 0.015
+                    eye.target_rotation = self.smoothed_face_rotation
                 else:
                     # Snappy return to center for other emotions
                     eye.target_pos[0] += (eye.base_x - eye.target_pos[0]) * 0.15

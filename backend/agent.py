@@ -474,15 +474,16 @@ async def entrypoint(ctx: agents.JobContext):
                 # 1. Face Tracking (High frequency)
                 if agent.face_monitor:
                     face_center = agent.face_monitor.get_face_center()
+                    face_rotation = agent.face_monitor.get_face_rotation()
                     
                     if oled_display.DISPLAY_RUNNING:
                         if face_center:
-                            oled_display.update_face_target(face_center[0], face_center[1])
+                            oled_display.update_face_target(face_center[0], face_center[1], face_rotation)
                             # Show "Happy" if seeing someone (and not busy doing something else)
                             if oled_display.current_emotion in ["idle", "idle1", "bored", "tired", "lonely"]:
                                 oled_display.start_emotion("happy")
                         else:
-                            oled_display.update_face_target(0.0, 0.0)
+                            oled_display.update_face_target(0.0, 0.0, 0.0)
                             # If lost face and was "happy", show lonely briefly
                             if oled_display.current_emotion == "happy" and not agent.is_speaking:
                                 oled_display.start_emotion("lonely", duration=4.0)

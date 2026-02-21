@@ -10,6 +10,7 @@ import face_recognition
 import threading
 import time
 import os
+import math
 from typing import Dict, List, Optional, Set
 try:
     from picamera2 import Picamera2
@@ -59,6 +60,7 @@ class FaceMonitor:
         
         # Face Tracking Coordinates (Normalized -1.0 to 1.0)
         self.last_face_center: Optional[tuple] = None
+        self.last_face_roll: float = 0.0
         
         # Object detection cache (last 5 seconds)
         self.object_cache = []  # List of (timestamp, detections)
@@ -177,6 +179,11 @@ class FaceMonitor:
         Range: -1.0 to 1.0. Returns None if no face visible."""
         with self.lock:
             return self.last_face_center
+
+    def get_face_rotation(self) -> float:
+        """Get the roll (tilt) angle of the largest face in degrees."""
+        with self.lock:
+            return self.last_face_roll
 
     def get_current_frame(self):
         with self.lock:
@@ -357,8 +364,10 @@ class FaceMonitor:
         height, width = frame.shape[:2]
         
         face_locations = []
+        face_rolls = [] # Track rolls for each detected face
         detected_names: Set[str] = set()
         largest_face_center = None
+        largest_face_roll = 0.0
         max_area = 0
 
         # -- DETECTION --
@@ -369,10 +378,22 @@ class FaceMonitor:
             
             if faces is not None:
                 for face in faces:
-                    # YuNet box: [x, y, w, h]
-                    x, y, w, h = map(int, face[:4])
+                    # YuNet coordinates: [x, y, w, h, re_x, re_y, le_x, le_y, ...]
+                    coords = list(map(int, face[:14]))
+                    x, y, w, h = coords[:4]
+                    re_x, re_y = coords[4], coords[5]
+                    le_x, le_y = coords[6], coords[7]
+
                     # Convert to face_recognition CSS format: (top, right, bottom, left)
                     face_locations.append((y, x + w, y + h, x))
+                    
+                    # Calculate roll for this face
+                    dx = re_x - le_x
+                    dy = re_y - le_y
+                    roll = 0.0
+                    if dx != 0:
+                        roll = math.degrees(math.atan2(dy, dx))
+                    face_rolls.append(roll)
         else:
             # Fallback to face_recognition (HOG/CNN)
             face_locations = face_recognition.face_locations(rgb_frame)
@@ -390,6 +411,9 @@ class FaceMonitor:
                     cx, cy = (left + right) / 2, (top + bottom) / 2
                     # Normalized -1.0 to 1.0
                     largest_face_center = ((cx / width - 0.5) * 2.0, (cy / height - 0.5) * 2.0)
+                    # Pick roll for the largest face
+                    if i < len(face_rolls):
+                        largest_face_roll = face_rolls[i]
 
                 # Identify person
                 if i < len(encs):
@@ -403,6 +427,7 @@ class FaceMonitor:
         
         with self.lock:
             self.last_face_center = largest_face_center
+            self.last_face_roll = largest_face_roll
             self._update_face_cache(detected_names)
             self._last_face_locs = face_locations
             self._last_detected_names = list(detected_names)
