@@ -22,6 +22,8 @@ class ImageServer:
     def set_face_monitor(self, monitor):
         """Link face monitor for live streaming"""
         self.face_monitor = monitor
+        if self.server:
+            self.server.face_monitor = monitor
         
     def _get_local_ip(self):
         """Get the local network IP address"""
@@ -76,14 +78,16 @@ class ImageServer:
                         if frame is not None:
                             # Encode frame as JPEG
                             _, jpeg = cv2.imencode('.jpg', frame)
+                            
+                            # Manually write multipart boundary and frame headers
                             self.wfile.write(b'--frame\r\n')
-                            self.send_header('Content-Type', 'image/jpeg')
-                            self.send_header('Content-Length', str(len(jpeg)))
-                            self.end_headers()
+                            self.wfile.write(b'Content-Type: image/jpeg\r\n')
+                            self.wfile.write(f'Content-Length: {len(jpeg)}\r\n'.encode())
+                            self.wfile.write(b'\r\n')
                             self.wfile.write(jpeg.tobytes())
                             self.wfile.write(b'\r\n')
                         
-                        time.sleep(0.1)  # Limit to 10 FPS to save bandwidth
+                        time.sleep(0.1)  # Limit to 10 FPS
                 except (ConnectionResetError, BrokenPipeError):
                     pass # Client disconnected
                 except Exception as e:
@@ -168,6 +172,7 @@ class ImageServer:
         
         try:
             self.server = HTTPServer((self.host, self.port), CustomHandler)
+            self.server.face_monitor = self.face_monitor # Pass monitor to server instance object
         except OSError as e:
             if e.errno == 98:
                 print(f"⚠️  Port {self.port} already in use")
