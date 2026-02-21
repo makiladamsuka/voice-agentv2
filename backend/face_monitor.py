@@ -278,7 +278,7 @@ class FaceMonitor:
         try:
             self.picam2 = Picamera2()
             config = self.picam2.create_video_configuration(
-                main={"format": 'XRGB8888', "size": (1280, 720)}
+                main={"format": 'XRGB8888', "size": (640, 480)}
             )
             self.picam2.configure(config)
             self.picam2.start()
