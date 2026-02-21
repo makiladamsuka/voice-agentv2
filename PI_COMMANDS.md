@@ -6,10 +6,10 @@ Quick reference for running the voice agent on Raspberry Pi.
 
 ```bash
 # Backend only
-python backend/agent.py dev
+python backend/voice_agent.py dev
 
 # With less verbose LiveKit logs
-LIVEKIT_LOG_LEVEL=warn python backend/agent.py dev
+LIVEKIT_LOG_LEVEL=warn python backend/voice_agent.py dev
 ```
 
 ## Docker Frontend

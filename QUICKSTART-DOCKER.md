@@ -105,7 +105,7 @@ docker run -d -p 3000:3000 --name voice-frontend voice-agent-frontend:latest
 cd ~/Documents/voice-agentv2/backend
 source ../venv/bin/activate
 export $(grep -v '^#' .env | xargs)
-python agent.py dev
+python voice_agent.py dev
 ```
 
 ## Step 8: Access the App
@@ -128,7 +128,7 @@ ssh -L 3000:localhost:3000 nema@raspberrypi.local
 | Start frontend | `docker run -d -p 3000:3000 --name voice-frontend voice-agent-frontend:latest` |
 | Stop frontend | `docker stop voice-frontend && docker rm voice-frontend` |
 | View frontend logs | `docker logs -f voice-frontend` |
-| Start backend | `cd backend && source ../venv/bin/activate && export $(grep -v '^#' .env \| xargs) && python agent.py dev` |
+| Start backend | `cd backend && source ../venv/bin/activate && export $(grep -v '^#' .env \| xargs) && python voice_agent.py dev` |
 | Check containers | `docker ps` |
 
 ---
