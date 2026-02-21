@@ -460,13 +460,17 @@ class ProceduralEyeDisplay:
         Set target from face tracking.
         x, y should be normalized (-1.0 to 1.0)
         """
-        MAX_X_OFFSET = 45
-        MAX_Y_OFFSET = 30
+        MAX_X_OFFSET = 50
+        MAX_Y_OFFSET = 35
         
         # Target offsets
         self.target_x_off = x * MAX_X_OFFSET
         self.target_y_off = y * MAX_Y_OFFSET
-        self.target_face_rotation = rotation
+        
+        # Apply roll multiplier and clamp
+        ROLL_MULT = -0.75
+        MAX_ROLL = 10.0
+        self.target_face_rotation = max(-MAX_ROLL, min(MAX_ROLL, rotation * ROLL_MULT))
 
     def render_frame(self, dt: float, mono: bool = False):
         now = time.time()

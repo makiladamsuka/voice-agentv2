@@ -420,8 +420,8 @@ class FaceMonitor:
                 if area > max_area:
                     max_area = area
                     cx, cy = (left + right) / 2, (top + bottom) / 2
-                    # Normalized -1.0 to 1.0
-                    largest_face_center = ((cx / width - 0.5) * 2.0, (cy / height - 0.5) * 2.0)
+                    # Normalized -1.0 to 1.0 (X is flipped for mirroring)
+                    largest_face_center = ((0.5 - cx / width) * 2.0, (cy / height - 0.5) * 2.0)
                     # Pick roll for the largest face
                     if i < len(face_rolls):
                         largest_face_roll = face_rolls[i]
