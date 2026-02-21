@@ -467,7 +467,7 @@ async def _init_heavy_async(agent):
     _is_ready = True
     print("✅ Background ML initialization complete!")
 
-_initialize_hardware_globally()
+# _initialize_hardware_globally()  # Reverted to session-scoped
 
 
 def _handle_signal(sig, frame):
@@ -516,6 +516,10 @@ async def entrypoint(ctx: agents.JobContext):
     initial_ctx = ChatContext()
     agent = CampusGreetingAgent(_global_image_server, chat_ctx=initial_ctx, event_db=None)
     agent.room = ctx.room
+    
+    # --- SESSION-SCOPED HARDWARE INIT ---
+    print("🔋 Initializing hardware for this session...")
+    _initialize_hardware_globally()
     agent.face_monitor = _global_face_monitor
 
     session = AgentSession(
@@ -714,7 +718,13 @@ async def entrypoint(ctx: agents.JobContext):
         
     finally:
         # CLEANUP - Session ending
-        print("🔌 Session ending... clearing active session reference.")
+        print("🔌 Session ending... cleaning up hardware.")
+        try:
+            if display_manager.DISPLAY_RUNNING:
+                display_manager.stop_display()
+        except:
+            pass
+            
         with _active_session_lock:
             _active_agent_session = None
 
