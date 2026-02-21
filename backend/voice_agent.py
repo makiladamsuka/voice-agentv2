@@ -1,7 +1,8 @@
 from dotenv import load_dotenv
 from livekit import agents, rtc
-from livekit.agents import Agent, AgentSession, RunContext
-from livekit.agents.llm import function_tool
+from livekit.agents import Agent, AgentSession, RunContext, llm
+from livekit.agents.pipeline import VoicePipelineAgent
+from livekit.agents.llm import function_tool, ChatContext
 from livekit.plugins import openai, deepgram, silero
 import os
 import pickle
@@ -280,68 +281,155 @@ def _load_known_faces():
     
     return known_faces
 
-def _init_lightweight():
-    """Lightweight init - only start fast services for immediate connection"""
-    global _global_image_server
+# --- GLOBAL STATE ---
+_active_agent_session = None
+_active_session_lock = threading.Lock()
+
+def _initialize_hardware_globally():
+    """Starts hardware services (Display, Camera) immediately on script load."""
+    global _global_face_monitor, _global_image_server
     
-    # Start image server for posters/maps (fast)
+    # 1. Start Image Server
     if _global_image_server is None:
         assets_dir = Path(__file__).parent / "assets"
         _global_image_server = ImageServer(assets_dir, port=8080)
         _global_image_server.start()
-        print("✅ Image server started")
-    
-    # Start OLED display (I2C must run on main thread, but it's fast)
+        print("✅ Global Image Server started")
+
+    # 2. Start Display
     try:
         display_manager.setup_and_start_display()
-        print("✅ OLED display started")
+        print("✅ Global Display started")
     except Exception as e:
-        print(f"⚠️ Could not start OLED display: {e}")
+        print(f"⚠️ Could not start global display: {e}")
+
+    # 3. Start Face Tracking
+    if _global_face_monitor is None:
+        print("🎥 Starting Global FaceMonitor...")
+        known_faces = _load_known_faces()
+        _global_face_monitor = FaceMonitor(known_faces)
+        _global_face_monitor.start()
+        if _global_image_server:
+            _global_image_server.set_face_monitor(_global_face_monitor)
+        print("👀 Global FaceMonitor tracking active")
+    
+    # 4. Start Autonomous Global Behaviors
+    threading.Thread(target=_global_visual_tracker_loop, daemon=True).start()
+    threading.Thread(target=_global_fatigue_loop, daemon=True).start()
+    print("🤖 Autonomous behavioral loops started")
+
+# --- GLOBAL AUTONOMOUS LOOPS ---
+
+def _global_visual_tracker_loop():
+    """Always-on tracking: maps FaceMonitor -> DisplayManager + Handles Voice Greetings."""
+    print("👁️ Global Visual Tracker Loop started")
+    last_greeting_check = time.time()
+    
+    while True:
+        try:
+            if _global_face_monitor and display_manager.DISPLAY_RUNNING:
+                face_center = _global_face_monitor.get_face_center()
+                face_rotation = _global_face_monitor.get_face_rotation()
+                
+                # Visual Tracking
+                if face_center:
+                    display_manager.update_face_target(face_center[0], face_center[1], face_rotation)
+                    if display_manager.current_emotion in ["idle", "idle1", "searching", "bored", "tired", "lonely"]:
+                        display_manager.start_emotion("happy")
+                else:
+                    display_manager.update_face_target(0.0, 0.0, 0.0)
+                    if display_manager.current_emotion == "happy":
+                        display_manager.start_emotion("lonely", duration=4.0)
+
+                # Greeting Logic (Only if a session is active)
+                with _active_session_lock:
+                    if _active_agent_session and time.time() - last_greeting_check > 0.5:
+                        last_greeting_check = time.time()
+                        arrivals = _global_face_monitor.get_new_arrivals()
+                        if arrivals:
+                            asyncio.run_coroutine_threadsafe(
+                                _perform_async_greeting(_active_agent_session, arrivals),
+                                _active_agent_session.loop
+                            )
+        except Exception as e:
+            print(f"⚠️ Global tracker error: {e}")
+        time.sleep(0.05)
+
+async def _perform_async_greeting(session, arrivals):
+    """Bridge to the async greeting logic inside the active session."""
+    try:
+        known_people = [p for p in arrivals if p != "Unknown"]
+        unknown_count = arrivals.count("Unknown")
+        for p in arrivals: 
+            _global_face_monitor.mark_greeted(p)
+            
+        # Select greeting based on who arrived
+        if known_people:
+            if len(known_people) == 1:
+                greeting = generate_greeting(known_people[0], is_known=True)
+            else:
+                greeting = generate_group_greeting(known_people, unknown_count)
+            display_manager.start_emotion("excited", duration=3.5, blink_shift=True)
+        elif unknown_count > 0:
+            greeting = generate_greeting("Unknown", is_known=False) if unknown_count == 1 else generate_group_greeting([], unknown_count)
+            display_manager.start_emotion("curious", duration=3.0, blink_shift=True)
+        else:
+            return
+
+        print(f"👋 Greeting: {greeting}")
+        await session.say(greeting)
+    except Exception as e:
+        print(f"⚠️ Async greeting error: {e}")
+
+def _global_fatigue_loop():
+    """Always-on fatigue management."""
+    SEARCH_THRESHOLD, BORED_THRESHOLD, TIRED_THRESHOLD = 10.0, 25.0, 50.0
+    last_active, fatigue_state = time.time(), "idle"
+
+    while True:
+        time.sleep(2.0)
+        try:
+            if not display_manager.DISPLAY_RUNNING: continue
+            
+            # Reset if active or face visible
+            is_idle = display_manager.current_emotion in ["idle", "idle1", "searching", "bored", "tired", "lonely"]
+            face_visible = _global_face_monitor and _global_face_monitor.get_face_center() is not None
+            
+            if not is_idle or face_visible:
+                last_active, fatigue_state = time.time(), "idle"
+                continue
+                
+            elapsed = time.time() - last_active
+            if elapsed >= TIRED_THRESHOLD and fatigue_state != "tired":
+                fatigue_state = "tired"; display_manager.start_emotion("tired")
+            elif fatigue_state == "tired" and random.random() < 0.15:
+                display_manager.start_emotion("glitch", duration=0.8)
+            elif elapsed >= BORED_THRESHOLD and fatigue_state != "bored":
+                fatigue_state = "bored"; display_manager.start_emotion("bored")
+            elif elapsed >= SEARCH_THRESHOLD and fatigue_state == "idle":
+                fatigue_state = "searching"; display_manager.start_emotion("searching")
+        except Exception as e:
+            print(f"⚠️ Global fatigue error: {e}")
 
 async def _init_heavy_async(agent):
     """Background initialization of heavy ML components"""
     global _global_event_db, _is_ready
-    
-    print("🔄 Starting background initialization of ML components...")
-    
-    # Run heavy init in thread pool to not block event loop
+    print("🔄 Starting background ML initialization...")
     loop = asyncio.get_event_loop()
-    
-    # 2. Build event database from posters (OCR) - can be slow
     if _global_event_db is None and build_event_database:
         try:
-            print("📅 Building event database...")
             assets_dir = Path(__file__).parent / "assets"
-            # Run in executor to avoid blocking
-            _global_event_db = await loop.run_in_executor(
-                None, build_event_database, assets_dir
-            )
-            print("✅ Event database ready")
+            _global_event_db = await loop.run_in_executor(None, build_event_database, assets_dir)
         except Exception as e:
-            print(f"⚠️ Could not build event database: {e}")
-            _global_event_db = None
+            print(f"⚠️ Event database error: {e}")
     
-    # 3. Start camera and face recognition (slowest)
-    if _global_face_monitor is None:
-        print("🎥 Starting camera...")
-        known_faces = await loop.run_in_executor(None, _load_known_faces)
-        _global_face_monitor = FaceMonitor(known_faces)
-        await loop.run_in_executor(None, _global_face_monitor.start)
-        await asyncio.sleep(1)  # Give camera time to warm up
-        print("✅ Camera ready!")
-    
-    # Update agent with initialized components
     agent.face_monitor = _global_face_monitor
-    
-    # Enable live camera streaming via ImageServer
-    if _global_image_server:
-        _global_image_server.set_face_monitor(_global_face_monitor)
-    
     agent.known_faces = _global_face_monitor.known_faces
     agent.event_db = _global_event_db
-    
     _is_ready = True
     print("✅ Background ML initialization complete!")
+
+_initialize_hardware_globally()
 
 
 def _handle_signal(sig, frame):
@@ -359,7 +447,10 @@ def _handle_signal(sig, frame):
 
 
 async def entrypoint(ctx: agents.JobContext):
-    global _global_face_monitor, _global_image_server, _global_event_db, _is_ready
+    global _global_face_monitor, _global_image_server, _global_event_db, _is_ready, _active_agent_session
+    
+    await ctx.connect(rtc.ConnectOptions(auto_subscribe=True))
+    print(f"📡 Connected to room: {ctx.room.name}")
     
     # Register signal handlers for Ctrl+C and termination
     loop = asyncio.get_running_loop()
@@ -383,25 +474,31 @@ async def entrypoint(ctx: agents.JobContext):
         # Note: We don't exit here, we let the runner clean up the rest
 
     
-    # Create agent
-    agent = CampusGreetingAgent(_global_image_server, None)  # event_db set later
+    # Create agent instance
+    agent = CampusGreetingAgent(_global_image_server, None)
     agent.room = ctx.room
-    agent.is_speaking = False  # Track speaking state for emotion logic
+    agent.face_monitor = _global_face_monitor
 
-    # --- AUTONOMOUS BOOT: Start hardware immediately ---
-    print("📺 Starting display manager...")
-    display_manager.setup_and_start_display()
+    # Setup Voice Pipeline Agent
+    initial_ctx = ChatContext().append(
+        role="system",
+        text=agent.instructions
+    )
     
-    print("🎥 Starting FaceMonitor...")
-    known_faces = _load_known_faces()
-    agent.face_monitor = FaceMonitor(known_faces)
-    agent.face_monitor.start()
-    agent.known_faces = agent.face_monitor.known_faces
+    session = VoicePipelineAgent(
+        vad=silero.VAD(),
+        stt=deepgram.STT(),
+        llm=openai.LLM(model="meta-llama/llama-3.1-8b-instruct:free"),
+        tts=openai.TTS(),
+        chat_ctx=initial_ctx,
+        fnc_ctx=agent
+    )
+
+    # TRACK ACTIVE SESSION GLOBALLY
+    with _active_session_lock:
+        _active_agent_session = session
     
-    if _global_image_server:
-        _global_image_server.set_face_monitor(agent.face_monitor)
-        
-    print("👀 Robot is AWAKE and tracking.")
+    print("🤝 Session connected - plugging into global hardware.")
     
     # Context Injection: LLM always knows who's in front (handles None face_monitor)
     async def inject_person_context(assistant: AgentSession, chat_ctx):
@@ -460,95 +557,8 @@ async def entrypoint(ctx: agents.JobContext):
     # (Unused on_user_speech removed)
     
     # Proactive Greeting Task: Watch for new people (only runs after init completes)
-    async def monitor_and_greet():
-        """Background task that greets people and TRACKS FACES"""
-        print("👁️ monitor_and_greet started")
-        while True:
-            try:
-                if agent.face_monitor is None:
-                    await asyncio.sleep(1)
-                    continue
-                    
-                # 1. Face Tracking (Visual component - Independent of connection)
-                face_center = agent.face_monitor.get_face_center()
-                face_rotation = agent.face_monitor.get_face_rotation()
-                
-                if display_manager.DISPLAY_RUNNING:
-                    if face_center:
-                        display_manager.update_face_target(face_center[0], face_center[1], face_rotation)
-                        # Show "Happy" if seeing someone
-                        if display_manager.current_emotion in ["idle", "idle1", "searching", "bored", "tired", "lonely"]:
-                            display_manager.start_emotion("happy")
-                    else:
-                        display_manager.update_face_target(0.0, 0.0, 0.0)
-                        if display_manager.current_emotion == "happy" and not agent.is_speaking:
-                            display_manager.start_emotion("lonely", duration=4.0)
-                
-                # 2. Greeting Logic (Only if connected)
-                if ctx.room.connection_state == rtc.ConnectionState.CONN_CONNECTED:
-                    arrivals = agent.face_monitor.get_new_arrivals()
-                    
-                    if arrivals:
-                        print(f"👋 New arrivals: {arrivals}")
-                        
-                        # Categorize arrivals
-                        known_people = [p for p in arrivals if p != "Unknown"]
-                        unknown_count = arrivals.count("Unknown")
-                        
-                        # Mark all as greeted
-                        for p in arrivals:
-                            agent.face_monitor.mark_greeted(p)
-                        
-                        try:
-                            if len(known_people) > 0 and unknown_count == 0:
-                                if len(known_people) == 1:
-                                    name = known_people[0]
-                                    greeting = generate_greeting(name, is_known=True)
-                                    print(f"✅ Greeting known person: {name} -> {greeting}")
-                                    if display_manager.DISPLAY_RUNNING:
-                                        display_manager.start_emotion("excited", duration=3.0, blink_shift=True)
-                                    await session.say(greeting)
-                                else:
-                                    name = ", ".join(known_people)
-                                    greeting = generate_group_greeting(known_people, 0)
-                                    print(f"✅ Greeting multiple known people -> {greeting}")
-                                    if display_manager.DISPLAY_RUNNING:
-                                        display_manager.start_emotion("excited", duration=4.0, blink_shift=True)
-                                    await session.say(greeting)
-                            
-                            elif known_people and unknown_count > 0:
-                                greeting = generate_group_greeting(known_people, unknown_count)
-                                print(f"🤔 Greeting mix -> {greeting}")
-                                if display_manager.DISPLAY_RUNNING:
-                                    display_manager.start_emotion("friendly", duration=3.0, blink_shift=True)
-                                await session.say(greeting)
-                            
-                            elif unknown_count == 1:
-                                greeting = generate_greeting("Unknown", is_known=False)
-                                print(f"🤔 Greeting unknown person -> {greeting}")
-                                if display_manager.DISPLAY_RUNNING:
-                                    display_manager.start_emotion("curious", duration=3.0, blink_shift=True)
-                                await session.say(greeting)
-                            
-                            elif unknown_count > 1:
-                                greeting = generate_group_greeting([], unknown_count)
-                                print(f"🤔 Greeting unknown group -> {greeting}")
-                                if display_manager.DISPLAY_RUNNING:
-                                    display_manager.start_emotion("curious", duration=4.0, blink_shift=True)
-                                await session.say(greeting)
-                            
-                            else:
-                                greeting = generate_group_greeting([], unknown_count)
-                                print(f"👥 Greeting {unknown_count} unknown people -> {greeting}")
-                                await session.say(greeting)
-                                
-                        except RuntimeError:
-                            print("⚠️ Session closing, stopping greetings")
-                
-            except Exception as e:
-                print(f"⚠️ monitor_and_greet error: {e}")
-                
-            await asyncio.sleep(0.05) # Tracking frequency
+    # Greetings and Tracking are now handled by global autonomous loops.
+    # The session simply links to them via _active_agent_session.
     
     try:
         # --- Register event listeners BEFORE session.start() ---
@@ -653,66 +663,7 @@ async def entrypoint(ctx: agents.JobContext):
         except RuntimeError:
             print("⚠️ Session closed before readiness announcement")
         
-        # NOW start background greeting monitor
-        asyncio.create_task(monitor_and_greet())
-        
-        # 😴 IDLE FATIGUE MONITOR — searching → bored → tired
-        async def idle_fatigue_monitor():
-            """Escalates idle emotion after periods of inactivity."""
-            SEARCH_THRESHOLD = 8.0   # seconds idle before searching
-            BORED_THRESHOLD = 20.0   # seconds idle before bored
-            TIRED_THRESHOLD = 45.0   # seconds idle before tired
-            last_active = time.time()
-            fatigue_state = "idle"  # idle → searching → bored → tired
-
-            while True:
-                await asyncio.sleep(2) # Faster check
-                try:
-                    if not display_manager.DISPLAY_RUNNING:
-                        continue
-
-                    is_active = agent.is_speaking or display_manager.current_emotion not in [
-                        "idle", "idle1", "searching", "bored", "tired", "lonely"
-                    ]
-
-                    if is_active:
-                        last_active = time.time()
-                        fatigue_state = "idle"
-                        continue
-
-                    # Also check if face is visible — if someone's there, don't be bored
-                    face_visible = False
-                    if agent.face_monitor:
-                        face_visible = agent.face_monitor.get_face_center() is not None
-
-                    if face_visible:
-                        last_active = time.time()
-                        fatigue_state = "idle"
-                        continue
-
-                    elapsed = time.time() - last_active
-
-                    if elapsed >= TIRED_THRESHOLD and fatigue_state != "tired":
-                        fatigue_state = "tired"
-                        print("😴 Idle fatigue: TIRED")
-                        display_manager.start_emotion("tired")
-                    elif fatigue_state == "tired" and random.random() < 0.15:
-                        # Occasional glitch when VERY tired
-                        print("👾 Fatigue GLITCH")
-                        display_manager.start_emotion("glitch", duration=0.8)
-                    elif elapsed >= BORED_THRESHOLD and fatigue_state != "bored":
-                        fatigue_state = "bored"
-                        print("😐 Idle fatigue: BORED")
-                        display_manager.start_emotion("bored")
-                    elif elapsed >= SEARCH_THRESHOLD and fatigue_state == "idle":
-                        fatigue_state = "searching"
-                        print("🔍 Idle activity: SEARCHING")
-                        display_manager.start_emotion("searching")
-
-                except Exception as e:
-                    print(f"⚠️ Idle fatigue monitor error: {e}")
-
-        asyncio.create_task(idle_fatigue_monitor())
+        # Audio amplitude monitor is still local to session as it depends on audio buffer
 
         # Start audio amplitude monitor for speech-reactive eyes
         async def audio_amplitude_monitor():
@@ -780,24 +731,10 @@ async def entrypoint(ctx: agents.JobContext):
             await asyncio.sleep(1)
         
     finally:
-        # CLEANUP - Show sad emotion on disconnect, then shutdown
-        print("🔌 Session ending...")
-        
-        # Show sad emotion when disconnecting
-        try:
-            if display_manager.DISPLAY_RUNNING:
-                print("😢 Showing sad emotion for disconnect...")
-                display_manager.display_emotion("sad")
-                await asyncio.sleep(2)  # Let it play for 2 seconds
-                display_manager.stop_display()
-                print("👀 Display stopped safely")
-        except Exception as e:
-            print(f"⚠️ Display shutdown error: {e}")
-        
-        # Release camera
-        if agent.face_monitor:
-            agent.face_monitor.stop()
-            print("📷 Camera released")
+        # CLEANUP - Session ending
+        print("🔌 Session ending... clearing active session reference.")
+        with _active_session_lock:
+            _active_agent_session = None
 
 if __name__ == "__main__":
     agents.cli.run_app(agents.WorkerOptions(
