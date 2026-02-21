@@ -212,12 +212,8 @@ def _display_loop():
                         pygame.quit()
                         return
 
-                # Convert PIL to Pygame surfaces
-                def pil_to_pygame(pil_img):
-                    return pygame.image.fromstring(pil_img.tobytes(), pil_img.size, pil_img.mode)
-
-                surf_l = pil_to_pygame(img_l)
-                surf_r = pil_to_pygame(img_r)
+                surf_l = pygame.image.frombuffer(img_l.tobytes(), img_l.size, img_l.mode)
+                surf_r = pygame.image.frombuffer(img_r.tobytes(), img_r.size, img_r.mode)
                 
                 _preview_screen.fill((20, 20, 20)) # Dark gray bg
                 

@@ -105,9 +105,8 @@ class BlockyEye:
         # --- Behavioral State ---
         self.emotion_queue = []
         self.decay_timer = 0.0
-        self.saccade_timer = 0.0
-        self.saccade_offset = [0.0, 0.0]
         self.blink_shift_pending = None
+        self.shared_saccade_offset = [0.0, 0.0]
 
     def set_emotion(self, emotion_name, duration=None, chain=None, blink_shift=False):
         if emotion_name not in EMOTION_PRESETS:
@@ -180,19 +179,13 @@ class BlockyEye:
                     self.set_emotion("idle")
 
             # 2. Saccadic Scanning (Idle only)
-            if self.current_emotion == "idle":
-                if now > self.saccade_timer:
-                    # Pick a small random offset every 2-4 seconds
-                    self.saccade_offset = [random.uniform(-12, 12), random.uniform(-8, 8)]
-                    self.saccade_timer = now + random.uniform(2.0, 4.0)
-            else:
-                self.saccade_offset = [0.0, 0.0]
-
+            # Now handled externally in the main loop for symmetry
+            
             # 3. Micro-Saccades (High frequency jitter)
             jitter_amp = 0.3
             if self.current_emotion == "remembering": jitter_amp = 0.8
-            self.jitter_x = (math.sin(t * 30.0) * jitter_amp + math.sin(t * 15.0) * 0.2) + self.saccade_offset[0]
-            self.jitter_y = (math.cos(t * 22.0) * jitter_amp) + self.saccade_offset[1]
+            self.jitter_x = (math.sin(t * 30.0) * jitter_amp + math.sin(t * 15.0) * 0.2) + self.shared_saccade_offset[0]
+            self.jitter_y = (math.cos(t * 22.0) * jitter_amp) + self.shared_saccade_offset[1]
 
             # 4. Continuous Behaviors
             behavior = EMOTION_PRESETS[self.current_emotion].get("behavior")
@@ -506,6 +499,8 @@ right_eye = BlockyEye(SCREEN_W // 2, SCREEN_H // 2, scale=1.1, rotation=0, is_le
 
 running = True
 next_blink_time = time.time() + random.uniform(1, 4)
+saccade_timer = 0.0
+shared_saccade_offset = [0.0, 0.0]
 
 # Eye movement constraints
 MAX_X_OFFSET = 15 
@@ -646,6 +641,17 @@ while running:
         if cv2.waitKey(1) & 0xFF == ord('q'):
             running = False
             
+    # --- Shared Saccadic Scanning (Idle only) ---
+    if left_eye.current_emotion == "idle":
+        if time.time() > saccade_timer:
+            shared_saccade_offset = [random.uniform(-12, 12), random.uniform(-8, 8)]
+            saccade_timer = time.time() + random.uniform(2.5, 5.0)
+    else:
+        shared_saccade_offset = [0.0, 0.0]
+    
+    left_eye.shared_saccade_offset = shared_saccade_offset
+    right_eye.shared_saccade_offset = shared_saccade_offset
+
     frame_count += 1
     # --- Blinking ---
     if time.time() > next_blink_time:

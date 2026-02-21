@@ -136,8 +136,8 @@ class BlockyEye:
         # --- Behavioral State ---
         self.emotion_queue = []
         self.decay_timer = 0.0
-        self.saccade_timer = 0.0
         self.blink_shift_pending = None
+        self.shared_saccade_offset = [0.0, 0.0]
 
     def start_blink(self, speed_mult=None, saccade=False):
         if self.blink_state == "IDLE":
@@ -213,19 +213,13 @@ class BlockyEye:
                     self.set_emotion("idle")
 
             # 2. Saccadic Scanning (Idle only)
-            if self.current_emotion == "idle":
-                if now > self.saccade_timer:
-                    # Pick a small random offset every 2-4 seconds
-                    self.saccade_offset = [random.uniform(-12, 12), random.uniform(-8, 8)]
-                    self.saccade_timer = now + random.uniform(2.0, 4.0)
-            else:
-                self.saccade_offset = [0.0, 0.0]
-
+            # Now handled externally by ProceduralEyeDisplay for symmetry
+            
             # 3. Micro-Saccades (High frequency jitter)
             jitter_amp = 0.3
             if self.current_emotion == "remembering": jitter_amp = 0.8
-            self.jitter_x = (math.sin(t * 30.0) * jitter_amp + math.sin(t * 15.0) * 0.2) + self.saccade_offset[0]
-            self.jitter_y = (math.cos(t * 22.0) * jitter_amp) + self.saccade_offset[1]
+            self.jitter_x = (math.sin(t * 30.0) * jitter_amp + math.sin(t * 15.0) * 0.2) + self.shared_saccade_offset[0]
+            self.jitter_y = (math.cos(t * 22.0) * jitter_amp) + self.shared_saccade_offset[1]
 
             # 2. Continuous Behaviors
             behavior = EMOTION_PRESETS[self.current_emotion].get("behavior")
@@ -468,7 +462,7 @@ class BlockyEye:
         draw_w = max(4, int(self.w))
         draw_h = max(4, int(self.h))
 
-        eye_img_size = int(max(self.base_w, self.base_h) * 2.5)
+        eye_img_size = int(max(self.base_w, self.base_h) * 2.0) # Reduced from 2.5
         eye_img = Image.new("RGBA", (eye_img_size, eye_img_size), (0, 0, 0, 0))
         eye_draw = ImageDraw.Draw(eye_img)
 
@@ -487,36 +481,36 @@ class BlockyEye:
         # Draw the eye shape only (NO lid on transparent canvas)
         self.draw_radial_rect(eye_draw, x0, y0, draw_w, draw_h, EYE_COLOR, corner_radius, (off_x, off_y))
 
-        rotated = eye_img.rotate(self.current_rotation, resample=Image.BICUBIC, expand=False)
+        # Use BILINEAR for faster rotation than BICUBIC
+        rotated = eye_img.rotate(self.current_rotation, resample=Image.BILINEAR, expand=False)
 
-        # Create final frame with solid background
-        final_frame = Image.new("RGBA", (SCREEN_WIDTH, SCREEN_HEIGHT), BG_COLOR + (255,))
+        # Create final frame as RGB directly to save a conversion later
+        final_frame = Image.new("RGB", (SCREEN_WIDTH, SCREEN_HEIGHT), BG_COLOR)
         paste_x = int(self.current_pos[0] - eye_img_size / 2)
         paste_y = int(self.current_pos[1] - eye_img_size / 2)
-        final_frame.alpha_composite(rotated, (paste_x, paste_y))
+        
+        # Masked paste is often faster than alpha_composite for full frames
+        final_frame.paste(rotated, (paste_x, paste_y), rotated)
 
         # Draw eyelids DIRECTLY on final_frame in screen coordinates.
-        # Use explicit RGBA (0,0,0,255) — BG_COLOR is a 3-tuple which may have alpha=0 on RGBA images.
         if self.top_lid > 0.01 or self.bottom_lid > 0.01:
             fd_draw = ImageDraw.Draw(final_frame)
             sy = int(self.current_pos[1])
             hh = draw_h // 2
-            LID_BLACK = (0, 0, 0, 255)
+            LID_COLOR = (0, 0, 0) # RGB is fine now
 
             if self.top_lid > 0.01:
                 lid_h = int(draw_h * self.top_lid)
-                # Full-width rect from top of screen down to inner lid edge
                 fd_draw.rectangle(
                     [0, 0, SCREEN_WIDTH, sy - hh + lid_h],
-                    fill=LID_BLACK
+                    fill=LID_COLOR
                 )
 
             if self.bottom_lid > 0.01:
                 lid_h = int(draw_h * self.bottom_lid)
-                # Full-width rect from inner lid edge to bottom of screen
                 fd_draw.rectangle(
                     [0, sy + hh - lid_h, SCREEN_WIDTH, SCREEN_HEIGHT],
-                    fill=LID_BLACK
+                    fill=LID_COLOR
                 )
 
         return final_frame
@@ -539,6 +533,10 @@ class ProceduralEyeDisplay:
         self.target_y_off = 0.0
         self.smoothed_x_off = 0.0
         self.smoothed_y_off = 0.0
+        
+        # Shared Saccade (Parallel scanning)
+        self.saccade_timer = 0.0
+        self.shared_saccade_offset = [0.0, 0.0]
 
     def set_emotion(self, emotion_name: str, duration=None, chain=None, blink_shift=False):
         if emotion_name not in EMOTION_PRESETS:
@@ -564,14 +562,25 @@ class ProceduralEyeDisplay:
         self.target_y_off = y * MAX_Y_OFFSET
 
     def render_frame(self, dt: float, mono: bool = False):
-        # Trigger Blinks ONLY during Idle state
-        if time.time() > self.next_blink_time:
+        now = time.time()
+        
+        # 1. Shared Saccadic Scanning (Idle only)
+        # Calculate a single offset for both eyes so they move in parallel
+        if self.left_eye.current_emotion in ("idle", "idle1"):
+            if now > self.saccade_timer:
+                self.shared_saccade_offset = [random.uniform(-12, 12), random.uniform(-8, 8)]
+                self.saccade_timer = now + random.uniform(2.5, 5.0)
+        else:
+            self.shared_saccade_offset = [0.0, 0.0]
+
+        # 2. Trigger Blinks ONLY during Idle state
+        if now > self.next_blink_time:
             if self.left_eye.current_emotion in ("idle", "idle1"):
                 blink_speed = random.uniform(BLINK_SPEED_MIN, BLINK_SPEED_MAX)
                 do_saccade = (random.random() < 0.30)
                 self.left_eye.start_blink(blink_speed, saccade=do_saccade)
                 self.right_eye.start_blink(blink_speed, saccade=do_saccade)
-            self.next_blink_time = time.time() + random.uniform(3.5, 7.0)
+            self.next_blink_time = now + random.uniform(3.5, 7.0)
 
         # Thinking: hover between corners
         if self.left_eye.current_emotion == "thinking":
@@ -594,6 +603,9 @@ class ProceduralEyeDisplay:
         
         # Update eyes
         for eye in (self.left_eye, self.right_eye):
+            # Sync the shared saccade offset
+            eye.shared_saccade_offset = self.shared_saccade_offset
+            
             # Apply face tracking ONLY during idle states
             if eye.blink_state == "IDLE" and not eye.saccade_pending:
                 if eye.current_emotion in ("idle", "idle1"):
@@ -607,8 +619,8 @@ class ProceduralEyeDisplay:
             eye.update()
             
         # Render
-        img_l = self.left_eye.draw().convert("RGB")
-        img_r = self.right_eye.draw().convert("RGB")
+        img_l = self.left_eye.draw()
+        img_r = self.right_eye.draw()
         
         if mono:
             return img_l.convert('1') # Fallback for OLED if needed
