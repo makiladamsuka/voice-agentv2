@@ -1,5 +1,5 @@
 """
-OLED/TFT Emotion Display - Dual SPI Eyes (BlockyEye)
+Display Manager - Dual SPI Eyes (BlockyEye)
 Drives two ST7735 displays via SPI0 and SPI1.
 """
 
