@@ -300,7 +300,7 @@ def _init_lightweight():
 
 async def _init_heavy_async(agent):
     """Background initialization of heavy ML components"""
-    global _global_face_monitor, _global_event_db, _is_ready
+    global _global_event_db, _is_ready
     
     print("🔄 Starting background initialization of ML components...")
     
@@ -341,7 +341,7 @@ async def _init_heavy_async(agent):
     agent.event_db = _global_event_db
     
     _is_ready = True
-    print("🎉 All components initialized!")
+    print("✅ Background ML initialization complete!")
 
 
 def _handle_signal(sig, frame):
@@ -383,31 +383,25 @@ async def entrypoint(ctx: agents.JobContext):
         # Note: We don't exit here, we let the runner clean up the rest
 
     
-    # LIGHTWEIGHT init - only start fast services
-    _init_lightweight()
-    
-    # Create session immediately (no waiting for ML models)
-    session = AgentSession(
-        stt=deepgram.STT(model="nova-2"),
-        tts=deepgram.TTS(model="aura-luna-en"),
-        vad=silero.VAD.load(
-            min_speech_duration=0.1,
-            min_silence_duration=0.3,  # Aggressive turn-taking
-            prefix_padding_duration=0.2
-        ),
-        llm=openai.LLM(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.getenv("OPENROUTER_API_KEY"),
-            # Switched to openrouter/auto for better resilience (Gemma/Llama endpoints failing)
-            model="openrouter/auto"
-        ),
-    )
-    
-    # Create agent without heavy components (will be set later)
+    # Create agent
     agent = CampusGreetingAgent(_global_image_server, None)  # event_db set later
     agent.room = ctx.room
-    agent.face_monitor = None  # Will be set after background init
     agent.is_speaking = False  # Track speaking state for emotion logic
+
+    # --- AUTONOMOUS BOOT: Start hardware immediately ---
+    print("📺 Starting display manager...")
+    display_manager.setup_and_start_display()
+    
+    print("🎥 Starting FaceMonitor...")
+    known_faces = _load_known_faces()
+    agent.face_monitor = FaceMonitor(known_faces)
+    agent.face_monitor.start()
+    agent.known_faces = agent.face_monitor.known_faces
+    
+    if _global_image_server:
+        _global_image_server.set_face_monitor(agent.face_monitor)
+        
+    print("👀 Robot is AWAKE and tracking.")
     
     # Context Injection: LLM always knows who's in front (handles None face_monitor)
     async def inject_person_context(assistant: AgentSession, chat_ctx):
@@ -468,103 +462,93 @@ async def entrypoint(ctx: agents.JobContext):
     # Proactive Greeting Task: Watch for new people (only runs after init completes)
     async def monitor_and_greet():
         """Background task that greets people and TRACKS FACES"""
-        # Wait for initialization to complete
-        while not _is_ready:
-            await asyncio.sleep(1)
-        
-        await asyncio.sleep(2)  # Additional delay after init
-        
-        while ctx.room.connection_state == rtc.ConnectionState.CONN_CONNECTED:
+        print("👁️ monitor_and_greet started")
+        while True:
             try:
                 if agent.face_monitor is None:
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(1)
                     continue
                     
-                # 1. Face Tracking (High frequency)
-                if agent.face_monitor:
-                    face_center = agent.face_monitor.get_face_center()
-                    face_rotation = agent.face_monitor.get_face_rotation()
-                    
-                    if display_manager.DISPLAY_RUNNING:
-                        if face_center:
-                            display_manager.update_face_target(face_center[0], face_center[1], face_rotation)
-                            # Show "Happy" if seeing someone (and not busy doing something else)
-                            if display_manager.current_emotion in ["idle", "idle1", "bored", "tired", "lonely"]:
-                                display_manager.start_emotion("happy")
-                        else:
-                            display_manager.update_face_target(0.0, 0.0, 0.0)
-                            # If lost face and was "happy", show lonely briefly
-                            if display_manager.current_emotion == "happy" and not agent.is_speaking:
-                                display_manager.start_emotion("lonely", duration=4.0)
-
-                # 2. Greeting Logic (Lower frequency)
-                # Check for new arrivals
-                arrivals = agent.face_monitor.get_new_arrivals()
+                # 1. Face Tracking (Visual component - Independent of connection)
+                face_center = agent.face_monitor.get_face_center()
+                face_rotation = agent.face_monitor.get_face_rotation()
                 
-                if arrivals:
-                    print(f"👋 New arrivals: {arrivals}")
+                if display_manager.DISPLAY_RUNNING:
+                    if face_center:
+                        display_manager.update_face_target(face_center[0], face_center[1], face_rotation)
+                        # Show "Happy" if seeing someone
+                        if display_manager.current_emotion in ["idle", "idle1", "searching", "bored", "tired", "lonely"]:
+                            display_manager.start_emotion("happy")
+                    else:
+                        display_manager.update_face_target(0.0, 0.0, 0.0)
+                        if display_manager.current_emotion == "happy" and not agent.is_speaking:
+                            display_manager.start_emotion("lonely", duration=4.0)
+                
+                # 2. Greeting Logic (Only if connected)
+                if ctx.room.connection_state == rtc.ConnectionState.CONN_CONNECTED:
+                    arrivals = agent.face_monitor.get_new_arrivals()
                     
-                    # Categorize arrivals
-                    known_people = [p for p in arrivals if p != "Unknown"]
-                    unknown_count = arrivals.count("Unknown")
-                    
-                    # Mark all as greeted
-                    for p in arrivals:
-                        agent.face_monitor.mark_greeted(p)
-                    
-                    try:
-                        if len(known_people) > 0 and unknown_count == 0:
-                            if len(known_people) == 1:
-                                name = known_people[0]
-                                greeting = generate_greeting(name, is_known=True)
-                                print(f"✅ Greeting known person: {name} -> {greeting}")
-                                if display_manager.DISPLAY_RUNNING:
-                                    display_manager.start_emotion("excited", duration=3.0, blink_shift=True)
-                                await session.say(greeting)
-                            else:
-                                name = ", ".join(known_people)
-                                greeting = generate_group_greeting(known_people, 0)
-                                print(f"✅ Greeting multiple known people -> {greeting}")
-                                if display_manager.DISPLAY_RUNNING:
-                                    display_manager.start_emotion("excited", duration=4.0, blink_shift=True)
-                                await session.say(greeting)
+                    if arrivals:
+                        print(f"👋 New arrivals: {arrivals}")
                         
-                        elif known_people and unknown_count > 0:
-                            greeting = generate_group_greeting(known_people, unknown_count)
-                            print(f"🤔 Greeting mix -> {greeting}")
-                            if display_manager.DISPLAY_RUNNING:
-                                display_manager.start_emotion("friendly", duration=3.0, blink_shift=True)
-                            await session.say(greeting)
+                        # Categorize arrivals
+                        known_people = [p for p in arrivals if p != "Unknown"]
+                        unknown_count = arrivals.count("Unknown")
                         
-                        elif unknown_count == 1:
-                            greeting = generate_greeting("Unknown", is_known=False)
-                            print(f"🤔 Greeting unknown person -> {greeting}")
-                            if display_manager.DISPLAY_RUNNING:
-                                display_manager.start_emotion("curious", duration=3.0, blink_shift=True)
-                            await session.say(greeting)
+                        # Mark all as greeted
+                        for p in arrivals:
+                            agent.face_monitor.mark_greeted(p)
                         
-                        elif unknown_count > 1:
-                            greeting = generate_group_greeting([], unknown_count)
-                            print(f"🤔 Greeting unknown group -> {greeting}")
-                            if display_manager.DISPLAY_RUNNING:
-                                display_manager.start_emotion("curious", duration=4.0, blink_shift=True)
-                            await session.say(greeting)
-                        
-                        else:
-                            greeting = generate_group_greeting([], unknown_count)
-                            print(f"👥 Greeting {unknown_count} unknown people -> {greeting}")
-                            await session.say(greeting)
+                        try:
+                            if len(known_people) > 0 and unknown_count == 0:
+                                if len(known_people) == 1:
+                                    name = known_people[0]
+                                    greeting = generate_greeting(name, is_known=True)
+                                    print(f"✅ Greeting known person: {name} -> {greeting}")
+                                    if display_manager.DISPLAY_RUNNING:
+                                        display_manager.start_emotion("excited", duration=3.0, blink_shift=True)
+                                    await session.say(greeting)
+                                else:
+                                    name = ", ".join(known_people)
+                                    greeting = generate_group_greeting(known_people, 0)
+                                    print(f"✅ Greeting multiple known people -> {greeting}")
+                                    if display_manager.DISPLAY_RUNNING:
+                                        display_manager.start_emotion("excited", duration=4.0, blink_shift=True)
+                                    await session.say(greeting)
                             
-                    except RuntimeError:
-                        print("⚠️ Session closing, stopping greetings")
-                        break
-                        
-            except Exception as e:
-                print(f"⚠️ Greeting error: {e}")
-                import traceback
-                traceback.print_exc()
+                            elif known_people and unknown_count > 0:
+                                greeting = generate_group_greeting(known_people, unknown_count)
+                                print(f"🤔 Greeting mix -> {greeting}")
+                                if display_manager.DISPLAY_RUNNING:
+                                    display_manager.start_emotion("friendly", duration=3.0, blink_shift=True)
+                                await session.say(greeting)
+                            
+                            elif unknown_count == 1:
+                                greeting = generate_greeting("Unknown", is_known=False)
+                                print(f"🤔 Greeting unknown person -> {greeting}")
+                                if display_manager.DISPLAY_RUNNING:
+                                    display_manager.start_emotion("curious", duration=3.0, blink_shift=True)
+                                await session.say(greeting)
+                            
+                            elif unknown_count > 1:
+                                greeting = generate_group_greeting([], unknown_count)
+                                print(f"🤔 Greeting unknown group -> {greeting}")
+                                if display_manager.DISPLAY_RUNNING:
+                                    display_manager.start_emotion("curious", duration=4.0, blink_shift=True)
+                                await session.say(greeting)
+                            
+                            else:
+                                greeting = generate_group_greeting([], unknown_count)
+                                print(f"👥 Greeting {unknown_count} unknown people -> {greeting}")
+                                await session.say(greeting)
+                                
+                        except RuntimeError:
+                            print("⚠️ Session closing, stopping greetings")
                 
-            await asyncio.sleep(0.1)
+            except Exception as e:
+                print(f"⚠️ monitor_and_greet error: {e}")
+                
+            await asyncio.sleep(0.05) # Tracking frequency
     
     try:
         # --- Register event listeners BEFORE session.start() ---
@@ -681,7 +665,7 @@ async def entrypoint(ctx: agents.JobContext):
             last_active = time.time()
             fatigue_state = "idle"  # idle → searching → bored → tired
 
-            while ctx.room.connection_state == rtc.ConnectionState.CONN_CONNECTED:
+            while True:
                 await asyncio.sleep(2) # Faster check
                 try:
                     if not display_manager.DISPLAY_RUNNING:

@@ -493,9 +493,9 @@ class ProceduralEyeDisplay:
     def render_frame(self, dt: float, mono: bool = False):
         now = time.time()
         
-        # 1. Shared Saccadic Scanning (Idle only)
+        # 1. Shared Saccadic Scanning (Idle or Talking)
         # Calculate a single offset for both eyes so they move in parallel
-        if self.left_eye.current_emotion in ("idle", "idle1", "idle2"):
+        if self.left_eye.current_emotion in ("idle", "idle1", "idle2", "talking", "joy", "happy"):
             if now > self.saccade_timer:
                 self.shared_saccade_offset = [random.uniform(-12, 12), random.uniform(-8, 8)]
                 self.saccade_timer = now + random.uniform(2.5, 5.0)
