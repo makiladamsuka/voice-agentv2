@@ -52,12 +52,61 @@ class ImageServer:
         class CustomHandler(BaseHTTPRequestHandler):
             def do_GET(self):
                 """Handle GET requests - serve static files or camera stream"""
-                if self.path == '/camera/mjpeg':
+                if self.path == '/':
+                    self._serve_landing_page()
+                elif self.path == '/camera/mjpeg':
                     self._serve_mjpeg_stream()
                 elif self.path == '/camera/live.jpg':
                     self._serve_single_frame()
                 else:
                     self._serve_static_file(parent_dir)
+
+            def _serve_landing_page(self):
+                """Serve a simple HTML page with links to available services"""
+                html = f"""
+                <html>
+                <head>
+                    <title>AI Voice Agent - Media Server</title>
+                    <style>
+                        body {{ font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 800px; margin: 0 auto; background: #f4f4f9; color: #333; }}
+                        h1 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
+                        .card {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }}
+                        .status {{ font-weight: bold; padding: 5px 10px; border-radius: 4px; display: inline-block; }}
+                        .online {{ background: #d4edda; color: #155724; }}
+                        .offline {{ background: #f8d7da; color: #721c24; }}
+                        a {{ color: #3498db; text-decoration: none; font-weight: bold; }}
+                        a:hover {{ text-decoration: underline; }}
+                        code {{ background: #eee; padding: 2px 5px; border-radius: 3px; font-family: monospace; }}
+                    </style>
+                </head>
+                <body>
+                    <h1>🤖 AI Voice Agent - Diagnostics</h1>
+                    
+                    <div class="card">
+                        <h2>🎥 Camera Stream</h2>
+                        <p><strong>MJPEG Stream (Live):</strong> <a href="/camera/mjpeg">/camera/mjpeg</a></p>
+                        <p><strong>Single Frame (.jpg):</strong> <a href="/camera/live.jpg">/camera/live.jpg</a></p>
+                        
+                        <p>Status: <span class="status {'online' if self.server.face_monitor and self.server.face_monitor.current_frame is not None else 'offline'}">
+                            {'READY' if self.server.face_monitor and self.server.face_monitor.current_frame is not None else 'NOT READY'}
+                        </span></p>
+                    </div>
+
+                    <div class="card">
+                        <h2>🛠️ Troubleshooting</h2>
+                        <ul>
+                            <li>If the stream is empty/black, check the terminal logs for <code>❌ Could not open USB webcam</code>.</li>
+                            <li>Ensure SSH port forwarding is active: <code>ssh -L 8080:localhost:8080 nema@raspberrypi.local</code></li>
+                            <li>Try reloading this page to check the status indicator above.</li>
+                        </ul>
+                    </div>
+                </body>
+                </html>
+                """
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html')
+                self.end_headers()
+                self.wfile.write(html.encode())
 
             def _serve_mjpeg_stream(self):
                 """Serve a continuous MJPEG stream from the camera"""

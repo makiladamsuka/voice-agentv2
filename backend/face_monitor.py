@@ -293,8 +293,9 @@ class FaceMonitor:
                 return
                 
         except Exception as e:
-            print(f"❌ Picamera2 initialization failed: {e}")
-            self.is_running = False
+            print(f"⚠️ Picamera2 initialization failed: {e}")
+            print(f"🔄 Falling back to USB Webcam (cv2)...")
+            self._monitor_loop_cv2()
             return
         
         frame_count = 0
@@ -331,13 +332,21 @@ class FaceMonitor:
     def _monitor_loop_cv2(self):
         """Fallback loop using standard cv2.VideoCapture (for PC)"""
         print("🎥 Initializing USB Webcam (cv2)...")
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            print("❌ Could not open USB webcam.")
+        cap = None
+        for index in range(5):
+            print(f"🔍 Testing camera index {index}...")
+            cap = cv2.VideoCapture(index)
+            if cap.isOpened():
+                print(f"✅ USB Webcam initialized at index {index}.")
+                break
+            cap.release()
+            cap = None
+            
+        if cap is None:
+            print("❌ Could not open any USB webcam (tried indices 0-4).")
             self.is_running = False
             return
             
-        print("✅ USB Webcam initialized.")
         frame_count = 0
         while self.is_running:
             ret, frame = cap.read()
