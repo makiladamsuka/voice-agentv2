@@ -148,13 +148,14 @@ def display_emotion(emotion_name, duration=None, chain=None, blink_shift=False):
     # Alias for start_emotion (legacy compatibility)
     start_emotion(emotion_name, duration=duration, chain=chain, blink_shift=blink_shift)
 
-def update_face_target(x, y):
+def update_face_target(x, y, rotation=0.0):
     """
     Update target for face tracking.
     x, y: normalized coordinates (-1.0 to 1.0)
+    rotation: face roll in degrees
     """
     if _eye_display:
-        _eye_display.set_face_target(x, y)
+        _eye_display.set_face_target(x, y, rotation)
 
 def set_speech_amplitude(amplitude: float):
     """
