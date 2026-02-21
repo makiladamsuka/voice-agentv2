@@ -9,11 +9,11 @@ import random
 from PIL import Image, ImageDraw
 
 # --- Configuration ---
-SCREEN_WIDTH = 128
-SCREEN_HEIGHT = 160
+SCREEN_WIDTH = 160  # Landscape mode
+SCREEN_HEIGHT = 128
 EYE_COLOR = (255, 255, 255) # White
 BG_COLOR = (0, 0, 0)      # Black
-EYE_SIZE = 120           # Base size
+EYE_SIZE = 140           # Adjusted for 160 width
 FLOOR_Y = SCREEN_HEIGHT - 5
 
 # Blink Speed (Higher = Faster)
@@ -227,9 +227,10 @@ class BlockyEye:
             target_y_phys = self.target_pos[1] + preset_pos[1] + b_off_y + self.jitter_y + anticipate_y
 
             # Soft physics clamping (influences spring target)
-            soft_pad = 15
-            target_x_phys = max(soft_pad, min(SCREEN_WIDTH - soft_pad, target_x_phys))
-            target_y_phys = max(soft_pad, min(SCREEN_HEIGHT - soft_pad, target_y_phys))
+            soft_pad_x = 25
+            soft_pad_y = 15
+            target_x_phys = max(soft_pad_x, min(SCREEN_WIDTH - soft_pad_x, target_x_phys))
+            target_y_phys = max(soft_pad_y, min(SCREEN_HEIGHT - soft_pad_y, target_y_phys))
 
             # Spring Physics for Position 
             k_pos = 0.08
@@ -391,6 +392,12 @@ class BlockyEye:
         off_x = max(-1, min(1, (self.current_pos[0] - self.base_x) / 30.0))
         off_y = max(-1, min(1, (self.current_pos[1] - self.base_y) / 20.0))
         
+        # Hard clamping of center to prevent completely leaving screen
+        pad_h = draw_h / 2
+        pad_w = draw_w / 2
+        draw_x = max(pad_w, min(SCREEN_WIDTH - pad_w, self.current_pos[0]))
+        draw_y = max(pad_h, min(SCREEN_HEIGHT - pad_h, self.current_pos[1]))
+
         cx, cy = eye_img_size / 2, eye_img_size / 2
         x0 = cx - draw_w / 2
         y0 = cy - draw_h / 2
@@ -402,8 +409,8 @@ class BlockyEye:
 
         # Final Frame (RGB)
         final_frame = Image.new("RGB", (SCREEN_WIDTH, SCREEN_HEIGHT), BG_COLOR)
-        paste_x = int(self.current_pos[0] - eye_img_size / 2)
-        paste_y = int(self.current_pos[1] - eye_img_size / 2)
+        paste_x = int(draw_x - eye_img_size / 2)
+        paste_y = int(draw_y - eye_img_size / 2)
         
         # Masked paste
         final_frame.paste(rotated, (paste_x, paste_y), rotated)

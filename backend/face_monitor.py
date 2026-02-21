@@ -25,6 +25,7 @@ except ImportError:
 # --- DEBUG SETTINGS ---
 SHOW_DEBUG_VIDEO = False  # Set to True only if a monitor is attached to the Pi/PC
 DEBUG_LOG_INTERVAL = 5.0  # Seconds between status prints (0 = disable)
+CAMERA_ROTATE_180 = True  # Rotate camera if mounted upside down
 # -----------------------
 
 # --- STABILITY SETTINGS ---
@@ -308,6 +309,9 @@ class FaceMonitor:
                 # XRGB8888 is actually BGRX format in memory, drop the X channel
                 frame = frame[:, :, :3]  # Keep only BGR channels
                 
+                if CAMERA_ROTATE_180:
+                    frame = cv2.rotate(frame, cv2.ROTATE_180)
+                
                 with self.lock:
                     self.current_frame = frame.copy()
                 
@@ -353,6 +357,9 @@ class FaceMonitor:
             if not ret:
                 time.sleep(0.1)
                 continue
+            
+            if CAMERA_ROTATE_180:
+                frame = cv2.rotate(frame, cv2.ROTATE_180)
             
             with self.lock:
                 self.current_frame = frame.copy()
@@ -442,6 +449,12 @@ class FaceMonitor:
             self._update_face_cache(detected_names)
             self._last_face_locs = face_locations
             self._last_detected_names = list(detected_names)
+            
+            # If no face detected, clear the center immediately 
+            # (voice_agent.py also handles this but this ensures consistency)
+            if largest_face_center is None:
+                self.last_face_center = None
+                self.last_face_roll = 0.0
 
     def _render_debug_window(self, frame):
         """Unified debug window renderer"""
