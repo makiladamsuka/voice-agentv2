@@ -393,8 +393,8 @@ async def entrypoint(ctx: agents.JobContext):
         llm=openai.LLM(
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY"),
-            # Ultra-fast model for minimal Time To First Token (TTFT)
-            model="google/gemma-2-9b-it:free"
+            # Reverted to Llama 3.1 8B (User preference)
+            model="meta-llama/llama-3.1-8b-instruct:free"
         ),
     )
     
