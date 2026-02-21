@@ -653,22 +653,23 @@ async def entrypoint(ctx: agents.JobContext):
         # NOW start background greeting monitor
         asyncio.create_task(monitor_and_greet())
         
-        # 😴 IDLE FATIGUE MONITOR — bored → tired → lonely over time
+        # 😴 IDLE FATIGUE MONITOR — searching → bored → tired
         async def idle_fatigue_monitor():
             """Escalates idle emotion after periods of inactivity."""
-            BORED_THRESHOLD = 45.0  # seconds idle before bored
-            TIRED_THRESHOLD = 90.0  # seconds idle before tired
+            SEARCH_THRESHOLD = 8.0   # seconds idle before searching
+            BORED_THRESHOLD = 20.0   # seconds idle before bored
+            TIRED_THRESHOLD = 45.0   # seconds idle before tired
             last_active = time.time()
-            fatigue_state = "idle"  # idle → bored → tired
+            fatigue_state = "idle"  # idle → searching → bored → tired
 
             while ctx.room.connection_state == rtc.ConnectionState.CONN_CONNECTED:
-                await asyncio.sleep(5)
+                await asyncio.sleep(2) # Faster check
                 try:
                     if not display_manager.DISPLAY_RUNNING:
                         continue
 
                     is_active = agent.is_speaking or display_manager.current_emotion not in [
-                        "idle", "idle1", "bored", "tired", "lonely"
+                        "idle", "idle1", "searching", "bored", "tired", "lonely"
                     ]
 
                     if is_active:
@@ -692,10 +693,14 @@ async def entrypoint(ctx: agents.JobContext):
                         fatigue_state = "tired"
                         print("😴 Idle fatigue: TIRED")
                         display_manager.start_emotion("tired")
-                    elif elapsed >= BORED_THRESHOLD and fatigue_state == "idle":
+                    elif elapsed >= BORED_THRESHOLD and fatigue_state != "bored":
                         fatigue_state = "bored"
                         print("😐 Idle fatigue: BORED")
                         display_manager.start_emotion("bored")
+                    elif elapsed >= SEARCH_THRESHOLD and fatigue_state == "idle":
+                        fatigue_state = "searching"
+                        print("🔍 Idle activity: SEARCHING")
+                        display_manager.start_emotion("searching")
 
                 except Exception as e:
                     print(f"⚠️ Idle fatigue monitor error: {e}")
