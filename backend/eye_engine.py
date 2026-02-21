@@ -221,65 +221,57 @@ class BlockyEye:
             if now < self.anticipation_timer:
                 anticipate_y = self.anticipation_dip[1]
 
-            # 5. Final Position Calculation (with Tighter Clamping)
+            # 5. Final Position Calculation (Physics Clamping)
             preset_pos = EMOTION_PRESETS[self.current_emotion].get("pos", (0, 0))
             target_x_phys = self.target_pos[0] + preset_pos[0] + b_off_x + self.jitter_x + anticipate_x
             target_y_phys = self.target_pos[1] + preset_pos[1] + b_off_y + self.jitter_y + anticipate_y
 
-            # Tighten Screen Clamping (account for rotation & padding)
-            angle_rad = math.radians(abs(self.current_rotation))
-            eff_half_w = (self.w * math.cos(angle_rad) + self.h * math.sin(angle_rad)) / 2
-            eff_half_h = (self.w * math.sin(angle_rad) + self.h * math.cos(angle_rad)) / 2
-            
-            # Increase padding to prevent any edge bleeding
-            pad = 12 
-            target_x_phys = max(eff_half_w + pad, min(SCREEN_WIDTH - eff_half_w - pad, target_x_phys))
-            target_y_phys = max(eff_half_h + pad, min(SCREEN_HEIGHT - eff_half_h - pad, target_y_phys))
+            # Soft physics clamping (influences spring target)
+            soft_pad = 15
+            target_x_phys = max(soft_pad, min(SCREEN_WIDTH - soft_pad, target_x_phys))
+            target_y_phys = max(soft_pad, min(SCREEN_HEIGHT - soft_pad, target_y_phys))
 
-            # Spring Physics for Position (Higher Friction / Less Bounce)
+            # Spring Physics for Position 
             k_pos = 0.08
             d_pos_x = 0.70 
             self.velocity[0] = (self.velocity[0] + (target_x_phys - self.current_pos[0]) * k_pos) * d_pos_x
 
             # Gravity Feel + Vertical Resistance
             d_pos_y = 0.82
-            if self.velocity[1] < 0: d_pos_y = 0.68 # Higher friction moving up
-            else: d_pos_y = 0.80 # Slightly more friction moving down
+            if self.velocity[1] < 0: d_pos_y = 0.68
+            else: d_pos_y = 0.80
 
-            # Subtle gravity pull bias
             self.velocity[1] = (self.velocity[1] + (target_y_phys + 1.5 - self.current_pos[1]) * k_pos) * d_pos_y
             
             self.current_pos[0] += self.velocity[0]
             self.current_pos[1] += self.velocity[1]
-
-            # Hard constraint on current_pos with tighter safety margins
-            self.current_pos[0] = max(eff_half_w + 4, min(SCREEN_WIDTH - eff_half_w - 4, self.current_pos[0]))
-            self.current_pos[1] = max(eff_half_h + 4, min(SCREEN_HEIGHT - eff_half_h - 4, self.current_pos[1]))
             
             # Rotation Logic
             rel_x = self.current_pos[0] - self.base_x
             rel_y = self.current_pos[1] - self.base_y
             look_rot = (rel_x * 0.5 + rel_y * 0.8) * self.rot_sensitivity
             final_target_rot = look_rot + self.target_rotation
-            
-            # Clamp rotation to ±5 degrees as requested
-            final_target_rot = max(-5.0, min(5.0, final_target_rot))
-            
+            final_target_rot = max(-5.0, min(5.0, final_target_rot)) # Clamp ±5 deg
             self.current_rotation += (final_target_rot - self.current_rotation) * self.rot_speed
             
-            # Shape Springs (Lower Bounce)
+            # Shape Springs
             k_shape = 0.20
-            d_shape = 0.65  # Higher friction
-            
-            # Voice Pulse (Audio Reactivity)
+            d_shape = 0.65
             pulse_scale = self.speech_amplitude * 0.25
-            pulse_squish = self.speech_amplitude * 0.4
-            
             self.vel_w = (self.vel_w + (self.base_w * self.target_scale_w - self.current_w) * k_shape) * d_shape
             self.vel_h = (self.vel_h + (self.base_h * (self.target_scale_h + pulse_scale) - self.current_h) * k_shape) * d_shape
-            
             self.current_w += self.vel_w
             self.current_h += self.vel_h
+            
+            # Final Hard Clamping (Accounting for final rotation & size)
+            angle_rad = math.radians(abs(self.current_rotation))
+            eff_half_w = (self.current_w * math.cos(angle_rad) + self.current_h * math.sin(angle_rad)) / 2
+            eff_half_h = (self.current_w * math.sin(angle_rad) + self.current_h * math.cos(angle_rad)) / 2
+            
+            # Strict safety margin (12px padding from screen edge)
+            safe_pad = 12
+            self.current_pos[0] = max(eff_half_w + safe_pad, min(SCREEN_WIDTH - eff_half_w - safe_pad, self.current_pos[0]))
+            self.current_pos[1] = max(eff_half_h + safe_pad, min(SCREEN_HEIGHT - eff_half_h - safe_pad, self.current_pos[1]))
             
             # --- Emotion Eyelid Interpolation ---
             speed_lid = 0.25
@@ -468,8 +460,8 @@ class ProceduralEyeDisplay:
         Set target from face tracking.
         x, y should be normalized (-1.0 to 1.0)
         """
-        MAX_X_OFFSET = 50
-        MAX_Y_OFFSET = 35
+        MAX_X_OFFSET = 45
+        MAX_Y_OFFSET = 30
         
         # Target offsets
         self.target_x_off = x * MAX_X_OFFSET
