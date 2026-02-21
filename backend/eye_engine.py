@@ -9,11 +9,11 @@ import random
 from PIL import Image, ImageDraw
 
 # --- Configuration ---
-SCREEN_WIDTH = 160  # Landscape mode
-SCREEN_HEIGHT = 128
+SCREEN_WIDTH = 128
+SCREEN_HEIGHT = 160
 EYE_COLOR = (255, 255, 255) # White
 BG_COLOR = (0, 0, 0)      # Black
-EYE_SIZE = 140           # Adjusted for 160 width
+EYE_SIZE = 120           # Base size for 128 width
 FLOOR_Y = SCREEN_HEIGHT - 5
 
 # Blink Speed (Higher = Faster)
@@ -227,10 +227,9 @@ class BlockyEye:
             target_y_phys = self.target_pos[1] + preset_pos[1] + b_off_y + self.jitter_y + anticipate_y
 
             # Soft physics clamping (influences spring target)
-            soft_pad_x = 25
-            soft_pad_y = 15
-            target_x_phys = max(soft_pad_x, min(SCREEN_WIDTH - soft_pad_x, target_x_phys))
-            target_y_phys = max(soft_pad_y, min(SCREEN_HEIGHT - soft_pad_y, target_y_phys))
+            soft_pad = 15
+            target_x_phys = max(soft_pad, min(SCREEN_WIDTH - soft_pad, target_x_phys))
+            target_y_phys = max(soft_pad, min(SCREEN_HEIGHT - soft_pad, target_y_phys))
 
             # Spring Physics for Position 
             k_pos = 0.08
