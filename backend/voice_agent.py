@@ -393,8 +393,8 @@ async def entrypoint(ctx: agents.JobContext):
         llm=openai.LLM(
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY"),
-            # User specified model: Aurora Alpha
-            model="openrouter/aurora-alpha"
+            # Reverted to Llama 3.1 8B (Aurora Alpha expired)
+            model="meta-llama/llama-3.1-8b-instruct:free"
         ),
     )
     
