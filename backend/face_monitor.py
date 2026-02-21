@@ -23,7 +23,7 @@ except ImportError:
 # from object_detector import ObjectDetector
 
 # --- DEBUG SETTINGS ---
-SHOW_DEBUG_VIDEO = True   # Default to True on PC, False on Pi
+SHOW_DEBUG_VIDEO = False  # Set to True only if a monitor is attached to the Pi/PC
 DEBUG_LOG_INTERVAL = 5.0  # Seconds between status prints (0 = disable)
 # -----------------------
 
@@ -243,10 +243,12 @@ class FaceMonitor:
         if self.is_running: return
         self.is_running = True
         
-        # Auto-enable debug video if on PC
-        global SHOW_DEBUG_VIDEO
+        # Auto-enable debug video ONLY if specifically True and not on Pi (with caution)
+        # On Pi we usually want this False unless a monitor is attached.
         if not HAS_PICAMERA:
-            SHOW_DEBUG_VIDEO = True
+            # If we are on PC but didn't set it, maybe enable it. 
+            # But let's respect the initial setting more strictly.
+            pass
             
         self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.thread.start()
