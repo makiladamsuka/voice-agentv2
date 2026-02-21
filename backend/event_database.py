@@ -2,7 +2,8 @@ import chromadb
 from chromadb.utils import embedding_functions
 from pathlib import Path
 import json
-from poster_indexer import index_posters
+import hashlib
+from event_indexer import index_posters
 
 class EventDatabase:
     def __init__(self, persist_directory):
@@ -53,19 +54,59 @@ class EventDatabase:
         
         return formatted_events
 
+    def has_data(self) -> bool:
+        """Returns True if the collection already has indexed events."""
+        return self.collection.count() > 0
+
+
+def _compute_events_manifest(events_dir: Path) -> dict:
+    """Compute a dict of {filename: md5_hash} for all images in the folder."""
+    valid_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+    manifest = {}
+    if events_dir.exists():
+        for f in sorted(events_dir.iterdir()):
+            if f.suffix.lower() in valid_extensions:
+                md5 = hashlib.md5(f.read_bytes()).hexdigest()
+                manifest[f.name] = md5
+    return manifest
+
+
 def build_event_database(assets_dir: Path):
     """
     Builds or updates the event database from posters.
+    Skips re-indexing if the events folder hasn't changed since last run.
     """
     db_path = Path(__file__).parent / "event_db"
     db_path.mkdir(exist_ok=True)
-    
+    manifest_path = db_path / "event_manifest.json"
+
     db = EventDatabase(db_path)
-    
-    # Index posters
+
+    # Compute current state of the events folder
+    events_dir = assets_dir / "events"
+    current_manifest = _compute_events_manifest(events_dir)
+
+    # Load previously saved manifest (if any)
+    saved_manifest = {}
+    if manifest_path.exists():
+        try:
+            saved_manifest = json.loads(manifest_path.read_text())
+        except Exception:
+            saved_manifest = {}
+
+    # Skip re-indexing if nothing changed AND DB already has data
+    if current_manifest == saved_manifest and db.has_data():
+        print(f"✅ Event DB up-to-date ({len(current_manifest)} posters, skipping re-index)")
+        return db
+
+    # Something changed (or first run) — re-index
+    changed = set(current_manifest) ^ set(saved_manifest)
+    print(f"🔄 Events changed ({len(changed)} file(s) differ). Re-indexing...")
     events = index_posters(assets_dir)
-    
-    # Add to DB
     db.add_events(events)
-    
+
+    # Save the new manifest
+    manifest_path.write_text(json.dumps(current_manifest, indent=2))
+    print(f"💾 Manifest saved ({len(current_manifest)} files tracked)")
+
     return db

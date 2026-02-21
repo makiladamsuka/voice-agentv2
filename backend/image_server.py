@@ -1,5 +1,5 @@
 """
-Simple HTTP server for serving event posters and map images.
+Simple HTTP server for serving media assets (posters, maps).
 Runs alongside the LiveKit agent.
 """
 
@@ -9,7 +9,7 @@ from pathlib import Path
 import socket
 
 class ImageServer:
-    """Simple HTTP server to serve images from assets directory"""
+    """Simple HTTP server to serve media from assets directory"""
     
     def __init__(self, assets_dir: Path, port: int = 8080, host: str = "0.0.0.0"):
         self.assets_dir = assets_dir
@@ -33,7 +33,7 @@ class ImageServer:
     def start(self):
         """Start the HTTP server in a background thread"""
         if self.server is not None and self.thread is not None and self.thread.is_alive():
-            print(f"⚠️  Image server already running on port {self.port}")
+            print(f"⚠️  Media server already running on port {self.port}")
             return
         
         if self.host == "0.0.0.0":
@@ -113,7 +113,7 @@ class ImageServer:
                 raise
         
         def serve():
-            print(f"✅ Image server started: http://{self._server_host}:{self.port}")
+            print(f"✅ Media server started: http://{self._server_host}:{self.port}")
             self.server.serve_forever()
         
         self.thread = threading.Thread(target=serve, daemon=True)
@@ -123,7 +123,7 @@ class ImageServer:
         """Stop the HTTP server"""
         if self.server:
             self.server.shutdown()
-            print("🛑 Image server stopped")
+            print("🛑 Media server stopped")
     
     def get_image_url(self, category: str, filename: str) -> str:
         """Get the URL for an image"""

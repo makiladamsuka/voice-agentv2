@@ -8,7 +8,9 @@ import pickle
 import json
 import asyncio
 import re
+import random
 import signal
+import time
 import numpy as np
 from pathlib import Path
 from image_manager import ImageManager
@@ -32,63 +34,7 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 
 
-# class EmotionSpeechWrapper:
-#     """
-#     Wrapper that provides emotional speech with VADER sentiment analysis.
-#     Analyzes text segments and syncs OLED emotions with speech.
-#     """
-#     
-#     @staticmethod
-#     async def speak_with_emotion(session, text: str):
-#         """
-#         Speak text with synchronized emotions.
-#         Analyzes each sentence and shows matching emotion while speaking.
-#         
-#         Args:
-#             session: AgentSession to use for speaking
-#             text: Full text to speak
-#         """
-#         # Get emotionally segmented text
-#         # segments = get_emotion_for_text(text)
-#         
-#         # print(f"\n🎭 === EMOTION SYNC DEBUG ===")
-#         # print(f"📝 Full text: {text}")
-#         # print(f"📊 Segments: {len(segments)}")
-#         # for i, seg in enumerate(segments):
-#         #     print(f"   {i+1}. [{seg['emotion']}] {seg['text']}")
-#         # print(f"🎭 ===========================\n")
-#         
-#         # for segment in segments:
-#         #     emotion = segment["emotion"]
-#         #     segment_text = segment["text"]
-#             
-#         #     print(f"🎤 NOW SPEAKING: [{emotion}] {segment_text}")
-#             
-#         #     # Start emotion (looping mode) - DISABLED here, handled by tts_node for better sync
-#         #     # try:
-#         #     #     if oled_display.DISPLAY_RUNNING:
-#         #     #         oled_display.start_emotion(emotion)
-#         #     #         print(f"👀 OLED: Started {emotion} emotion")
-#         #     # except Exception as e:
-#         #     #     print(f"⚠️ OLED error: {e}")
-#             
-#         #     # Speak the segment
-#         #     try:
-#         #         await session.say(segment_text)
-#         #     except Exception as e:
-#         #         print(f"⚠️ Speech error: {e}")
-#             
-#         #     # Small pause between segments
-#         #     await asyncio.sleep(0.1)
-#         
-#         # Return to idle after all speech - DISABLED here, handled by tts_node and session events
-#         # try:
-#         #     if oled_display.DISPLAY_RUNNING:
-#         #         oled_display.stop_emotion()
-#         #         print(f"👀 OLED: Returned to idle")
-#         # except Exception as e:
-#         #     print(f"⚠️ OLED error: {e}")
-#         pass
+
 
 
 
@@ -398,7 +344,7 @@ def _handle_signal(sig, frame):
     print(f"\n🛑 Received signal {sig}, shutting down...")
     try:
         if oled_display.DISPLAY_RUNNING:
-            print("👋 OLED: Shutdown requested via signal")
+            print("👋 Display: Shutdown requested via signal")
             oled_display.stop_display()
     except Exception as e:
         print(f"⚠️ Shutdown signal error: {e}")
@@ -533,14 +479,13 @@ async def entrypoint(ctx: agents.JobContext):
                         if face_center:
                             oled_display.update_face_target(face_center[0], face_center[1])
                             # Show "Happy" if seeing someone (and not busy doing something else)
-                            # Only override "idle" states. Don't override "thinking", "listening" (idle2), or "talking" (happy)
-                            if oled_display.current_emotion in ["idle", "idle1"]:
+                            if oled_display.current_emotion in ["idle", "idle1", "bored", "tired", "lonely"]:
                                 oled_display.start_emotion("happy")
                         else:
                             oled_display.update_face_target(0.0, 0.0)
-                            # If lost face and was "happy" (and NOT speaking), go back to idle
+                            # If lost face and was "happy", show lonely briefly
                             if oled_display.current_emotion == "happy" and not agent.is_speaking:
-                                oled_display.start_emotion("idle")
+                                oled_display.start_emotion("lonely", duration=4.0)
 
                 # 2. Greeting Logic (Lower frequency)
                 # Check for new arrivals
@@ -563,20 +508,36 @@ async def entrypoint(ctx: agents.JobContext):
                                 name = known_people[0]
                                 greeting = generate_greeting(name, is_known=True)
                                 print(f"✅ Greeting known person: {name} -> {greeting}")
+                                if oled_display.DISPLAY_RUNNING:
+                                    oled_display.start_emotion("excited", duration=3.0, blink_shift=True)
                                 await session.say(greeting)
                             else:
+                                name = ", ".join(known_people)
                                 greeting = generate_group_greeting(known_people, 0)
                                 print(f"✅ Greeting multiple known people -> {greeting}")
+                                if oled_display.DISPLAY_RUNNING:
+                                    oled_display.start_emotion("excited", duration=4.0, blink_shift=True)
                                 await session.say(greeting)
                         
                         elif known_people and unknown_count > 0:
                             greeting = generate_group_greeting(known_people, unknown_count)
                             print(f"🤔 Greeting mix -> {greeting}")
+                            if oled_display.DISPLAY_RUNNING:
+                                oled_display.start_emotion("friendly", duration=3.0, blink_shift=True)
                             await session.say(greeting)
                         
                         elif unknown_count == 1:
                             greeting = generate_greeting("Unknown", is_known=False)
                             print(f"🤔 Greeting unknown person -> {greeting}")
+                            if oled_display.DISPLAY_RUNNING:
+                                oled_display.start_emotion("curious", duration=3.0, blink_shift=True)
+                            await session.say(greeting)
+                        
+                        elif unknown_count > 1:
+                            greeting = generate_group_greeting([], unknown_count)
+                            print(f"🤔 Greeting unknown group -> {greeting}")
+                            if oled_display.DISPLAY_RUNNING:
+                                oled_display.start_emotion("curious", duration=4.0, blink_shift=True)
                             await session.say(greeting)
                         
                         else:
@@ -597,75 +558,69 @@ async def entrypoint(ctx: agents.JobContext):
     
     try:
         # --- Register event listeners BEFORE session.start() ---
-        
-        # Register user state callback for idle2 (listening) emotion
-        @session.on("user_started_speaking")
-        def on_user_started_speaking(*args):
-            """Show idle2 when user starts speaking"""
-            print("👂 User speaking - showing idle2")
-            try:
-                if oled_display.DISPLAY_RUNNING:
-                    oled_display.start_emotion("idle2")
-            except Exception as e:
-                print(f"⚠️ User speech start error: {e}")
+        # Correct SDK events: user_state_changed, agent_state_changed, agent_false_interruption
 
-        @session.on("user_stopped_speaking")
-        def on_user_stopped_speaking(*args):
-            """Return to idle1 when user stops speaking"""
-            print("👀 User stopped - returning to idle1")
+        @session.on("user_state_changed")
+        def on_user_state_changed(ev):
             try:
-                if oled_display.DISPLAY_RUNNING:
-                    oled_display.stop_emotion()
-            except Exception as e:
-                print(f"⚠️ User speech stop error: {e}")
+                if not oled_display.DISPLAY_RUNNING:
+                    return
+                new_state = ev.new_state  # "speaking", "listening", "away"
 
-        # Agent THOUGHT start (When LLM starts generating)
-        @session.on("agent_speech_committed")
-        def on_agent_speech_committed(*args):
-            print("🤔 Agent thinking - EMOTION: thinking")
-            try:
-                if oled_display.DISPLAY_RUNNING:
-                    oled_display.start_emotion("thinking")
-            except Exception as e:
-                print(f"⚠️ OLED error: {e}")
+                if new_state == "speaking":
+                    # User starts talking — look attentive
+                    emotion = random.choice(["friendly", "curious", "shy"])
+                    print(f"👂 User speaking - EMOTION: {emotion}")
+                    oled_display.start_emotion(emotion, blink_shift=True)
 
-        # Agent SPEECH start
-        @session.on("agent_speech_started")
-        def on_agent_speech_started(*args):
-            print("🗣️ Agent speaking - EMOTION: happy")
-            agent.is_speaking = True
-            try:
-                if oled_display.DISPLAY_RUNNING:
-                    oled_display.start_emotion("happy")  # Talking state
-            except Exception as e:
-                print(f"⚠️ OLED error: {e}")
+                elif new_state == "listening":
+                    # User stopped — agent is processing
+                    emotion = random.choice(["curious", "concentrating", "remembering", "skeptical"])
+                    print(f"👀 User stopped - EMOTION: {emotion}")
+                    oled_display.start_emotion(emotion, duration=2.5)
 
-        # Precise emotion finish listeners
-        @session.on("agent_speech_stopped")
-        @session.on("agent_speech_finished")
-        def on_agent_speech_finished(*args):
-            print(f"🔊 Agent finished speaking - EMOTION: idle")
-            agent.is_speaking = False
-            try:
-                if oled_display.DISPLAY_RUNNING:
-                    oled_display.stop_emotion()  # Return to idle
             except Exception as e:
-                print(f"⚠️ OLED error: {e}")
+                print(f"⚠️ user_state_changed error: {e}")
 
-        @session.on("agent_speech_interrupted")
-        def on_agent_speech_interrupted(*args):
-            print("🔊 Agent interrupted - EMOTION: idle")
-            agent.is_speaking = False
+        @session.on("agent_state_changed")
+        def on_agent_state_changed(ev):
+            try:
+                if not oled_display.DISPLAY_RUNNING:
+                    return
+                new_state = ev.new_state  # "thinking", "speaking", "listening", "idle"
+
+                if new_state == "thinking":
+                    emotion = random.choice(["thinking", "concentrating"])
+                    print(f"🤔 Agent thinking - EMOTION: {emotion}")
+                    oled_display.start_emotion(emotion)
+
+                elif new_state == "speaking":
+                    agent.is_speaking = True
+                    emotion = random.choice(["joy", "excited", "amused", "friendly", "proud", "happy"])
+                    print(f"🗣️ Agent speaking - EMOTION: {emotion}")
+                    oled_display.start_emotion(emotion, blink_shift=True)
+
+                elif new_state in ("listening", "idle"):
+                    agent.is_speaking = False
+                    print(f"🔊 Agent done speaking - EMOTION: idle")
+                    oled_display.stop_emotion()  # back to idle
+
+            except Exception as e:
+                print(f"⚠️ agent_state_changed error: {e}")
+
+        @session.on("agent_false_interruption")
+        def on_agent_false_interruption(ev):
             try:
                 if oled_display.DISPLAY_RUNNING:
-                    oled_display.stop_emotion()
+                    agent.is_speaking = False
+                    print("⚡ Agent interrupted - EMOTION: surprised")
+                    oled_display.start_emotion("surprised", duration=1.0)
             except Exception as e:
-                print(f"⚠️ OLED error: {e}")
+                print(f"⚠️ agent_false_interruption error: {e}")
 
         # START SESSION
         print("🚀 Starting LiveKit session...")
         await session.start(room=ctx.room, agent=agent)
-        
         
         # Send loading message right away
         print("💬 Sending loading message...")
@@ -677,16 +632,73 @@ async def entrypoint(ctx: agents.JobContext):
         
         # Announce readiness
         print("🎉 Initialization complete - announcing readiness")
-        await session.say("I'm ready! How can I help you today?")
+        if oled_display.DISPLAY_RUNNING:
+            # Chain: Surprised -> Happy (Wake up effect)
+            oled_display.start_emotion("surprised", duration=0.6, chain="joy")
+        try:
+            await session.say("I'm ready! How can I help you today?")
+        except RuntimeError:
+            print("⚠️ Session closed before readiness announcement")
         
         # NOW start background greeting monitor
         asyncio.create_task(monitor_and_greet())
         
+        # 😴 IDLE FATIGUE MONITOR — bored → tired → lonely over time
+        async def idle_fatigue_monitor():
+            """Escalates idle emotion after periods of inactivity."""
+            BORED_THRESHOLD = 45.0  # seconds idle before bored
+            TIRED_THRESHOLD = 90.0  # seconds idle before tired
+            last_active = time.time()
+            fatigue_state = "idle"  # idle → bored → tired
+
+            while ctx.room.connection_state == rtc.ConnectionState.CONN_CONNECTED:
+                await asyncio.sleep(5)
+                try:
+                    if not oled_display.DISPLAY_RUNNING:
+                        continue
+
+                    is_active = agent.is_speaking or oled_display.current_emotion not in [
+                        "idle", "idle1", "bored", "tired", "lonely"
+                    ]
+
+                    if is_active:
+                        last_active = time.time()
+                        fatigue_state = "idle"
+                        continue
+
+                    # Also check if face is visible — if someone's there, don't be bored
+                    face_visible = False
+                    if agent.face_monitor:
+                        face_visible = agent.face_monitor.get_face_center() is not None
+
+                    if face_visible:
+                        last_active = time.time()
+                        fatigue_state = "idle"
+                        continue
+
+                    elapsed = time.time() - last_active
+
+                    if elapsed >= TIRED_THRESHOLD and fatigue_state != "tired":
+                        fatigue_state = "tired"
+                        print("😴 Idle fatigue: TIRED")
+                        oled_display.start_emotion("tired")
+                    elif elapsed >= BORED_THRESHOLD and fatigue_state == "idle":
+                        fatigue_state = "bored"
+                        print("😐 Idle fatigue: BORED")
+                        oled_display.start_emotion("bored")
+
+                except Exception as e:
+                    print(f"⚠️ Idle fatigue monitor error: {e}")
+
+        asyncio.create_task(idle_fatigue_monitor())
+
         # Start audio amplitude monitor for speech-reactive eyes
         async def audio_amplitude_monitor():
             """Reads agent audio output and drives eye reactivity in real time."""
             print("🎵 Audio amplitude monitor started")
             smooth_amp = 0.0
+            reactivity_factor = random.uniform(0.4, 0.7)  # Varies per phrase
+            frame_count = 0
             
             try:
                 # Get the agent's audio output track via session
@@ -711,22 +723,31 @@ async def entrypoint(ctx: agents.JobContext):
                 
                 async for event in audio_stream:
                     frame = event.frame
-                    # Convert raw PCM to numpy for RMS computation
                     samples = np.frombuffer(frame.data, dtype=np.int16).astype(np.float32)
                     if len(samples) == 0:
                         continue
                     rms = np.sqrt(np.mean(samples ** 2))
-                    # Normalize roughly: 16-bit PCM max = 32768
-                    norm = min(rms / 8000.0, 1.0)
-                    # Smooth: fast attack, slow decay
+                    # Softer normalization — makes peaks less aggressive
+                    norm = min(rms / 12000.0, 1.0)
+
+                    # Slower attack + slow decay = smoother, less twitchy
                     if norm > smooth_amp:
-                        smooth_amp = smooth_amp * 0.3 + norm * 0.7  # Fast attack
+                        smooth_amp = smooth_amp * 0.55 + norm * 0.45  # Softer attack
                     else:
-                        smooth_amp = smooth_amp * 0.85 + norm * 0.15  # Slow decay
-                    
+                        smooth_amp = smooth_amp * 0.92 + norm * 0.08  # Very slow decay
+
+                    # Scale back further — deliver a gentle signal to the engine
+                    # Also randomly vary the reactivity factor per-phrase so it's never the same
+                    delivered = smooth_amp * reactivity_factor * 0.6
+
                     if oled_display.DISPLAY_RUNNING:
-                        oled_display.set_speech_amplitude(smooth_amp)
-                    
+                        oled_display.set_speech_amplitude(delivered)
+
+                    # Periodically randomize reactivity factor — feels organic over time
+                    frame_count += 1
+                    if frame_count % 80 == 0:
+                        reactivity_factor = random.uniform(0.3, 0.75)
+
             except Exception as e:
                 print(f"⚠️ Audio amplitude monitor error: {e}")
         
@@ -747,9 +768,9 @@ async def entrypoint(ctx: agents.JobContext):
                 oled_display.display_emotion("sad")
                 await asyncio.sleep(2)  # Let it play for 2 seconds
                 oled_display.stop_display()
-                print("👀 OLED display stopped safely")
+                print("👀 Display stopped safely")
         except Exception as e:
-            print(f"⚠️ OLED shutdown error: {e}")
+            print(f"⚠️ Display shutdown error: {e}")
         
         # Release camera
         if agent.face_monitor:

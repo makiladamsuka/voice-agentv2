@@ -7,13 +7,26 @@ import sys
 import time
 import threading
 import atexit
-import board
-import busio
-import digitalio
+try:
+    import board
+    import busio
+    import digitalio
+    HARDWARE_LIBS_AVAILABLE = True
+except ImportError:
+    HARDWARE_LIBS_AVAILABLE = False
+    print("⚠️ Hardware libraries (board, busio, digitalio) not found. Switching to Mock mode.")
+
 from PIL import Image
 
-# Import procedural eyes engine
-from procedural_eyes import ProceduralEyeDisplay, EMOTION_PRESETS
+# Preview support for local testing
+try:
+    import pygame
+    PYGAME_AVAILABLE = True
+except ImportError:
+    PYGAME_AVAILABLE = False
+
+# Import eye engine
+from eye_engine import ProceduralEyeDisplay, EMOTION_PRESETS
 
 # --- Try to import display drivers ---
 try:
@@ -40,6 +53,9 @@ _stop_event = threading.Event()
 current_emotion = "idle"
 speech_amplitude = 0.0  # 0.0 to 1.0, driven by audio output
 
+# Preview surface for Pygame
+_preview_screen = None
+
 def setup_and_start_display():
     global _eye_display, _display_thread, disp_l, disp_r, DISPLAY_RUNNING
 
@@ -49,7 +65,7 @@ def setup_and_start_display():
 
     print("🖥️ Initializing Dual SPI Displays...")
 
-    if DISPLAY_AVAILABLE:
+    if DISPLAY_AVAILABLE and HARDWARE_LIBS_AVAILABLE:
         try:
             # SPI 0 (Left Screen)
             spi0 = board.SPI()
@@ -88,6 +104,7 @@ def setup_and_start_display():
             disp_r = None
     else:
         print("⚠️ Running in Headless Mode (No hardware)")
+        # Pygame preview initialization moved to _display_loop thread for stability
 
     # Initialize Engine
     _eye_display = ProceduralEyeDisplay()
@@ -118,18 +135,18 @@ def stop_display():
             pass
     print("✅ Display stopped")
 
-def start_emotion(emotion_name):
+def start_emotion(emotion_name, duration=None, chain=None, blink_shift=False):
     global current_emotion
     current_emotion = emotion_name
     if _eye_display:
-        _eye_display.set_emotion(emotion_name)
+        _eye_display.set_emotion(emotion_name, duration=duration, chain=chain, blink_shift=blink_shift)
 
 def stop_emotion():
     start_emotion("idle")
 
-def display_emotion(emotion_name):
+def display_emotion(emotion_name, duration=None, chain=None, blink_shift=False):
     # Alias for start_emotion (legacy compatibility)
-    start_emotion(emotion_name)
+    start_emotion(emotion_name, duration=duration, chain=chain, blink_shift=blink_shift)
 
 def update_face_target(x, y):
     """
@@ -151,8 +168,21 @@ def set_speech_amplitude(amplitude: float):
         _eye_display.right_eye.speech_amplitude = speech_amplitude
 
 def _display_loop():
+    global _preview_screen
     last_frame = time.time()
     
+    # Initialize Pygame Preview if needed (must be in same thread as flip/events)
+    if not DISPLAY_AVAILABLE and PYGAME_AVAILABLE:
+        print("📺 Initializing Pygame Preview Window (Background Thread)...")
+        try:
+            pygame.init()
+            # Wider window for spatial padding: Margin(20) + Eye(128) + Gap(140) + Eye(128) + Margin(20) = 436
+            _preview_screen = pygame.display.set_mode((436, SCREEN_HEIGHT + 60))
+            pygame.display.set_caption("Voice Agent Eyes - Preview")
+            print("✅ Pygame Preview Ready")
+        except Exception as e:
+            print(f"⚠️ Could not init pygame preview: {e}")
+
     while DISPLAY_RUNNING and not _stop_event.is_set():
         now = time.time()
         dt = now - last_frame
@@ -174,6 +204,27 @@ def _display_loop():
                 disp_l.image(img_l)
             if disp_r:
                 disp_r.image(img_r)
+
+            # Update Pygame preview
+            if _preview_screen:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        return
+
+                # Convert PIL to Pygame surfaces
+                def pil_to_pygame(pil_img):
+                    return pygame.image.fromstring(pil_img.tobytes(), pil_img.size, pil_img.mode)
+
+                surf_l = pil_to_pygame(img_l)
+                surf_r = pil_to_pygame(img_r)
+                
+                _preview_screen.fill((20, 20, 20)) # Dark gray bg
+                
+                # Layout: [20px margin] [Eye L] [140px gap] [Eye R] [20px margin]
+                _preview_screen.blit(surf_l, (20, 30))
+                _preview_screen.blit(surf_r, (SCREEN_WIDTH + 160, 30))
+                pygame.display.flip()
 
         # FPS Lock
         elapsed = time.time() - now

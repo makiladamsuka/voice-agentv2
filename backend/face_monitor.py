@@ -9,6 +9,7 @@ import cv2
 import face_recognition
 import threading
 import time
+import os
 from typing import Dict, List, Optional, Set
 try:
     from picamera2 import Picamera2
@@ -21,7 +22,7 @@ except ImportError:
 # from object_detector import ObjectDetector
 
 # --- DEBUG SETTINGS ---
-SHOW_DEBUG_VIDEO = False   # Set True to show camera window on HDMI display
+SHOW_DEBUG_VIDEO = True   # Default to True on PC, False on Pi
 DEBUG_LOG_INTERVAL = 5.0  # Seconds between status prints (0 = disable)
 # -----------------------
 
@@ -63,10 +64,29 @@ class FaceMonitor:
         self.object_cache = []  # List of (timestamp, detections)
         self.cache_duration = 5.0  # Keep last 5 seconds
         
-        # YOLO disablccessories: She has a visible tattoo on her left forearm and is wearing silver anklets on both ankles.ed for better performance on Raspberry Pi
-        print("🔍 YOLO disabled for better performance on Raspberry Pi")
+        # YOLO / YuNet Initialization
         self.yolo_active = False
-        self.detector = None # ObjectDetector(load_yolo=False)
+        self.detector = None 
+        
+        # --- YuNet Setup ---
+        self.yunet_model_path = 'face_detection_yunet_2023mar.onnx'
+        if os.path.exists(self.yunet_model_path):
+            try:
+                self.detector = cv2.FaceDetectorYN.create(
+                    model=self.yunet_model_path,
+                    config="",
+                    input_size=(320, 320),
+                    score_threshold=0.6,
+                    nms_threshold=0.3,
+                    top_k=5000,
+                    backend_id=cv2.dnn.DNN_BACKEND_OPENCV,
+                    target_id=cv2.dnn.DNN_TARGET_CPU
+                )
+                print(f"✅ YuNet Face Detector loaded from {self.yunet_model_path}")
+            except Exception as e:
+                print(f"⚠️ Failed to load YuNet detector: {e}")
+        else:
+            print(f"⚠️ {self.yunet_model_path} not found. Falling back to default detector.")
     
     # ==================== MULTI-PERSON API ====================
     
@@ -215,9 +235,15 @@ class FaceMonitor:
     def start(self):
         if self.is_running: return
         self.is_running = True
+        
+        # Auto-enable debug video if on PC
+        global SHOW_DEBUG_VIDEO
+        if not HAS_PICAMERA:
+            SHOW_DEBUG_VIDEO = True
+            
         self.thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.thread.start()
-        print("🎥 Face monitor started (multi-person mode)")
+        print(f"🎥 Face monitor started (multi-person mode, Debug: {SHOW_DEBUG_VIDEO})")
     
     def stop(self):
         self.is_running = False
@@ -231,10 +257,10 @@ class FaceMonitor:
         print("🛑 Face monitor stopped")
             
     def _monitor_loop(self):
-        """Monitor loop using picamera2"""
+        """Monitor loop using picamera2 with cv2 fallback"""
         if not HAS_PICAMERA:
-            print("❌ Picamera2 missing - monitor loop disabled")
-            self.is_running = False
+            print("⚠️ Picamera2 missing - falling back to USB Webcam (cv2)...")
+            self._monitor_loop_cv2()
             return
             
         print("🎥 Initializing picamera2...")
@@ -279,112 +305,119 @@ class FaceMonitor:
                 
                 # Process every 5th frame for face recognition
                 if frame_count % 5 == 0:
-                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    
-                    width = rgb_frame.shape[1]
-                    height = rgb_frame.shape[0]
-                    
-                    # Face Detection - tracks ALL faces
-                    face_locs = face_recognition.face_locations(rgb_frame)
-                    detected_names: Set[str] = set()
-                    
-                    # Find largest face for tracking
-                    largest_face_center = None
-                    max_area = 0
-
-                    if len(face_locs) > 0:
-                        encs = face_recognition.face_encodings(rgb_frame, face_locs)
-                        
-                        for i, (top, right, bottom, left) in enumerate(face_locs):
-                            # Tracking calculation for largest face
-                            area = (bottom - top) * (right - left)
-                            if area > max_area:
-                                max_area = area
-                                cx = (left + right) / 2
-                                cy = (top + bottom) / 2
-                                # Normalize to -1.0 (left/up) to 1.0 (right/down)
-                                norm_x = (cx / width - 0.5) * 2.0
-                                norm_y = (cy / height - 0.5) * 2.0
-                                largest_face_center = (norm_x, norm_y)
-
-                            # Recognition
-                            enc = encs[i]
-                            match_name = "Unknown"
-                            # ... (recognition logic) ...
-                            for kname, kencs in self.known_faces.items():
-                                matches = face_recognition.compare_faces(kencs, enc, tolerance=0.5)
-                                if True in matches: 
-                                    match_name = kname
-                                    break
-                            detected_names.add(match_name)
-                    
-                    with self.lock:
-                        # Update face coordinates
-                        self.last_face_center = largest_face_center
-                        
-                        # Update face cache (handles stability)
-                        self._update_face_cache(detected_names)
-                        self._last_face_locs = face_locs
-                        self._last_detected_names = list(detected_names)
-                    
-                    # Periodic debug log
-                    if DEBUG_LOG_INTERVAL > 0 and time.time() - last_debug_time >= DEBUG_LOG_INTERVAL:
-                        last_debug_time = time.time()
-                        recognized = [n for n in self.current_people if n != "Unknown"]
-                        unknown_count = sum(1 for n in self.current_people if n == "Unknown")
-                        objects = self.get_recent_objects(seconds=3.0) if self.yolo_active else []
-                        
-                        print("\n" + "="*50)
-                        print("📊 STATUS UPDATE")
-                        print(f"   Recognized: {', '.join(recognized) if recognized else 'None'}")
-                        print(f"   Unknown:    {unknown_count if unknown_count else 'None'}")
-                        print(f"   Objects:    {', '.join(objects) if objects else 'None (YOLO off)'}")
-                        print("="*50 + "\n")
+                    self._process_frame(frame)
                 
-                # Debug Display on HDMI
+                # Render logic
                 if SHOW_DEBUG_VIDEO:
-                    display = frame.copy()
-                    
-                    # Draw faces with names
-                    face_locs = getattr(self, '_last_face_locs', [])
-                    names = getattr(self, '_last_detected_names', [])
-                    
-                    recognized_count = 0
-                    unknown_count = 0
-                    
-                    for i, (top, right, bottom, left) in enumerate(face_locs):
-                        name = names[i] if i < len(names) else "?"
-                        
-                        # Color: Green=recognized, Red=unknown
-                        if name != "Unknown" and name != "?":
-                            color = (0, 255, 0)  # Green - recognized
-                            recognized_count += 1
-                        else:
-                            color = (0, 0, 255)  # Red - unknown
-                            unknown_count += 1
-                        
-                        cv2.rectangle(display, (left, top), (right, bottom), color, 2)
-                        cv2.putText(display, name, (left, bottom + 25), 
-                                   cv2.FONT_HERSHEY_DUPLEX, 0.8, color, 2)
-                    
-                    # Status text - line 1: faces detected
-                    total_faces = len(face_locs)
-                    status1 = f"Faces: {total_faces} detected"
-                    if total_faces > 0:
-                        status1 += f" ({recognized_count} recognized, {unknown_count} unknown)"
-                    cv2.putText(display, status1, (10, 30), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
-                    
-                    # Status text - line 2: recognized names
-                    known_names = [n for n in names if n != "Unknown" and n != "?"]
-                    status2 = f"Known: {', '.join(known_names) if known_names else 'None'}"
-                    cv2.putText(display, status2, (10, 60), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                else:
-                    # Small delay when video disabled to prevent overwhelming picamera2
-                    time.sleep(0.03)  # ~30 FPS max
+                    self._render_debug_window(frame)
+                
+                # Small delay to regulate FPS
+                time.sleep(0.01)
             
             except Exception as e:
                 print(f"⚠️ Frame processing error: {e}")
                 time.sleep(0.5)
                 continue
+
+    def _monitor_loop_cv2(self):
+        """Fallback loop using standard cv2.VideoCapture (for PC)"""
+        print("🎥 Initializing USB Webcam (cv2)...")
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("❌ Could not open USB webcam.")
+            self.is_running = False
+            return
+            
+        print("✅ USB Webcam initialized.")
+        frame_count = 0
+        while self.is_running:
+            ret, frame = cap.read()
+            if not ret:
+                time.sleep(0.1)
+                continue
+            
+            with self.lock:
+                self.current_frame = frame.copy()
+            
+            frame_count += 1
+            if frame_count % 5 == 0:
+                self._process_frame(frame)
+            
+            if SHOW_DEBUG_VIDEO:
+                self._render_debug_window(frame)
+            else:
+                time.sleep(0.01)
+        
+        cap.release()
+        cv2.destroyAllWindows()
+
+    def _process_frame(self, frame):
+        """Face processing using YuNet with face_recognition fallback"""
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        height, width = frame.shape[:2]
+        
+        face_locations = []
+        detected_names: Set[str] = set()
+        largest_face_center = None
+        max_area = 0
+
+        # -- DETECTION --
+        if self.detector:
+            # YuNet Detection
+            self.detector.setInputSize((width, height))
+            _, faces = self.detector.detect(frame)
+            
+            if faces is not None:
+                for face in faces:
+                    # YuNet box: [x, y, w, h]
+                    x, y, w, h = map(int, face[:4])
+                    # Convert to face_recognition CSS format: (top, right, bottom, left)
+                    face_locations.append((y, x + w, y + h, x))
+        else:
+            # Fallback to face_recognition (HOG/CNN)
+            face_locations = face_recognition.face_locations(rgb_frame)
+
+        # -- RECOGNITION & TRACKING --
+        if len(face_locations) > 0:
+            # Get encodings for all detected faces
+            encs = face_recognition.face_encodings(rgb_frame, face_locations)
+            
+            for i, (top, right, bottom, left) in enumerate(face_locations):
+                # Calculate tracking coordinates for eye engine
+                area = (bottom - top) * (right - left)
+                if area > max_area:
+                    max_area = area
+                    cx, cy = (left + right) / 2, (top + bottom) / 2
+                    # Normalized -1.0 to 1.0
+                    largest_face_center = ((cx / width - 0.5) * 2.0, (cy / height - 0.5) * 2.0)
+
+                # Identify person
+                if i < len(encs):
+                    match_name = "Unknown"
+                    for kname, kencs in self.known_faces.items():
+                        matches = face_recognition.compare_faces(kencs, encs[i], tolerance=0.5)
+                        if True in matches: 
+                            match_name = kname
+                            break
+                    detected_names.add(match_name)
+        
+        with self.lock:
+            self.last_face_center = largest_face_center
+            self._update_face_cache(detected_names)
+            self._last_face_locs = face_locations
+            self._last_detected_names = list(detected_names)
+
+    def _render_debug_window(self, frame):
+        """Unified debug window renderer"""
+        display = frame.copy()
+        face_locs = getattr(self, '_last_face_locs', [])
+        names = getattr(self, '_last_detected_names', [])
+        
+        for i, (top, right, bottom, left) in enumerate(face_locs):
+            name = names[i] if i < len(names) else "Unknown"
+            color = (0, 255, 0) if name != "Unknown" else (0, 0, 255)
+            cv2.rectangle(display, (left, top), (right, bottom), color, 2)
+            cv2.putText(display, name, (left, bottom + 25), cv2.FONT_HERSHEY_DUPLEX, 0.8, color, 2)
+        
+        cv2.imshow("Voice Agent - Face Monitor Debug", display)
+        cv2.waitKey(1)
