@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
+import fs from 'fs/promises';
+import path from 'path';
 
-// In-memory cache to prevent burning through Apify free credits
-let cachedPosts: any = null;
-let lastFetchTime: number = 0;
+const CACHE_FILE = path.join(process.cwd(), '.facebook-cache.json');
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
-// Fallback data to show instantly while Apify takes 2-5 minutes to boot up and scrape
+// Fallback data is now ONLY shown the very first time the app is ever booted before the first scrape finishes
 const fallbackData = [
   {
     id: "fitmoments_1",
@@ -22,15 +22,27 @@ export async function GET() {
     return NextResponse.json(fallbackData);
   }
 
-  // If we have cached data less than 24 hours old, return it instantly!
-  if (cachedPosts && (Date.now() - lastFetchTime < CACHE_DURATION)) {
-    return NextResponse.json(cachedPosts);
+  let cachedPosts = null;
+  let lastFetchTime = 0;
+
+  // Attempt to read the persisted cache from disk
+  try {
+    const fileContent = await fs.readFile(CACHE_FILE, 'utf-8');
+    const parsed = JSON.parse(fileContent);
+    cachedPosts = parsed.posts;
+    lastFetchTime = parsed.timestamp;
+  } catch (err) {
+    // Cache file doesn't exist yet
   }
 
-  // Kick off background scrape to Apify without awaiting it (so we don't timeout the UI)
-  triggerBackgroundScrape(token);
+  const needsRefresh = !cachedPosts || (Date.now() - lastFetchTime > CACHE_DURATION);
 
-  // Return the cache (even if slightly expired) or fallback data instantly
+  if (needsRefresh) {
+    // Kick off background scrape to Apify
+    triggerBackgroundScrape(token);
+  }
+
+  // Return the persisted real data instantly (or the fallback if this is the first boot ever)
   return NextResponse.json(cachedPosts || fallbackData);
 }
 
@@ -64,9 +76,12 @@ async function triggerBackgroundScrape(token: string) {
       }));
 
     if (formattedPosts.length > 0) {
-      cachedPosts = formattedPosts;
-      lastFetchTime = Date.now();
-      console.log("Successfully cached new Facebook posts from Apify!");
+      // Persist the real posts to disk so they survive server restarts!
+      await fs.writeFile(CACHE_FILE, JSON.stringify({
+        timestamp: Date.now(),
+        posts: formattedPosts
+      }, null, 2));
+      console.log("Successfully cached new Facebook posts from Apify to disk!");
     }
   } catch (err) {
     console.error("Background scrape error:", err);
