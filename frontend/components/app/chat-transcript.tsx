@@ -26,7 +26,9 @@ export function ChatTranscript({
       isLocal: m.from?.isLocal || false,
       isFinal: true
     })),
-    ...transcriptions.map((t: any) => ({
+    ...transcriptions
+      .filter((t: any) => t.isFinal)
+      .map((t: any) => ({
         id: t.id,
         timestamp: t.firstReceivedTime || Date.now(),
         message: t.text,
