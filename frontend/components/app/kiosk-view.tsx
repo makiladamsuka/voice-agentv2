@@ -4,6 +4,7 @@ import { useSessionContext, useSessionMessages, useTranscriptions } from '@livek
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatTranscript } from '@/components/app/chat-transcript';
 import { ScrollArea } from '@/components/livekit/scroll-area/scroll-area';
+import { ThemeToggle } from '@/components/app/theme-toggle';
 
 export function KioskView() {
   const session = useSessionContext();
@@ -71,12 +72,19 @@ export function KioskView() {
   return (
     <div className="bg-background text-on-background w-full h-screen overflow-hidden flex flex-col select-none" style={{ fontFamily: 'Inter, sans-serif' }}>
       {/* Top App Bar */}
-      <header className="bg-surface flex-shrink-0 w-full flex justify-between items-center px-8 h-[56px]">
-        <div className="text-3xl font-bold text-primary">NEma</div>
+      <header className="bg-surface flex-shrink-0 w-full flex justify-between items-center px-8 h-[72px]">
+        <div className="text-3xl font-bold text-primary tracking-tight">NEma</div>
         <div className="flex items-center gap-4">
           {isConnected && (
-            <span className="text-green-500 font-semibold animate-pulse">Connected</span>
+            <div className="bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2.5 shadow-sm">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+              </span>
+              Connected
+            </div>
           )}
+          <ThemeToggle />
         </div>
       </header>
       
@@ -163,15 +171,15 @@ export function KioskView() {
             </div>
 
             {/* Microphone Action Area */}
-            <div className="flex-shrink-0 h-[140px] flex flex-col items-center justify-center bg-surface-container-low rounded-3xl shadow-sm relative px-4">
-              <div className="relative w-full h-12 mb-2 flex justify-center items-end text-center text-[24px] font-bold text-primary">
+            <div className="flex-shrink-0 min-h-[140px] h-auto py-6 flex flex-col items-center justify-center bg-surface-container-low rounded-3xl shadow-sm relative px-4">
+              <div className="w-full mb-3 flex justify-center items-center text-center text-[24px] font-bold text-primary min-h-[48px]">
                 {!isConnected ? (
-                  <div className="relative w-full h-full overflow-hidden">
+                  <div className="relative w-full overflow-hidden flex flex-col items-center justify-center h-full">
                     <div className="greeting-text greeting-1 leading-normal">How can I help you?</div>
                     <div className="greeting-text greeting-2 leading-normal">Tap the mic to ask a question!</div>
                   </div>
                 ) : (
-                  <div className="w-full flex justify-center break-words pb-1">
+                  <div className="w-full flex justify-center break-words pb-1 leading-tight max-w-2xl mx-auto">
                     {transcriptions.slice(-1)[0]?.text || 'Listening...'}
                   </div>
                 )}
