@@ -34,12 +34,12 @@ export function KioskView() {
       </header>
       
       {/* Main Content Area - Bento Grid */}
-      <main className="flex-1 px-8 py-4 overflow-hidden min-h-0 flex flex-col">
-        <div className="grid grid-cols-12 gap-6 flex-1 min-h-0">
+      <main className="flex-1 px-8 py-6 overflow-hidden min-h-0 flex flex-col">
+        <div className="grid grid-cols-12 gap-6 flex-1 min-h-0 pb-4">
           {/* Left Column: Clock & Navigation */}
           <div className="col-span-4 flex flex-col gap-6 h-full min-h-0">
             {/* Clock Card */}
-            <div className="bg-primary-container text-on-primary-container rounded-3xl p-4 flex flex-col items-center justify-center shadow-sm relative overflow-hidden flex-shrink-0">
+            <div className="bg-primary-container text-on-primary-container rounded-3xl p-6 flex flex-col items-center justify-center shadow-sm relative overflow-hidden flex-shrink-0">
               <span className="material-symbols-outlined absolute top-4 right-4 text-4xl opacity-20 fill-current">light_mode</span>
               <div className="text-[64px] leading-[64px] tracking-[-0.04em] font-bold text-primary">{time || '10:42'}</div>
               <div className="text-[18px] leading-[24px] mt-1 font-bold">{dateStr || 'Thursday, June 4'}</div>
@@ -65,9 +65,9 @@ export function KioskView() {
             </div>
           </div>
           
-          {/* Middle Column: Events Carousel */}
-          <div className="col-span-4 h-full min-h-0">
-            <div className="bg-secondary-container rounded-3xl shadow-sm h-full overflow-hidden relative flex flex-col">
+          {/* Middle Column: Events Carousel & Microphone */}
+          <div className="col-span-4 h-full min-h-0 flex flex-col gap-6">
+            <div className="bg-secondary-container rounded-3xl shadow-sm flex-1 overflow-hidden relative flex flex-col min-h-0">
               <div className="absolute inset-0 z-0 bg-secondary-container">
                 <img alt="College Event" className="w-full h-full object-cover opacity-80 mix-blend-multiply" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASe7OPmposO-19UAIeU4spfafXd_IIkyengbRnIoJXP5vzcgsqBX4KhpYGHDv1RVod-dKhSD4LadBgQAlGEoyLGT5i8i3olLcgb8xypR5mcuEL1Q78xoqtkxWnKF9jhItfILnYltqiwrrLAeE3ZFxZ7nCEHNlwi6t2MOxghHruNkBxUQQYFFp_Rkb-PqnZNEPZKbK-jp7fxgCeZsKJJkieYur0T9mHyCpYbIlQ5BJ_1U1E1ZsWoHM1etOrM2fPLnCL8NLiGnhxxs4" />
               </div>
@@ -83,6 +83,31 @@ export function KioskView() {
                 <div className="w-2 h-2 rounded-full bg-on-secondary"></div>
                 <div className="w-2 h-2 rounded-full bg-on-secondary/50"></div>
                 <div className="w-2 h-2 rounded-full bg-on-secondary/50"></div>
+              </div>
+            </div>
+
+            {/* Microphone Action Area */}
+            <div className="flex-shrink-0 h-[140px] flex flex-col items-center justify-center bg-surface-container-low rounded-3xl shadow-sm relative px-4">
+              <div className="relative w-full h-12 mb-2 flex justify-center items-end text-center text-[24px] font-bold text-primary">
+                {!isConnected ? (
+                  <div className="relative w-full h-full overflow-hidden">
+                    <div className="greeting-text greeting-1 leading-normal">How can I help you?</div>
+                    <div className="greeting-text greeting-2 leading-normal">Tap the mic to ask a question!</div>
+                  </div>
+                ) : (
+                  <div className="w-full flex justify-center break-words pb-1">
+                    {messages.filter(m => m.text).slice(-1)[0]?.text || 'Listening...'}
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-center w-full">
+                <button 
+                  onClick={() => isConnected ? end() : start()}
+                  className={`w-[64px] h-[64px] text-on-primary rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-transform active:scale-95 border-none ${isConnected ? 'bg-error animate-pulse' : 'bg-primary animate-neon-pulse'}`}
+                  style={{ backgroundColor: isConnected ? '#ba1a1a' : 'rgb(116, 86, 96)' }}
+                >
+                  <span className="material-symbols-outlined text-4xl fill-current">{isConnected ? 'mic_off' : 'mic'}</span>
+                </button>
               </div>
             </div>
           </div>
@@ -124,31 +149,6 @@ export function KioskView() {
           </div>
         </div>
       </main>
-      
-      {/* Footer Action Bar */}
-      <footer className="w-full bg-surface-container-low flex-shrink-0 h-[140px] flex flex-col items-center justify-center pb-4 z-10 relative shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-        <div className="relative w-full h-12 mb-2 flex justify-center items-end px-8 text-center text-[28px] font-bold text-primary">
-          {!isConnected ? (
-            <div className="relative w-full h-full overflow-hidden">
-              <div className="greeting-text greeting-1 leading-normal">How can I help you?</div>
-              <div className="greeting-text greeting-2 leading-normal">Tap the mic to ask a question!</div>
-            </div>
-          ) : (
-            <div className="w-full flex justify-center break-words pb-1">
-              {messages.filter(m => m.text).slice(-1)[0]?.text || 'Listening...'}
-            </div>
-          )}
-        </div>
-        <div className="flex justify-center w-full">
-          <button 
-            onClick={() => isConnected ? end() : start()}
-            className={`w-[80px] h-[80px] text-on-primary rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-transform active:scale-95 border-none ${isConnected ? 'bg-error animate-pulse' : 'bg-primary animate-neon-pulse'}`}
-            style={{ backgroundColor: isConnected ? '#ba1a1a' : 'rgb(116, 86, 96)' }}
-          >
-            <span className="material-symbols-outlined text-5xl fill-current">{isConnected ? 'mic_off' : 'mic'}</span>
-          </button>
-        </div>
-      </footer>
     </div>
   );
 }
