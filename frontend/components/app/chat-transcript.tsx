@@ -64,26 +64,20 @@ export function ChatTranscript({
         <MotionContainer {...CONTAINER_MOTION_PROPS} {...props}>
           {messages.map((receivedMessage) => {
             const { id, timestamp, from, message } = receivedMessage as any;
-            const text = (receivedMessage as any).text;
-            const displayMessage = message || text;
+            const displayMessage = message || (receivedMessage as any).text;
+            
+            if (!displayMessage) return null;
+
             const locale = navigator?.language ?? 'en-US';
-            
-            // Handle both ReceivedMessage (from) and TranscriptionSegment (participant)
-            const participant = (receivedMessage as any).participant || from;
-            const messageOrigin = participant?.isLocal ? 'local' : 'remote';
-            
-            const msgTime = timestamp || (receivedMessage as any).firstReceivedTime || Date.now();
-            
+            const messageOrigin = from?.isLocal ? 'local' : 'remote';
             const hasBeenEdited =
               receivedMessage.type === 'chatMessage' && !!(receivedMessage as any).editTimestamp;
-
-            if (!displayMessage) return null;
 
             return (
               <MotionChatEntry
                 key={id}
                 locale={locale}
-                timestamp={msgTime}
+                timestamp={timestamp || Date.now()}
                 message={displayMessage}
                 messageOrigin={messageOrigin}
                 hasBeenEdited={hasBeenEdited}
