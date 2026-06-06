@@ -67,7 +67,13 @@ export function ChatTranscript({
             const text = (receivedMessage as any).text;
             const displayMessage = message || text;
             const locale = navigator?.language ?? 'en-US';
-            const messageOrigin = from?.isLocal ? 'local' : 'remote';
+            
+            // Handle both ReceivedMessage (from) and TranscriptionSegment (participant)
+            const participant = (receivedMessage as any).participant || from;
+            const messageOrigin = participant?.isLocal ? 'local' : 'remote';
+            
+            const msgTime = timestamp || (receivedMessage as any).firstReceivedTime || Date.now();
+            
             const hasBeenEdited =
               receivedMessage.type === 'chatMessage' && !!(receivedMessage as any).editTimestamp;
 
@@ -77,7 +83,7 @@ export function ChatTranscript({
               <MotionChatEntry
                 key={id}
                 locale={locale}
-                timestamp={timestamp}
+                timestamp={msgTime}
                 message={displayMessage}
                 messageOrigin={messageOrigin}
                 hasBeenEdited={hasBeenEdited}

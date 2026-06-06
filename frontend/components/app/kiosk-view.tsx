@@ -118,7 +118,7 @@ export function KioskView() {
               {isConnected ? (
                 <div className="flex-1 flex flex-col relative h-full bg-surface-container pt-4">
                   <ScrollArea ref={scrollAreaRef} className="flex-1 px-4">
-                    <ChatTranscript messages={messages} className="space-y-4 pb-4" />
+                    <ChatTranscript messages={transcriptions as any} className="space-y-4 pb-4" />
                   </ScrollArea>
                 </div>
               ) : (
