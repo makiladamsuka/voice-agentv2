@@ -117,14 +117,14 @@ export function KioskView() {
   return (
     <div className="bg-background text-on-background w-full h-screen overflow-hidden flex flex-col select-none" style={{ fontFamily: 'Inter, sans-serif' }}>
       {/* Top App Bar */}
-      <header className="bg-surface flex-shrink-0 w-full flex justify-between items-center px-8 h-[72px]">
-        <div className="text-3xl font-bold text-primary tracking-tight">NEma</div>
+      <header className="bg-surface flex-shrink-0 w-full flex justify-between items-center px-8 h-[56px]">
+        <div className="text-2xl font-bold text-primary tracking-tight">NEma</div>
         <div className="flex items-center gap-4">
           {isConnected && (
-            <div className="bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2.5 shadow-sm">
-              <span className="relative flex h-2.5 w-2.5">
+            <div className="bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm">
+              <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
               </span>
               Connected
             </div>
@@ -134,8 +134,8 @@ export function KioskView() {
       </header>
       
       {/* Main Content Area - Bento Grid */}
-      <main className="flex-1 px-8 py-6 overflow-hidden min-h-0 flex flex-col">
-        <div className="grid grid-cols-12 gap-6 flex-1 min-h-0 pb-4">
+      <main className="flex-1 px-8 pt-3 pb-4 overflow-hidden min-h-0 flex flex-col">
+        <div className="grid grid-cols-12 gap-6 flex-1 min-h-0 pb-2">
           {/* Left Column: Clock & Navigation */}
           <div className="col-span-3 flex flex-col gap-6 h-full min-h-0">
             {/* Clock & Weather Card */}
@@ -182,9 +182,16 @@ export function KioskView() {
                 </div>
               ) : (
                 <>
-                  <div className="absolute inset-0 z-0 bg-secondary-container">
+                  <div className="absolute inset-0 z-0 bg-secondary-container bg-black">
                 {fbPosts.length > 0 ? (
-                  <img alt="Facebook Post" className="w-full h-full object-cover transition-opacity duration-1000" src={fbPosts[currentSlide].full_picture} key={fbPosts[currentSlide].id} />
+                  fbPosts.map((post, index) => (
+                    <img 
+                      key={post.id}
+                      alt="Facebook Post" 
+                      className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`} 
+                      src={post.full_picture} 
+                    />
+                  ))
                 ) : (
                   <img alt="Placeholder" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASe7OPmposO-19UAIeU4spfafXd_IIkyengbRnIoJXP5vzcgsqBX4KhpYGHDv1RVod-dKhSD4LadBgQAlGEoyLGT5i8i3olLcgb8xypR5mcuEL1Q78xoqtkxWnKF9jhItfILnYltqiwrrLAeE3ZFxZ7nCEHNlwi6t2MOxghHruNkBxUQQYFFp_Rkb-PqnZNEPZKbK-jp7fxgCeZsKJJkieYur0T9mHyCpYbIlQ5BJ_1U1E1ZsWoHM1etOrM2fPLnCL8NLiGnhxxs4" />
                 )}
