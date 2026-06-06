@@ -9,6 +9,10 @@ export function KioskView() {
   const { messages } = useSessionMessages(session);
   const [time, setTime] = useState('');
   const [dateStr, setDateStr] = useState('');
+  
+  // Facebook Posts State
+  const [fbPosts, setFbPosts] = useState<any[]>([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     const updateTime = () => {
@@ -20,6 +24,34 @@ export function KioskView() {
     const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch Facebook Posts
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const response = await fetch('/api/facebook');
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setFbPosts(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch FB posts:', error);
+      }
+    };
+    fetchPosts();
+    // Refresh every 30 minutes
+    const interval = setInterval(fetchPosts, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Slideshow Logic
+  useEffect(() => {
+    if (fbPosts.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % fbPosts.length);
+    }, 8000); // 8 seconds per slide
+    return () => clearInterval(interval);
+  }, [fbPosts.length]);
 
   return (
     <div className="bg-background text-on-background w-full h-screen overflow-hidden flex flex-col select-none" style={{ fontFamily: 'Inter, sans-serif' }}>
@@ -69,21 +101,39 @@ export function KioskView() {
           <div className="col-span-4 h-full min-h-0 flex flex-col gap-6">
             <div className="bg-secondary-container rounded-3xl shadow-sm flex-1 overflow-hidden relative flex flex-col min-h-0">
               <div className="absolute inset-0 z-0 bg-secondary-container">
-                <img alt="College Event" className="w-full h-full object-cover opacity-80 mix-blend-multiply" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASe7OPmposO-19UAIeU4spfafXd_IIkyengbRnIoJXP5vzcgsqBX4KhpYGHDv1RVod-dKhSD4LadBgQAlGEoyLGT5i8i3olLcgb8xypR5mcuEL1Q78xoqtkxWnKF9jhItfILnYltqiwrrLAeE3ZFxZ7nCEHNlwi6t2MOxghHruNkBxUQQYFFp_Rkb-PqnZNEPZKbK-jp7fxgCeZsKJJkieYur0T9mHyCpYbIlQ5BJ_1U1E1ZsWoHM1etOrM2fPLnCL8NLiGnhxxs4" />
+                {fbPosts.length > 0 ? (
+                  <img alt="Facebook Post" className="w-full h-full object-cover opacity-80 mix-blend-multiply transition-opacity duration-1000" src={fbPosts[currentSlide].full_picture} key={fbPosts[currentSlide].id} />
+                ) : (
+                  <img alt="Placeholder" className="w-full h-full object-cover opacity-80 mix-blend-multiply" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASe7OPmposO-19UAIeU4spfafXd_IIkyengbRnIoJXP5vzcgsqBX4KhpYGHDv1RVod-dKhSD4LadBgQAlGEoyLGT5i8i3olLcgb8xypR5mcuEL1Q78xoqtkxWnKF9jhItfILnYltqiwrrLAeE3ZFxZ7nCEHNlwi6t2MOxghHruNkBxUQQYFFp_Rkb-PqnZNEPZKbK-jp7fxgCeZsKJJkieYur0T9mHyCpYbIlQ5BJ_1U1E1ZsWoHM1etOrM2fPLnCL8NLiGnhxxs4" />
+                )}
               </div>
-              <div className="relative z-10 p-6 flex flex-col h-full bg-gradient-to-t from-on-secondary-container/90 to-transparent text-on-secondary">
+              <div className="relative z-10 p-6 flex flex-col h-full bg-gradient-to-t from-on-secondary-container/90 via-on-secondary-container/40 to-transparent text-on-secondary">
                 <div className="mt-auto">
-                  <span className="bg-secondary text-on-secondary px-3 py-1 rounded-full text-[14px] font-semibold inline-block mb-2">Campus Life</span>
-                  <h3 className="text-[24px] font-bold leading-tight mb-2">Spring Festival Begins Next Week</h3>
-                  <p className="text-[16px] opacity-90">Join us on the main quad for food, music, and activities. Open to all students and faculty.</p>
+                  <span className="bg-[#1877F2] text-white px-3 py-1 rounded-full text-[14px] font-semibold flex items-center gap-2 w-max mb-2">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                    Facebook Updates
+                  </span>
+                  {fbPosts.length > 0 ? (
+                    <>
+                      <h3 className="text-[20px] font-bold leading-tight mb-2 line-clamp-3">{fbPosts[currentSlide].message}</h3>
+                      <p className="text-[14px] opacity-90">{new Date(fbPosts[currentSlide].created_time).toLocaleDateString()}</p>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-[24px] font-bold leading-tight mb-2">Connecting to Facebook...</h3>
+                      <p className="text-[16px] opacity-90">Fetching latest posts.</p>
+                    </>
+                  )}
                 </div>
               </div>
               {/* Carousel Indicators */}
-              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
-                <div className="w-2 h-2 rounded-full bg-on-secondary"></div>
-                <div className="w-2 h-2 rounded-full bg-on-secondary/50"></div>
-                <div className="w-2 h-2 rounded-full bg-on-secondary/50"></div>
-              </div>
+              {fbPosts.length > 1 && (
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
+                  {fbPosts.map((_, idx) => (
+                    <div key={idx} className={`w-2 h-2 rounded-full transition-colors ${idx === currentSlide ? 'bg-on-secondary' : 'bg-on-secondary/50'}`}></div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Microphone Action Area */}
