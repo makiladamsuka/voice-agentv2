@@ -31,7 +31,16 @@ export const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(function S
   );
 
   return (
-    <div ref={mergedRef} className={cn('overflow-y-scroll scroll-smooth', className)}>
+    <div 
+      ref={mergedRef} 
+      className={cn('overflow-y-auto scroll-smooth', className)}
+      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+    >
+      <style dangerouslySetInnerHTML={{__html: `
+        div::-webkit-scrollbar {
+          display: none;
+        }
+      `}} />
       <div>{children}</div>
     </div>
   );

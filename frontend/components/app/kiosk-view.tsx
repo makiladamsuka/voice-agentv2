@@ -55,13 +55,16 @@ export function KioskView() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const lastMessage = messages.at(-1);
-    const lastMessageIsLocal = lastMessage?.from?.isLocal === true;
-
-    if (scrollAreaRef.current && lastMessageIsLocal) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    // Scroll to bottom whenever messages or transcriptions change
+    if (scrollAreaRef.current) {
+      // Use requestAnimationFrame to let React paint the new bubbles first
+      requestAnimationFrame(() => {
+        if (scrollAreaRef.current) {
+          scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+        }
+      });
     }
-  }, [messages]);
+  }, [messages, transcriptions, stagingText]);
 
   useEffect(() => {
     const updateTime = () => {
