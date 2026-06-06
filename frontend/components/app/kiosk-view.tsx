@@ -254,7 +254,7 @@ export function KioskView() {
 
                   {fbPosts.length > 0 ? (
                     <>
-                      <h3 className="text-[20px] font-bold leading-tight mb-2 line-clamp-3">{fbPosts[currentSlide].message}</h3>
+                      <h3 className="text-[20px] font-normal leading-tight mb-2 line-clamp-3 opacity-90">{fbPosts[currentSlide].message}</h3>
                       <p className="text-[14px] opacity-90">{new Date(fbPosts[currentSlide].created_time).toLocaleDateString()}</p>
                     </>
                   ) : (
@@ -291,7 +291,7 @@ export function KioskView() {
                 <div className="absolute top-1/2 right-1/4 w-[400px] h-[250px] bg-pink-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob animation-delay-4000 -translate-y-1/2"></div>
               </div>
 
-              <div className="w-full mb-3 flex justify-center items-center text-center text-[28px] font-medium text-on-surface dark:text-gray-100 tracking-tight min-h-[48px] relative z-10">
+              <div className="w-full mb-3 flex justify-center items-center text-center text-[28px] font-extrabold text-on-surface dark:text-gray-100 tracking-tight min-h-[48px] relative z-10">
                 {!isConnected ? (
                   <div className="relative w-full overflow-hidden flex items-center justify-center h-full min-h-[48px]">
                     {STANDBY_PROMPTS.map((prompt, index) => (
