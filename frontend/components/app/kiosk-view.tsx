@@ -22,9 +22,9 @@ export function KioskView() {
   }, []);
 
   return (
-    <div className="bg-background text-on-background w-full h-full overflow-hidden flex flex-col select-none" style={{ fontFamily: 'Inter, sans-serif' }}>
+    <div className="bg-background text-on-background w-full h-screen overflow-hidden flex flex-col select-none" style={{ fontFamily: 'Inter, sans-serif' }}>
       {/* Top App Bar */}
-      <header className="bg-surface/80 backdrop-blur-md fixed top-0 w-full z-50 flex justify-between items-center px-8 h-[56px]">
+      <header className="bg-surface flex-shrink-0 w-full flex justify-between items-center px-8 h-[56px]">
         <div className="text-3xl font-bold text-primary">NEma</div>
         <div className="flex items-center gap-4">
           {isConnected && (
@@ -34,7 +34,7 @@ export function KioskView() {
       </header>
       
       {/* Main Content Area - Bento Grid */}
-      <main className="flex-1 mt-[56px] mb-[160px] px-8 py-4 h-[calc(100vh-216px)]">
+      <main className="flex-1 px-8 py-4 overflow-hidden">
         <div className="grid grid-cols-12 gap-6 h-full">
           {/* Left Column: Clock & Navigation */}
           <div className="col-span-4 flex flex-col gap-6 h-full">
@@ -49,15 +49,15 @@ export function KioskView() {
             <div className="bg-surface-container rounded-3xl p-6 shadow-sm flex-1 flex flex-col relative overflow-y-auto kiosk-scrollbar">
               <h2 className="text-[36px] leading-[44px] tracking-[-0.02em] text-primary mb-4 font-bold">Where to?</h2>
               <div className="flex flex-col gap-4 mt-auto">
-                <button className="bg-primary text-on-primary rounded-full h-[56px] text-[24px] flex items-center justify-center gap-4 hover:bg-surface-tint transition-colors active:scale-95 shadow-md font-bold">
+                <button className="bg-primary text-on-primary rounded-full h-[56px] text-[24px] flex items-center justify-center gap-4 hover:bg-surface-tint transition-colors active:scale-95 shadow-md font-bold flex-shrink-0">
                   <span className="material-symbols-outlined text-3xl">school</span>
                   Dean's Office
                 </button>
-                <button className="bg-surface-variant text-on-surface-variant rounded-full h-[56px] text-[24px] flex items-center justify-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold">
+                <button className="bg-surface-variant text-on-surface-variant rounded-full h-[56px] text-[24px] flex items-center justify-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold flex-shrink-0">
                   <span className="material-symbols-outlined text-3xl">computer</span>
                   Computer Lab 03
                 </button>
-                <button className="bg-surface-variant text-on-surface-variant rounded-full h-[56px] text-[24px] flex items-center justify-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold">
+                <button className="bg-surface-variant text-on-surface-variant rounded-full h-[56px] text-[24px] flex items-center justify-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold flex-shrink-0">
                   <span className="material-symbols-outlined text-3xl">apartment</span>
                   Lecture Hall
                 </button>
@@ -126,23 +126,23 @@ export function KioskView() {
       </main>
       
       {/* Footer Action Bar */}
-      <footer className="fixed bottom-0 left-0 w-full bg-transparent h-[200px] flex flex-col items-center justify-end pb-12 z-50 pointer-events-none">
-        <div className="relative w-full min-h-16 h-auto mb-4 pointer-events-auto flex justify-center items-end px-8 text-center text-[32px] font-bold text-on-background drop-shadow-md">
+      <footer className="w-full bg-background flex-shrink-0 h-[180px] flex flex-col items-center justify-center pb-8 z-10 relative">
+        <div className="relative w-full min-h-16 h-auto mb-4 flex justify-center items-end px-8 text-center text-[32px] font-bold text-on-background drop-shadow-md">
           {!isConnected ? (
             <div className="relative w-full h-16 overflow-hidden">
               <div className="greeting-text greeting-1 leading-normal">How can I help you?</div>
               <div className="greeting-text greeting-2 leading-normal">Tap the mic to ask a question!</div>
             </div>
           ) : (
-            <div className="w-full flex justify-center break-words pb-2">
+            <div className="w-full flex justify-center break-words pb-2 text-primary">
               {messages.filter(m => m.text).slice(-1)[0]?.text || 'Listening...'}
             </div>
           )}
         </div>
-        <div className="pointer-events-auto flex justify-center w-full">
+        <div className="flex justify-center w-full">
           <button 
             onClick={() => isConnected ? end() : start()}
-            className={`w-[90px] h-[90px] text-on-primary rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-transform active:scale-95 z-50 border-none ${isConnected ? 'bg-error animate-pulse' : 'bg-primary animate-neon-pulse'}`}
+            className={`w-[90px] h-[90px] text-on-primary rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-transform active:scale-95 border-none ${isConnected ? 'bg-error animate-pulse' : 'bg-primary animate-neon-pulse'}`}
             style={{ backgroundColor: isConnected ? '#ba1a1a' : 'rgb(116, 86, 96)' }}
           >
             <span className="material-symbols-outlined text-5xl fill-current">{isConnected ? 'mic_off' : 'mic'}</span>
