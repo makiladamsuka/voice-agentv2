@@ -70,13 +70,25 @@ export function KioskView() {
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
-      setDateStr(now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }));
+      setTime(now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }));
+      setDateStr(now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }));
     };
     updateTime();
     const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Auto-disconnect after 5 minutes of inactivity
+  useEffect(() => {
+    if (!isConnected) return;
+    
+    const timeoutId = setTimeout(() => {
+      console.log('Disconnecting due to inactivity');
+      end();
+    }, 5 * 60 * 1000); // 5 minutes
+    
+    return () => clearTimeout(timeoutId);
+  }, [isConnected, end, messages, transcriptions]);
 
   useEffect(() => {
     const fetchWeather = async () => {
