@@ -24,6 +24,20 @@ export function KioskView() {
   const pulseScale = 1 + (maxVolume * 2.0); // scales from 1x to 3x depending on volume
   const pulseOpacity = isConnected ? 0.2 + (maxVolume * 0.8) : 0; // dims when quiet, brightens when talking
   
+  const latestTranscription = transcriptions[transcriptions.length - 1];
+  const [stagingText, setStagingText] = useState('');
+
+  useEffect(() => {
+    if (latestTranscription && latestTranscription.text) {
+      setStagingText(latestTranscription.text);
+      const timer = setTimeout(() => {
+        setStagingText('');
+      }, 2000); // Clear after 2 seconds of silence
+      return () => clearTimeout(timer);
+    }
+  }, [latestTranscription?.text]);
+
+  // Keep other state variables below
   const [time, setTime] = useState('');
   const [dateStr, setDateStr] = useState('');
   
@@ -177,7 +191,7 @@ export function KioskView() {
               {isConnected ? (
                 <div className="flex-1 flex flex-col relative h-full bg-surface-container pt-4">
                   <ScrollArea ref={scrollAreaRef} className="flex-1 px-4">
-                    <ChatTranscript messages={messages} transcriptions={transcriptions} className="space-y-4 pb-4" />
+                    <ChatTranscript messages={messages} transcriptions={transcriptions} stagingText={stagingText} className="space-y-4 pb-4" />
                   </ScrollArea>
                 </div>
               ) : (
@@ -249,10 +263,7 @@ export function KioskView() {
                   </div>
                 ) : (
                   <div className="w-full flex justify-center break-words pb-1 leading-tight max-w-2xl mx-auto">
-                    {(() => {
-                      const partials = transcriptions.filter(t => !t.isFinal);
-                      return partials.length > 0 ? partials.slice(-1)[0]?.text : 'Listening...';
-                    })()}
+                    {stagingText || 'Listening...'}
                   </div>
                 )}
               </div>

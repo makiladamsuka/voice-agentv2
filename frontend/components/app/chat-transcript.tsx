@@ -8,6 +8,7 @@ interface ChatTranscriptProps {
   messages?: ReceivedMessage[];
   transcriptions?: any[];
   className?: string;
+  stagingText?: string;
 }
 
 export function ChatTranscript({
@@ -15,25 +16,28 @@ export function ChatTranscript({
   messages = [],
   transcriptions = [],
   className,
+  stagingText = '',
   ...props
 }: ChatTranscriptProps & React.HTMLAttributes<HTMLDivElement>) {
   // Combine messages and transcriptions
   const rawItems = [
-    ...messages.map((m: any) => ({
-      id: m.id || String(m.timestamp),
-      timestamp: m.timestamp,
-      message: m.message || m.text,
-      isLocal: m.from?.isLocal || false,
-      isFinal: true
-    })),
-    ...transcriptions
-      .filter((t: any) => t.isFinal)
-      .map((t: any) => ({
+    ...messages.map((m: any) => {
+      const text = m.message || m.text;
+      const isLocal = m.from?.isLocal || false;
+      return {
+        id: m.id || String(m.timestamp),
+        timestamp: m.timestamp,
+        message: text,
+        isLocal: isLocal,
+        isFinal: true
+      };
+    }),
+    ...transcriptions.map((t: any) => ({
         id: t.id,
         timestamp: t.firstReceivedTime || Date.now(),
         message: t.text,
         isLocal: t.participant?.isLocal || false,
-        isFinal: t.isFinal
+        isFinal: true
     }))
   ].sort((a, b) => a.timestamp - b.timestamp);
 
@@ -64,6 +68,11 @@ export function ChatTranscript({
     <div className={`flex flex-col gap-4 pb-4 ${className || ''}`} {...props}>
       {combinedItems.map((item) => {
         if (!item.message) return null;
+        
+        // Hide the item from chat if it's currently being spoken in the staging area!
+        if (stagingText && (item.message.includes(stagingText) || stagingText.includes(item.message))) {
+          return null;
+        }
 
         const locale = navigator?.language ?? 'en-US';
         const messageOrigin = item.isLocal ? 'local' : 'remote';
