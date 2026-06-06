@@ -34,8 +34,8 @@ export function KioskView() {
       </header>
       
       {/* Main Content Area - Bento Grid */}
-      <main className="flex-1 px-8 py-4 overflow-hidden min-h-0">
-        <div className="grid grid-cols-12 gap-6 h-full min-h-0">
+      <main className="flex-1 px-8 py-4 overflow-hidden min-h-0 flex flex-col">
+        <div className="grid grid-cols-12 gap-6 flex-1 min-h-0">
           {/* Left Column: Clock & Navigation */}
           <div className="col-span-4 flex flex-col gap-6 h-full min-h-0">
             {/* Clock Card */}
