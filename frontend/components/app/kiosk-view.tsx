@@ -210,8 +210,18 @@ export function KioskView() {
             </div>
 
             {/* Microphone Action Area */}
-            <div className="flex-shrink-0 min-h-[140px] h-auto py-6 flex flex-col items-center justify-center bg-surface-container-low rounded-3xl shadow-sm relative px-4">
-              <div className="w-full mb-3 flex justify-center items-center text-center text-[24px] font-bold text-primary min-h-[48px]">
+            <div className={`flex-shrink-0 min-h-[140px] h-auto py-6 flex flex-col items-center justify-center rounded-3xl shadow-sm relative px-4 overflow-hidden transition-all duration-700 ${isConnected ? 'bg-surface-container border border-primary/20' : 'bg-surface-container-low'}`}>
+              
+              {/* Gemini-style Wavy Gradient Background */}
+              {isConnected && (
+                <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40 dark:opacity-30">
+                  <div className="absolute top-1/2 left-1/4 w-[250px] h-[250px] bg-indigo-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob -translate-y-1/2"></div>
+                  <div className="absolute top-1/2 left-1/2 w-[250px] h-[250px] bg-purple-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob animation-delay-2000 -translate-x-1/2 -translate-y-1/2"></div>
+                  <div className="absolute top-1/2 right-1/4 w-[250px] h-[250px] bg-pink-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob animation-delay-4000 -translate-y-1/2"></div>
+                </div>
+              )}
+
+              <div className="w-full mb-3 flex justify-center items-center text-center text-[24px] font-bold text-primary min-h-[48px] relative z-10">
                 {!isConnected ? (
                   <div className="relative w-full overflow-hidden flex flex-col items-center justify-center h-full">
                     <div className="greeting-text greeting-1 leading-normal">How can I help you?</div>
@@ -223,11 +233,10 @@ export function KioskView() {
                   </div>
                 )}
               </div>
-              <div className="flex justify-center w-full">
+              <div className="flex justify-center w-full relative z-10">
                 <button 
                   onClick={() => isConnected ? end() : start()}
-                  className={`w-[64px] h-[64px] text-on-primary rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-transform active:scale-95 border-none ${isConnected ? 'bg-error animate-pulse' : 'bg-primary animate-neon-pulse'}`}
-                  style={{ backgroundColor: isConnected ? '#ba1a1a' : 'rgb(116, 86, 96)' }}
+                  className={`w-[64px] h-[64px] text-on-primary rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-transform active:scale-95 border-none ${isConnected ? 'bg-error animate-pulse shadow-error/30' : 'bg-primary shadow-primary/30'}`}
                 >
                   <span className="material-symbols-outlined text-4xl fill-current">{isConnected ? 'mic_off' : 'mic'}</span>
                 </button>
