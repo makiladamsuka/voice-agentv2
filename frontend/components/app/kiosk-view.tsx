@@ -22,8 +22,8 @@ export function KioskView() {
   
   const isThinking = agentState === 'thinking';
   // Dramatically amplify the scaling and opacity for the visual pulse effect
-  const pulseScale = isThinking ? 1.05 : (!isConnected ? 1 : 1 + (maxVolume * 2.0)); // fixed scale when thinking or disconnected
-  const pulseOpacity = !isConnected ? 0.3 : (isThinking ? 0.5 : 0.2 + (maxVolume * 0.8));
+  const pulseScale = isThinking ? 1.05 : (!isConnected ? undefined : 1 + (maxVolume * 2.0));
+  const pulseOpacity = !isConnected ? undefined : (isThinking ? 0.5 : 0.2 + (maxVolume * 0.8));
   
   const latestTranscription = transcriptions[transcriptions.length - 1];
   const [stagingText, setStagingText] = useState('');
@@ -285,13 +285,13 @@ export function KioskView() {
             <div className={`flex-shrink-0 min-h-[140px] h-auto py-6 flex flex-col items-center justify-center rounded-3xl shadow-sm relative px-4 overflow-hidden transition-all duration-700 ${isConnected ? 'bg-surface-container border border-primary/20' : 'bg-surface-container-low'}`}>
               
               {/* Gemini-style Wavy Gradient Background */}
-              <div className={`absolute inset-0 overflow-hidden pointer-events-none transition-all duration-300 ease-in-out ${isThinking ? 'animate-pulse' : ''}`} style={{ transform: `scale(${pulseScale})`, opacity: pulseOpacity }}>
+              <div className={`absolute inset-0 overflow-hidden pointer-events-none transition-all duration-300 ease-in-out ${isThinking ? 'animate-pulse' : ''} ${!isConnected ? 'animate-breathe' : ''}`} style={isConnected ? { transform: `scale(${pulseScale})`, opacity: pulseOpacity } : undefined}>
                 <div className="absolute top-1/2 left-1/4 w-[250px] h-[250px] bg-indigo-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob -translate-y-1/2"></div>
                 <div className="absolute top-1/2 left-1/2 w-[250px] h-[250px] bg-purple-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob animation-delay-2000 -translate-x-1/2 -translate-y-1/2"></div>
                 <div className="absolute top-1/2 right-1/4 w-[250px] h-[250px] bg-pink-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob animation-delay-4000 -translate-y-1/2"></div>
               </div>
 
-              <div className="w-full mb-3 flex justify-center items-center text-center text-[28px] font-bold text-black dark:text-white min-h-[48px] relative z-10">
+              <div className="w-full mb-3 flex justify-center items-center text-center text-[28px] font-extrabold text-on-surface tracking-tight min-h-[48px] relative z-10">
                 {!isConnected ? (
                   <div className="relative w-full overflow-hidden flex items-center justify-center h-full min-h-[48px]">
                     {STANDBY_PROMPTS.map((prompt, index) => (
