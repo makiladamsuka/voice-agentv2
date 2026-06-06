@@ -50,6 +50,25 @@ export function KioskView() {
   const [fbPosts, setFbPosts] = useState<any[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  // Standby Rotating Prompts
+  const STANDBY_PROMPTS = [
+    "Welcome to University of Moratuwa!",
+    "Step closer to talk to me",
+    "Ask me where to find the Dean's Office",
+    "Ask me what events are happening today",
+    "I can help you navigate the campus",
+    "Tap the mic to ask a question!"
+  ];
+  const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
+
+  useEffect(() => {
+    if (isConnected) return;
+    const interval = setInterval(() => {
+      setCurrentPromptIndex((prev) => (prev + 1) % STANDBY_PROMPTS.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isConnected]);
+
   // Weather State
   const [weather, setWeather] = useState<{ temp: number; icon: string } | null>(null);
 
@@ -276,10 +295,20 @@ export function KioskView() {
 
               <div className="w-full mb-3 flex justify-center items-center text-center text-[24px] font-bold text-primary min-h-[48px] relative z-10">
                 {!isConnected ? (
-                  <div className="relative w-full overflow-hidden flex flex-col items-center justify-center h-full">
-                    <div className="greeting-text greeting-1 leading-normal">Welcome to University of Moratuwa</div>
-                    <div className="greeting-text greeting-2 leading-normal">Step closer to talk</div>
-                    <div className="greeting-text greeting-3 leading-normal">Ask me anything</div>
+                  <div className="relative w-full overflow-hidden flex items-center justify-center h-full min-h-[48px]">
+                    {STANDBY_PROMPTS.map((prompt, index) => (
+                      <div 
+                        key={index}
+                        className={`absolute inset-0 flex items-center justify-center w-full transition-all duration-1000 ease-in-out`}
+                        style={{ 
+                          opacity: currentPromptIndex === index ? 1 : 0,
+                          transform: `translateY(${currentPromptIndex === index ? '0' : (currentPromptIndex > index ? '-20px' : '20px')})`,
+                          pointerEvents: currentPromptIndex === index ? 'auto' : 'none'
+                        }}
+                      >
+                        {prompt}
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="w-full flex justify-center break-words pb-1 leading-tight max-w-2xl mx-auto">
