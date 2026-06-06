@@ -1,6 +1,7 @@
 'use client';
 
-import { useSessionContext, useSessionMessages, useTranscriptions } from '@livekit/components-react';
+import { useSessionContext, useSessionMessages, useTranscriptions, useTracks, useTrackVolume, useVoiceAssistant } from '@livekit/components-react';
+import { Track } from 'livekit-client';
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatTranscript } from '@/components/app/chat-transcript';
 import { ScrollArea } from '@/components/livekit/scroll-area/scroll-area';
@@ -11,6 +12,14 @@ export function KioskView() {
   const { isConnected, start, end } = session;
   const { messages } = useSessionMessages(session);
   const transcriptions = useTranscriptions();
+
+  const { audioTrack: agentTrack } = useVoiceAssistant();
+  const agentVolume = useTrackVolume(agentTrack);
+  const micTracks = useTracks([Track.Source.Microphone]);
+  const localMicTrack = micTracks.find(t => t.participant.isLocal);
+  const micVolume = useTrackVolume(localMicTrack);
+  const maxVolume = isConnected ? Math.max(agentVolume || 0, micVolume || 0) : 0;
+  const pulseScale = 1 + (maxVolume * 0.5);
   
   const [time, setTime] = useState('');
   const [dateStr, setDateStr] = useState('');
@@ -165,7 +174,7 @@ export function KioskView() {
               {isConnected ? (
                 <div className="flex-1 flex flex-col relative h-full bg-surface-container pt-4">
                   <ScrollArea ref={scrollAreaRef} className="flex-1 px-4">
-                    <ChatTranscript messages={messages} className="space-y-4 pb-4" />
+                    <ChatTranscript messages={messages} transcriptions={transcriptions} className="space-y-4 pb-4" />
                   </ScrollArea>
                 </div>
               ) : (
@@ -212,9 +221,9 @@ export function KioskView() {
             {/* Microphone Action Area */}
             <div className={`flex-shrink-0 min-h-[140px] h-auto py-6 flex flex-col items-center justify-center rounded-3xl shadow-sm relative px-4 overflow-hidden transition-all duration-700 ${isConnected ? 'bg-surface-container border border-primary/20' : 'bg-surface-container-low'}`}>
               
-              {/* Gemini-style Wavy Gradient Background */}
+              {/* Gemini-style Wavy Gradient Background with Volume Scaling */}
               {isConnected && (
-                <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40 dark:opacity-30">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40 dark:opacity-30 transition-transform duration-100 ease-out" style={{ transform: `scale(${pulseScale})` }}>
                   <div className="absolute top-1/2 left-1/4 w-[250px] h-[250px] bg-indigo-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob -translate-y-1/2"></div>
                   <div className="absolute top-1/2 left-1/2 w-[250px] h-[250px] bg-purple-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob animation-delay-2000 -translate-x-1/2 -translate-y-1/2"></div>
                   <div className="absolute top-1/2 right-1/4 w-[250px] h-[250px] bg-pink-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob animation-delay-4000 -translate-y-1/2"></div>
