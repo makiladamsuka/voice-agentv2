@@ -16,12 +16,6 @@ const fallbackData = [
 ];
 
 export async function GET() {
-  const token = process.env.APIFY_API_TOKEN;
-
-  if (!token) {
-    return NextResponse.json(fallbackData);
-  }
-
   let cachedPosts = null;
   let lastFetchTime = 0;
 
@@ -38,42 +32,54 @@ export async function GET() {
   const needsRefresh = !cachedPosts || (Date.now() - lastFetchTime > CACHE_DURATION);
 
   if (needsRefresh) {
-    // Kick off background scrape to Apify
-    triggerBackgroundScrape(token);
+    // Kick off background scrape via RSS feed
+    triggerRSSScrape();
   }
 
   // Return the persisted real data instantly (or the fallback if this is the first boot ever)
   return NextResponse.json(cachedPosts || fallbackData);
 }
 
-async function triggerBackgroundScrape(token: string) {
+async function triggerRSSScrape() {
   try {
-    console.log("Starting background Apify scrape for fitmoments...");
-    const response = await fetch(`https://api.apify.com/v2/acts/apify~facebook-pages-scraper/run-sync-get-dataset-items?token=${token}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        startUrls: [{ url: "https://www.facebook.com/fitmoments" }],
-        resultsLimit: 5
-      })
-    });
+    console.log("Starting background RSS scrape for fitmoments...");
+    const response = await fetch("https://rss.app/feeds/PpO8cOM0sBcILogo.xml");
     
     if (!response.ok) {
-        console.error("Apify API failed:", await response.text());
+        console.error("RSS API failed:", await response.text());
         return;
     }
 
-    const data = await response.json();
+    const xml = await response.text();
     
-    // Map Apify output to match our UI expectations
-    const formattedPosts = data
-      .filter((post: any) => post.photos && post.photos.length > 0)
-      .map((post: any, index: number) => ({
-        id: `apify_${index}`,
-        full_picture: post.photos[0],
-        message: post.text || "",
-        created_time: post.time || new Date().toISOString()
-      }));
+    // Parse the XML feed manually using Regex (since this is a simple structured format)
+    const itemRegex = /<item>[\s\S]*?<\/item>/g;
+    const items = xml.match(itemRegex) || [];
+    
+    const formattedPosts = items.slice(0, 5).map((item: string, index: number) => {
+      // Extract Image
+      const imgMatch = item.match(/<media:content[^>]+url="([^"]+)"/);
+      let imgUrl = imgMatch ? imgMatch[1].replace(/&amp;/g, '&') : null;
+      if (!imgUrl) {
+         const descImgMatch = item.match(/<img src="([^"]+)"/);
+         imgUrl = descImgMatch ? descImgMatch[1].replace(/&amp;/g, '&') : null;
+      }
+      
+      // Extract Text
+      const titleMatch = item.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/);
+      const message = titleMatch ? titleMatch[1].trim() : "New update from FIT Moments!";
+      
+      // Extract Date
+      const dateMatch = item.match(/<pubDate>([^<]+)<\/pubDate>/);
+      const created_time = dateMatch ? new Date(dateMatch[1]).toISOString() : new Date().toISOString();
+      
+      return {
+        id: `rss_${index}_${Date.now()}`,
+        full_picture: imgUrl || "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?ixlib=rb-4.0.3",
+        message: message.length > 150 ? message.substring(0, 150) + "..." : message,
+        created_time
+      };
+    });
 
     if (formattedPosts.length > 0) {
       // Persist the real posts to disk so they survive server restarts!
@@ -81,7 +87,7 @@ async function triggerBackgroundScrape(token: string) {
         timestamp: Date.now(),
         posts: formattedPosts
       }, null, 2));
-      console.log("Successfully cached new Facebook posts from Apify to disk!");
+      console.log("Successfully cached new Facebook posts from RSS.app to disk!");
     }
   } catch (err) {
     console.error("Background scrape error:", err);
