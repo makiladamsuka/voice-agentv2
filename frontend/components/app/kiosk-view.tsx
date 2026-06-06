@@ -102,12 +102,12 @@ export function KioskView() {
             <div className="bg-secondary-container rounded-3xl shadow-sm flex-1 overflow-hidden relative flex flex-col min-h-0">
               <div className="absolute inset-0 z-0 bg-secondary-container">
                 {fbPosts.length > 0 ? (
-                  <img alt="Facebook Post" className="w-full h-full object-cover opacity-80 mix-blend-multiply transition-opacity duration-1000" src={fbPosts[currentSlide].full_picture} key={fbPosts[currentSlide].id} />
+                  <img alt="Facebook Post" className="w-full h-full object-cover transition-opacity duration-1000" src={fbPosts[currentSlide].full_picture} key={fbPosts[currentSlide].id} />
                 ) : (
-                  <img alt="Placeholder" className="w-full h-full object-cover opacity-80 mix-blend-multiply" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASe7OPmposO-19UAIeU4spfafXd_IIkyengbRnIoJXP5vzcgsqBX4KhpYGHDv1RVod-dKhSD4LadBgQAlGEoyLGT5i8i3olLcgb8xypR5mcuEL1Q78xoqtkxWnKF9jhItfILnYltqiwrrLAeE3ZFxZ7nCEHNlwi6t2MOxghHruNkBxUQQYFFp_Rkb-PqnZNEPZKbK-jp7fxgCeZsKJJkieYur0T9mHyCpYbIlQ5BJ_1U1E1ZsWoHM1etOrM2fPLnCL8NLiGnhxxs4" />
+                  <img alt="Placeholder" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASe7OPmposO-19UAIeU4spfafXd_IIkyengbRnIoJXP5vzcgsqBX4KhpYGHDv1RVod-dKhSD4LadBgQAlGEoyLGT5i8i3olLcgb8xypR5mcuEL1Q78xoqtkxWnKF9jhItfILnYltqiwrrLAeE3ZFxZ7nCEHNlwi6t2MOxghHruNkBxUQQYFFp_Rkb-PqnZNEPZKbK-jp7fxgCeZsKJJkieYur0T9mHyCpYbIlQ5BJ_1U1E1ZsWoHM1etOrM2fPLnCL8NLiGnhxxs4" />
                 )}
               </div>
-              <div className="relative z-10 p-6 flex flex-col h-full bg-gradient-to-t from-on-secondary-container/90 via-on-secondary-container/40 to-transparent text-on-secondary">
+              <div className="relative z-10 p-6 flex flex-col h-full bg-gradient-to-t from-black/80 via-black/30 to-transparent text-white">
                 <div className="mt-auto">
 
                   {fbPosts.length > 0 ? (
