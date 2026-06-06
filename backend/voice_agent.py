@@ -651,9 +651,8 @@ async def entrypoint(ctx: agents.JobContext):
         print("🚀 Starting LiveKit session...")
         await session.start(room=ctx.room, agent=agent)
         
-        # Send loading message right away
-        print("💬 Sending loading message...")
-        await session.say("Give me a moment to wake up. I'm loading my systems...")
+        # Skip audio wakeup greeting to show frontend skeleton loading instead
+        pass
         
         # Start background initialization
         print("🔄 Starting background initialization...")

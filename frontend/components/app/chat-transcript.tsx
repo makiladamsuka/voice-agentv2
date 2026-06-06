@@ -9,6 +9,7 @@ interface ChatTranscriptProps {
   transcriptions?: any[];
   className?: string;
   stagingText?: string;
+  isLoading?: boolean;
 }
 
 export function ChatTranscript({
@@ -17,6 +18,7 @@ export function ChatTranscript({
   transcriptions = [],
   className,
   stagingText = '',
+  isLoading = false,
   ...props
 }: ChatTranscriptProps & React.HTMLAttributes<HTMLDivElement>) {
   // Combine messages and transcriptions
@@ -91,6 +93,18 @@ export function ChatTranscript({
           />
         );
       })}
+      
+      {isLoading && (
+        <li className="group flex w-full flex-col gap-2">
+          <div className="mr-auto bg-surface-variant text-on-surface-variant border border-outline-variant/30 rounded-3xl rounded-tl-md px-5 py-3.5 shadow-sm w-fit mt-2">
+            <div className="flex items-center gap-1.5 h-6">
+              <span className="w-2.5 h-2.5 rounded-full bg-current opacity-40 animate-pulse"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: '200ms' }}></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-current opacity-40 animate-pulse" style={{ animationDelay: '400ms' }}></span>
+            </div>
+          </div>
+        </li>
+      )}
     </div>
   );
 }

@@ -40,6 +40,10 @@ export function KioskView() {
   // Keep other state variables below
   const [time, setTime] = useState('');
   const [dateStr, setDateStr] = useState('');
+
+  const isAgentInitializing = isConnected && 
+    messages.filter(m => !m.from?.isLocal).length === 0 && 
+    transcriptions.filter(t => !t.participant?.isLocal).length === 0;
   
   // Facebook Posts State
   const [fbPosts, setFbPosts] = useState<any[]>([]);
@@ -191,7 +195,7 @@ export function KioskView() {
               {isConnected ? (
                 <div className="flex-1 flex flex-col relative h-full bg-surface-container pt-4">
                   <ScrollArea ref={scrollAreaRef} className="flex-1 px-4">
-                    <ChatTranscript messages={messages} transcriptions={transcriptions} stagingText={stagingText} className="space-y-4 pb-4" />
+                    <ChatTranscript messages={messages} transcriptions={transcriptions} stagingText={stagingText} isLoading={isAgentInitializing} className="space-y-4 pb-4" />
                   </ScrollArea>
                 </div>
               ) : (
@@ -263,7 +267,15 @@ export function KioskView() {
                   </div>
                 ) : (
                   <div className="w-full flex justify-center break-words pb-1 leading-tight max-w-2xl mx-auto">
-                    {stagingText || 'Listening...'}
+                    {isAgentInitializing ? (
+                      <div className="flex items-center gap-1.5 h-6">
+                        <span className="w-2 h-2 rounded-full bg-primary opacity-60 animate-pulse"></span>
+                        <span className="w-2 h-2 rounded-full bg-primary opacity-60 animate-pulse" style={{ animationDelay: '200ms' }}></span>
+                        <span className="w-2 h-2 rounded-full bg-primary opacity-60 animate-pulse" style={{ animationDelay: '400ms' }}></span>
+                      </div>
+                    ) : (
+                      stagingText || 'Listening...'
+                    )}
                   </div>
                 )}
               </div>
