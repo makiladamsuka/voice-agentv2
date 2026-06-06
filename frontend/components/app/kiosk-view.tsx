@@ -1,12 +1,14 @@
 'use client';
 
-import { useSessionContext, useSessionMessages } from '@livekit/components-react';
+import { useSessionContext, useSessionMessages, useTranscriptions } from '@livekit/components-react';
 import React, { useState, useEffect } from 'react';
 
 export function KioskView() {
   const session = useSessionContext();
   const { isConnected, start, end } = session;
   const { messages } = useSessionMessages(session);
+  const transcriptions = useTranscriptions();
+  
   const [time, setTime] = useState('');
   const [dateStr, setDateStr] = useState('');
   
@@ -147,7 +149,7 @@ export function KioskView() {
                   </div>
                 ) : (
                   <div className="w-full flex justify-center break-words pb-1">
-                    {messages.filter(m => m.text).slice(-1)[0]?.text || 'Listening...'}
+                    {transcriptions.slice(-1)[0]?.text || 'Listening...'}
                   </div>
                 )}
               </div>
