@@ -19,6 +19,9 @@ export function KioskView() {
   const [fbPosts, setFbPosts] = useState<any[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  // Weather State
+  const [weather, setWeather] = useState<{ temp: number; icon: string } | null>(null);
+
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,6 +42,36 @@ export function KioskView() {
     updateTime();
     const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=6.7951&longitude=79.9003&current_weather=true');
+        const data = await res.json();
+        const code = data.current_weather.weathercode;
+        let icon = 'light_mode';
+        if (code === 0) icon = 'light_mode';
+        else if (code === 1 || code === 2) icon = 'partly_cloudy_day';
+        else if (code === 3) icon = 'cloud';
+        else if (code === 45 || code === 48) icon = 'foggy';
+        else if (code >= 51 && code <= 65) icon = 'rainy';
+        else if (code >= 71 && code <= 77) icon = 'weather_snow';
+        else if (code >= 80 && code <= 82) icon = 'rainy';
+        else if (code >= 85 && code <= 86) icon = 'weather_snow';
+        else if (code >= 95) icon = 'thunderstorm';
+        
+        setWeather({
+          temp: Math.round(data.current_weather.temperature),
+          icon
+        });
+      } catch (err) {
+        console.error('Failed to fetch weather', err);
+      }
+    };
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 30 * 60 * 1000); // 30 mins
+    return () => clearInterval(interval);
   }, []);
 
   // Fetch Facebook Posts
@@ -92,11 +125,18 @@ export function KioskView() {
       <main className="flex-1 px-8 py-6 overflow-hidden min-h-0 flex flex-col">
         <div className="grid grid-cols-12 gap-6 flex-1 min-h-0 pb-4">
           {/* Left Column: Clock & Navigation */}
-          <div className="col-span-4 flex flex-col gap-6 h-full min-h-0">
-            {/* Clock Card */}
+          <div className="col-span-3 flex flex-col gap-6 h-full min-h-0">
+            {/* Clock & Weather Card */}
             <div className="bg-primary-container text-on-primary-container rounded-3xl p-6 flex flex-col items-center justify-center shadow-sm relative overflow-hidden flex-shrink-0">
-              <span className="material-symbols-outlined absolute top-4 right-4 text-4xl opacity-20 fill-current">light_mode</span>
-              <div className="text-[64px] leading-[64px] tracking-[-0.04em] font-bold text-primary">{time || '10:42'}</div>
+              {weather ? (
+                <div className="absolute top-4 right-4 flex items-center gap-1 opacity-60">
+                  <span className="font-bold text-[20px]">{weather.temp}°</span>
+                  <span className="material-symbols-outlined text-[28px] fill-current">{weather.icon}</span>
+                </div>
+              ) : (
+                <span className="material-symbols-outlined absolute top-4 right-4 text-4xl opacity-20 fill-current">light_mode</span>
+              )}
+              <div className="text-[64px] leading-[64px] tracking-[-0.04em] font-bold text-primary mt-2">{time || '10:42'}</div>
               <div className="text-[18px] leading-[24px] mt-1 font-bold">{dateStr || 'Thursday, June 4'}</div>
             </div>
             
@@ -121,7 +161,7 @@ export function KioskView() {
           </div>
           
           {/* Middle Column: Events Carousel & Microphone */}
-          <div className="col-span-4 h-full min-h-0 flex flex-col gap-6">
+          <div className="col-span-6 h-full min-h-0 flex flex-col gap-6">
             <div className="bg-secondary-container rounded-3xl shadow-sm flex-1 overflow-hidden relative flex flex-col min-h-0">
               {isConnected ? (
                 <div className="flex-1 flex flex-col relative h-full bg-surface-container pt-4">
@@ -197,7 +237,7 @@ export function KioskView() {
           </div>
           
           {/* Right Column: Faculty News */}
-          <div className="col-span-4 h-full min-h-0">
+          <div className="col-span-3 h-full min-h-0">
             <div className="bg-primary text-on-primary rounded-3xl p-6 shadow-md h-full flex flex-col border-4 border-primary-container/30 min-h-0">
               <h2 className="text-[40px] font-bold text-on-primary mb-4 flex items-center gap-3">
                 <span className="material-symbols-outlined text-5xl">campaign</span>
