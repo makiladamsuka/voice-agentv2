@@ -47,18 +47,18 @@ export function KioskView() {
             
             {/* Where to? Card */}
             <div className="bg-surface-container rounded-3xl p-6 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-0">
-              <h2 className="text-[28px] leading-[36px] tracking-[-0.02em] text-primary mb-3 font-bold flex-shrink-0">Where to?</h2>
-              <div className="flex flex-col gap-3 mt-auto">
-                <button className="bg-primary text-on-primary rounded-full h-[48px] text-[18px] flex items-center justify-center gap-3 hover:bg-surface-tint transition-colors active:scale-95 shadow-md font-bold flex-shrink-0">
-                  <span className="material-symbols-outlined text-2xl">school</span>
+              <h2 className="text-[32px] leading-[40px] tracking-[-0.02em] text-primary mb-3 font-bold flex-shrink-0">Where to?</h2>
+              <div className="flex-1 flex flex-col justify-end gap-4 mt-auto">
+                <button className="bg-primary text-on-primary rounded-full flex-1 max-h-[64px] text-[20px] flex items-center justify-center gap-4 hover:bg-surface-tint transition-colors active:scale-95 shadow-md font-bold flex-shrink-0">
+                  <span className="material-symbols-outlined text-3xl">school</span>
                   Dean's Office
                 </button>
-                <button className="bg-surface-variant text-on-surface-variant rounded-full h-[48px] text-[18px] flex items-center justify-center gap-3 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold flex-shrink-0">
-                  <span className="material-symbols-outlined text-2xl">computer</span>
+                <button className="bg-surface-variant text-on-surface-variant rounded-full flex-1 max-h-[64px] text-[20px] flex items-center justify-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold flex-shrink-0">
+                  <span className="material-symbols-outlined text-3xl">computer</span>
                   Computer Lab 03
                 </button>
-                <button className="bg-surface-variant text-on-surface-variant rounded-full h-[48px] text-[18px] flex items-center justify-center gap-3 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold flex-shrink-0">
-                  <span className="material-symbols-outlined text-2xl">apartment</span>
+                <button className="bg-surface-variant text-on-surface-variant rounded-full flex-1 max-h-[64px] text-[20px] flex items-center justify-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold flex-shrink-0">
+                  <span className="material-symbols-outlined text-3xl">apartment</span>
                   Lecture Hall
                 </button>
               </div>
@@ -90,34 +90,34 @@ export function KioskView() {
           {/* Right Column: Faculty News */}
           <div className="col-span-4 h-full min-h-0">
             <div className="bg-primary text-on-primary rounded-3xl p-6 shadow-md h-full flex flex-col border-4 border-primary-container/30 min-h-0">
-              <h2 className="text-[36px] font-bold text-on-primary mb-4 flex items-center gap-3">
-                <span className="material-symbols-outlined text-4xl">campaign</span>
+              <h2 className="text-[40px] font-bold text-on-primary mb-4 flex items-center gap-3">
+                <span className="material-symbols-outlined text-5xl">campaign</span>
                 Faculty News
               </h2>
-              <div className="flex-1 overflow-hidden pr-2 flex flex-col gap-4">
+              <div className="flex-1 flex flex-col justify-between overflow-hidden pr-2">
                 {/* News Item 1 */}
                 <div className="group cursor-pointer">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="bg-primary-container text-on-primary-container px-2 py-1 rounded-full text-[12px] font-semibold">Jun 2</span>
-                    <span className="text-[12px] font-bold uppercase tracking-widest text-on-primary">Competition</span>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-[14px] font-semibold">Jun 2</span>
+                    <span className="text-[14px] font-bold uppercase tracking-widest text-on-primary">Competition</span>
                   </div>
-                  <h4 className="text-[20px] font-bold text-on-primary group-hover:text-primary-container transition-colors leading-tight">Robotics Team Wins Nationals</h4>
+                  <h4 className="text-[24px] font-bold text-on-primary group-hover:text-primary-container transition-colors leading-tight">Robotics Team Wins Nationals</h4>
                 </div>
                 {/* News Item 2 */}
                 <div className="group cursor-pointer">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="bg-primary-container text-on-primary-container px-2 py-1 rounded-full text-[12px] font-semibold">May 28</span>
-                    <span className="text-[12px] font-bold uppercase tracking-widest text-on-primary">Announcement</span>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-[14px] font-semibold">May 28</span>
+                    <span className="text-[14px] font-bold uppercase tracking-widest text-on-primary">Announcement</span>
                   </div>
-                  <h4 className="text-[20px] font-bold text-on-primary group-hover:text-primary-container transition-colors leading-tight">New Grant Awarded to CS Dept</h4>
+                  <h4 className="text-[24px] font-bold text-on-primary group-hover:text-primary-container transition-colors leading-tight">New Grant Awarded to CS Dept</h4>
                 </div>
                 {/* News Item 3 */}
                 <div className="group cursor-pointer">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="bg-primary-container text-on-primary-container px-2 py-1 rounded-full text-[12px] font-semibold">May 25</span>
-                    <span className="text-[12px] font-bold uppercase tracking-widest text-on-primary">Seminar</span>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-[14px] font-semibold">May 25</span>
+                    <span className="text-[14px] font-bold uppercase tracking-widest text-on-primary">Seminar</span>
                   </div>
-                  <h4 className="text-[20px] font-bold text-on-primary group-hover:text-primary-container transition-colors leading-tight">Guest Lecture: Ethics in ML</h4>
+                  <h4 className="text-[24px] font-bold text-on-primary group-hover:text-primary-container transition-colors leading-tight">Guest Lecture: Ethics in ML</h4>
                 </div>
               </div>
             </div>
