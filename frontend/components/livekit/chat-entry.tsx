@@ -48,14 +48,16 @@ export const ChatEntry = ({
           {time.toLocaleTimeString(locale, { timeStyle: 'short' })}
         </span>
       </header>
-      <span
+      <div
         className={cn(
-          'text-xl font-medium leading-relaxed',
-          messageOrigin === 'local' ? 'ml-auto text-right text-blue-600 dark:text-blue-400' : 'mr-auto text-left text-gray-900 dark:text-gray-100'
+          'text-[18px] leading-relaxed px-5 py-3.5 max-w-[85%] shadow-sm',
+          messageOrigin === 'local' 
+            ? 'ml-auto bg-primary text-on-primary rounded-3xl rounded-tr-md' 
+            : 'mr-auto bg-surface-variant text-on-surface-variant border border-outline-variant/30 rounded-3xl rounded-tl-md'
         )}
       >
         {message}
-      </span>
+      </div>
     </li>
   );
 };
