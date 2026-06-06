@@ -116,11 +116,8 @@ export function KioskView() {
           <div className="col-span-4 h-full min-h-0 flex flex-col gap-6">
             <div className="bg-secondary-container rounded-3xl shadow-sm flex-1 overflow-hidden relative flex flex-col min-h-0">
               {isConnected ? (
-                <div className="flex-1 flex flex-col relative h-full bg-surface-container">
-                  <div className="px-6 py-4 bg-surface-container-high border-b border-outline-variant/30 shrink-0">
-                    <h3 className="text-xl font-bold text-primary">Conversation</h3>
-                  </div>
-                  <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
+                <div className="flex-1 flex flex-col relative h-full bg-surface-container pt-4">
+                  <ScrollArea ref={scrollAreaRef} className="flex-1 px-4">
                     <ChatTranscript messages={messages} className="space-y-4 pb-4" />
                   </ScrollArea>
                 </div>
