@@ -238,6 +238,7 @@ export function KioskView() {
                   <div className="relative w-full overflow-hidden flex flex-col items-center justify-center h-full">
                     <div className="greeting-text greeting-1 leading-normal">How can I help you?</div>
                     <div className="greeting-text greeting-2 leading-normal">Tap the mic to ask a question!</div>
+                    <div className="greeting-text greeting-3 leading-normal">Ask me anything</div>
                   </div>
                 ) : (
                   <div className="w-full flex justify-center break-words pb-1 leading-tight max-w-2xl mx-auto">
