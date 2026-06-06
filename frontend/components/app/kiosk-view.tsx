@@ -286,9 +286,9 @@ export function KioskView() {
               
               {/* Gemini-style Wavy Gradient Background */}
               <div className={`absolute inset-0 overflow-hidden pointer-events-none transition-all duration-300 ease-in-out ${isThinking ? 'animate-pulse' : ''} ${!isConnected ? 'animate-breathe' : ''}`} style={isConnected ? { transform: `scale(${pulseScale})`, opacity: pulseOpacity } : undefined}>
-                <div className="absolute top-1/2 left-1/4 w-[400px] h-[250px] bg-primary opacity-80 mix-blend-multiply dark:mix-blend-screen rounded-full filter blur-[50px] animate-blob -translate-y-1/2"></div>
-                <div className="absolute top-1/2 left-1/2 w-[450px] h-[250px] bg-tertiary opacity-80 mix-blend-multiply dark:mix-blend-screen rounded-full filter blur-[50px] animate-blob animation-delay-2000 -translate-x-1/2 -translate-y-1/2"></div>
-                <div className="absolute top-1/2 right-1/4 w-[400px] h-[250px] bg-secondary opacity-80 mix-blend-multiply dark:mix-blend-screen rounded-full filter blur-[50px] animate-blob animation-delay-4000 -translate-y-1/2"></div>
+                <div className="absolute top-1/2 left-1/4 w-[400px] h-[250px] bg-indigo-500 opacity-80 mix-blend-screen rounded-full filter blur-[60px] animate-blob -translate-y-1/2"></div>
+                <div className="absolute top-1/2 left-1/2 w-[450px] h-[250px] bg-purple-500 opacity-80 mix-blend-screen rounded-full filter blur-[60px] animate-blob animation-delay-2000 -translate-x-1/2 -translate-y-1/2"></div>
+                <div className="absolute top-1/2 right-1/4 w-[400px] h-[250px] bg-pink-500 opacity-80 mix-blend-screen rounded-full filter blur-[60px] animate-blob animation-delay-4000 -translate-y-1/2"></div>
               </div>
 
               <div className="w-full mb-3 flex justify-center items-center text-center text-[28px] font-extrabold text-on-surface dark:text-gray-100 tracking-tight min-h-[48px] relative z-10">
