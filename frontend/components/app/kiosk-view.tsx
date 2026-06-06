@@ -39,26 +39,26 @@ export function KioskView() {
           {/* Left Column: Clock & Navigation */}
           <div className="col-span-4 flex flex-col gap-6 h-full min-h-0">
             {/* Clock Card */}
-            <div className="bg-primary-container text-on-primary-container rounded-3xl p-6 flex flex-col items-center justify-center shadow-sm relative overflow-hidden flex-shrink-0">
-              <span className="material-symbols-outlined absolute top-4 right-4 text-6xl opacity-20 fill-current">light_mode</span>
-              <div className="text-[80px] leading-[80px] tracking-[-0.04em] font-bold text-primary">{time || '10:42'}</div>
-              <div className="text-[24px] leading-[30px] mt-2 font-bold">{dateStr || 'Thursday, June 4'}</div>
+            <div className="bg-primary-container text-on-primary-container rounded-3xl p-4 flex flex-col items-center justify-center shadow-sm relative overflow-hidden flex-shrink-0">
+              <span className="material-symbols-outlined absolute top-4 right-4 text-4xl opacity-20 fill-current">light_mode</span>
+              <div className="text-[64px] leading-[64px] tracking-[-0.04em] font-bold text-primary">{time || '10:42'}</div>
+              <div className="text-[18px] leading-[24px] mt-1 font-bold">{dateStr || 'Thursday, June 4'}</div>
             </div>
             
             {/* Where to? Card */}
-            <div className="bg-surface-container rounded-3xl p-6 shadow-sm flex-1 flex flex-col relative overflow-y-auto kiosk-scrollbar min-h-0">
-              <h2 className="text-[36px] leading-[44px] tracking-[-0.02em] text-primary mb-4 font-bold flex-shrink-0">Where to?</h2>
-              <div className="flex flex-col gap-4 mt-auto">
-                <button className="bg-primary text-on-primary rounded-full h-[56px] text-[24px] flex items-center justify-center gap-4 hover:bg-surface-tint transition-colors active:scale-95 shadow-md font-bold flex-shrink-0">
-                  <span className="material-symbols-outlined text-3xl">school</span>
+            <div className="bg-surface-container rounded-3xl p-6 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-0">
+              <h2 className="text-[28px] leading-[36px] tracking-[-0.02em] text-primary mb-3 font-bold flex-shrink-0">Where to?</h2>
+              <div className="flex flex-col gap-3 mt-auto">
+                <button className="bg-primary text-on-primary rounded-full h-[48px] text-[18px] flex items-center justify-center gap-3 hover:bg-surface-tint transition-colors active:scale-95 shadow-md font-bold flex-shrink-0">
+                  <span className="material-symbols-outlined text-2xl">school</span>
                   Dean's Office
                 </button>
-                <button className="bg-surface-variant text-on-surface-variant rounded-full h-[56px] text-[24px] flex items-center justify-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold flex-shrink-0">
-                  <span className="material-symbols-outlined text-3xl">computer</span>
+                <button className="bg-surface-variant text-on-surface-variant rounded-full h-[48px] text-[18px] flex items-center justify-center gap-3 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold flex-shrink-0">
+                  <span className="material-symbols-outlined text-2xl">computer</span>
                   Computer Lab 03
                 </button>
-                <button className="bg-surface-variant text-on-surface-variant rounded-full h-[56px] text-[24px] flex items-center justify-center gap-4 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold flex-shrink-0">
-                  <span className="material-symbols-outlined text-3xl">apartment</span>
+                <button className="bg-surface-variant text-on-surface-variant rounded-full h-[48px] text-[18px] flex items-center justify-center gap-3 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold flex-shrink-0">
+                  <span className="material-symbols-outlined text-2xl">apartment</span>
                   Lecture Hall
                 </button>
               </div>
@@ -71,11 +71,11 @@ export function KioskView() {
               <div className="absolute inset-0 z-0 bg-secondary-container">
                 <img alt="College Event" className="w-full h-full object-cover opacity-80 mix-blend-multiply" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASe7OPmposO-19UAIeU4spfafXd_IIkyengbRnIoJXP5vzcgsqBX4KhpYGHDv1RVod-dKhSD4LadBgQAlGEoyLGT5i8i3olLcgb8xypR5mcuEL1Q78xoqtkxWnKF9jhItfILnYltqiwrrLAeE3ZFxZ7nCEHNlwi6t2MOxghHruNkBxUQQYFFp_Rkb-PqnZNEPZKbK-jp7fxgCeZsKJJkieYur0T9mHyCpYbIlQ5BJ_1U1E1ZsWoHM1etOrM2fPLnCL8NLiGnhxxs4" />
               </div>
-              <div className="relative z-10 p-8 flex flex-col h-full bg-gradient-to-t from-on-secondary-container/90 to-transparent text-on-secondary">
+              <div className="relative z-10 p-6 flex flex-col h-full bg-gradient-to-t from-on-secondary-container/90 to-transparent text-on-secondary">
                 <div className="mt-auto">
-                  <span className="bg-secondary text-on-secondary px-3 py-1 rounded-full text-[16px] font-semibold inline-block mb-3">Campus Life</span>
-                  <h3 className="text-[32px] font-bold leading-tight mb-2">Spring Festival Begins Next Week</h3>
-                  <p className="text-[20px] opacity-90">Join us on the main quad for food, music, and activities. Open to all students and faculty.</p>
+                  <span className="bg-secondary text-on-secondary px-3 py-1 rounded-full text-[14px] font-semibold inline-block mb-2">Campus Life</span>
+                  <h3 className="text-[24px] font-bold leading-tight mb-2">Spring Festival Begins Next Week</h3>
+                  <p className="text-[16px] opacity-90">Join us on the main quad for food, music, and activities. Open to all students and faculty.</p>
                 </div>
               </div>
               {/* Carousel Indicators */}
@@ -89,35 +89,35 @@ export function KioskView() {
           
           {/* Right Column: Faculty News */}
           <div className="col-span-4 h-full min-h-0">
-            <div className="bg-primary text-on-primary rounded-3xl p-8 shadow-md h-full flex flex-col border-4 border-primary-container/30 min-h-0">
-              <h2 className="text-[48px] font-bold text-on-primary mb-8 flex items-center gap-3">
-                <span className="material-symbols-outlined text-5xl">campaign</span>
+            <div className="bg-primary text-on-primary rounded-3xl p-6 shadow-md h-full flex flex-col border-4 border-primary-container/30 min-h-0">
+              <h2 className="text-[36px] font-bold text-on-primary mb-4 flex items-center gap-3">
+                <span className="material-symbols-outlined text-4xl">campaign</span>
                 Faculty News
               </h2>
-              <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-8 kiosk-scrollbar">
+              <div className="flex-1 overflow-hidden pr-2 flex flex-col gap-4">
                 {/* News Item 1 */}
                 <div className="group cursor-pointer">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-[16px] font-semibold">Jun 2</span>
-                    <span className="text-[16px] font-bold uppercase tracking-widest text-on-primary">Competition</span>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="bg-primary-container text-on-primary-container px-2 py-1 rounded-full text-[12px] font-semibold">Jun 2</span>
+                    <span className="text-[12px] font-bold uppercase tracking-widest text-on-primary">Competition</span>
                   </div>
-                  <h4 className="text-[32px] font-bold text-on-primary group-hover:text-primary-container transition-colors leading-tight">Robotics Team Wins Nationals</h4>
+                  <h4 className="text-[20px] font-bold text-on-primary group-hover:text-primary-container transition-colors leading-tight">Robotics Team Wins Nationals</h4>
                 </div>
                 {/* News Item 2 */}
                 <div className="group cursor-pointer">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-[16px] font-semibold">May 28</span>
-                    <span className="text-[16px] font-bold uppercase tracking-widest text-on-primary">Announcement</span>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="bg-primary-container text-on-primary-container px-2 py-1 rounded-full text-[12px] font-semibold">May 28</span>
+                    <span className="text-[12px] font-bold uppercase tracking-widest text-on-primary">Announcement</span>
                   </div>
-                  <h4 className="text-[32px] font-bold text-on-primary group-hover:text-primary-container transition-colors leading-tight">New Grant Awarded to CS Dept</h4>
+                  <h4 className="text-[20px] font-bold text-on-primary group-hover:text-primary-container transition-colors leading-tight">New Grant Awarded to CS Dept</h4>
                 </div>
                 {/* News Item 3 */}
                 <div className="group cursor-pointer">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-[16px] font-semibold">May 25</span>
-                    <span className="text-[16px] font-bold uppercase tracking-widest text-on-primary">Seminar</span>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="bg-primary-container text-on-primary-container px-2 py-1 rounded-full text-[12px] font-semibold">May 25</span>
+                    <span className="text-[12px] font-bold uppercase tracking-widest text-on-primary">Seminar</span>
                   </div>
-                  <h4 className="text-[32px] font-bold text-on-primary group-hover:text-primary-container transition-colors leading-tight">Guest Lecture: Ethics in ML</h4>
+                  <h4 className="text-[20px] font-bold text-on-primary group-hover:text-primary-container transition-colors leading-tight">Guest Lecture: Ethics in ML</h4>
                 </div>
               </div>
             </div>
