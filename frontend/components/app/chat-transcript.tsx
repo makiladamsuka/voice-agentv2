@@ -65,7 +65,7 @@ export function ChatTranscript({
           {messages.map((receivedMessage) => {
             const { id, timestamp, from, message } = receivedMessage as any;
             const displayMessage = message || (receivedMessage as any).text;
-            
+
             if (!displayMessage) return null;
 
             const locale = navigator?.language ?? 'en-US';
