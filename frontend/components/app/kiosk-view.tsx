@@ -291,7 +291,7 @@ export function KioskView() {
                 <div className="absolute top-1/2 right-1/4 w-[250px] h-[250px] bg-pink-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob animation-delay-4000 -translate-y-1/2"></div>
               </div>
 
-              <div className="w-full mb-3 flex justify-center items-center text-center text-[24px] font-bold text-primary min-h-[48px] relative z-10">
+              <div className="w-full mb-3 flex justify-center items-center text-center text-[28px] font-bold text-black dark:text-white min-h-[48px] relative z-10">
                 {!isConnected ? (
                   <div className="relative w-full overflow-hidden flex items-center justify-center h-full min-h-[48px]">
                     {STANDBY_PROMPTS.map((prompt, index) => (
