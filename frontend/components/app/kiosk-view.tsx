@@ -139,7 +139,7 @@ export function KioskView() {
   return (
     <div className="bg-background text-on-background w-full h-screen overflow-hidden flex flex-col select-none" style={{ fontFamily: 'Inter, sans-serif' }}>
       {/* Top App Bar */}
-      <header className="bg-surface flex-shrink-0 w-full flex justify-between items-center px-8 h-[56px]">
+      <header className="bg-surface dark:bg-[#141316] flex-shrink-0 w-full flex justify-between items-center px-8 h-[56px] border-b border-outline-variant/30 dark:border-white/10 shadow-sm z-20">
         <div className="text-2xl font-bold text-primary tracking-tight">NEma</div>
         <div className="flex items-center gap-4">
           {isConnected && (
