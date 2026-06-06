@@ -248,7 +248,7 @@ export function KioskView() {
                     <div className="greeting-text greeting-3 leading-normal">Ask me anything</div>
                   </div>
                 ) : (
-                  <div className="w-full flex justify-center break-words pb-1 leading-tight max-w-2xl mx-auto opacity-80 italic">
+                  <div className="w-full flex justify-center break-words pb-1 leading-tight max-w-2xl mx-auto">
                     {(() => {
                       const partials = transcriptions.filter(t => !t.isFinal);
                       return partials.length > 0 ? partials.slice(-1)[0]?.text : 'Listening...';
