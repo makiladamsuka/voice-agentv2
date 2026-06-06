@@ -13,16 +13,17 @@ export function KioskView() {
   const { messages } = useSessionMessages(session);
   const transcriptions = useTranscriptions();
 
-  const { audioTrack: agentTrack } = useVoiceAssistant();
+  const { audioTrack: agentTrack, state: agentState } = useVoiceAssistant();
   const agentVolume = useTrackVolume(agentTrack);
   const micTracks = useTracks([Track.Source.Microphone]);
   const localMicTrack = micTracks.find(t => t.participant.isLocal);
   const micVolume = useTrackVolume(localMicTrack);
   const maxVolume = isConnected ? Math.max(agentVolume || 0, micVolume || 0) : 0;
   
+  const isThinking = agentState === 'thinking';
   // Dramatically amplify the scaling and opacity for the visual pulse effect
-  const pulseScale = 1 + (maxVolume * 2.0); // scales from 1x to 3x depending on volume
-  const pulseOpacity = isConnected ? 0.2 + (maxVolume * 0.8) : 0; // dims when quiet, brightens when talking
+  const pulseScale = isThinking ? 1.05 : 1 + (maxVolume * 2.0); // fixed scale when thinking, dynamic scale otherwise
+  const pulseOpacity = isConnected ? (isThinking ? 0.5 : 0.2 + (maxVolume * 0.8)) : 0;
   
   const latestTranscription = transcriptions[transcriptions.length - 1];
   const [stagingText, setStagingText] = useState('');
@@ -254,7 +255,7 @@ export function KioskView() {
               
               {/* Gemini-style Wavy Gradient Background with Volume Scaling */}
               {isConnected && (
-                <div className="absolute inset-0 overflow-hidden pointer-events-none transition-all duration-300 ease-out" style={{ transform: `scale(${pulseScale})`, opacity: pulseOpacity }}>
+                <div className={`absolute inset-0 overflow-hidden pointer-events-none transition-all duration-75 ease-out ${isThinking ? 'animate-pulse' : ''}`} style={{ transform: `scale(${pulseScale})`, opacity: pulseOpacity }}>
                   <div className="absolute top-1/2 left-1/4 w-[250px] h-[250px] bg-indigo-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob -translate-y-1/2"></div>
                   <div className="absolute top-1/2 left-1/2 w-[250px] h-[250px] bg-purple-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob animation-delay-2000 -translate-x-1/2 -translate-y-1/2"></div>
                   <div className="absolute top-1/2 right-1/4 w-[250px] h-[250px] bg-pink-500 rounded-full mix-blend-screen filter blur-[60px] animate-blob animation-delay-4000 -translate-y-1/2"></div>
@@ -264,8 +265,8 @@ export function KioskView() {
               <div className="w-full mb-3 flex justify-center items-center text-center text-[24px] font-bold text-primary min-h-[48px] relative z-10">
                 {!isConnected ? (
                   <div className="relative w-full overflow-hidden flex flex-col items-center justify-center h-full">
-                    <div className="greeting-text greeting-1 leading-normal">How can I help you?</div>
-                    <div className="greeting-text greeting-2 leading-normal">Tap the mic to ask a question!</div>
+                    <div className="greeting-text greeting-1 leading-normal">Welcome to University of Moratuwa</div>
+                    <div className="greeting-text greeting-2 leading-normal">Step closer to talk</div>
                     <div className="greeting-text greeting-3 leading-normal">Ask me anything</div>
                   </div>
                 ) : (
@@ -277,7 +278,7 @@ export function KioskView() {
                         <span className="w-2 h-2 rounded-full bg-primary opacity-60 animate-pulse" style={{ animationDelay: '400ms' }}></span>
                       </div>
                     ) : (
-                      stagingText || 'Listening...'
+                      stagingText || ''
                     )}
                   </div>
                 )}
