@@ -62,6 +62,9 @@ export function ChatTranscript({
     return acc;
   }, []);
 
+  // Re-sort after deduplication since replacing an item can alter its timestamp
+  combinedItems.sort((a, b) => a.timestamp - b.timestamp);
+
   if (hidden) return null;
 
   return (
