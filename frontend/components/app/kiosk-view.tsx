@@ -127,17 +127,16 @@ export function KioskView() {
           {/* Left Column: Clock & Navigation */}
           <div className="col-span-3 flex flex-col gap-6 h-full min-h-0">
             {/* Clock & Weather Card */}
-            <div className="bg-primary-container text-on-primary-container rounded-3xl p-6 flex flex-col items-center justify-center shadow-sm relative overflow-hidden flex-shrink-0">
+            <div className="bg-primary-container text-on-primary-container rounded-3xl p-6 pt-10 flex flex-col items-center justify-center shadow-sm relative overflow-hidden flex-shrink-0">
               {weather ? (
-                <div className="absolute top-4 right-4 flex items-center gap-1 opacity-60">
-                  <span className="font-bold text-[20px]">{weather.temp}°</span>
+                <div className="absolute top-4 right-5 flex items-center opacity-80 text-primary">
                   <span className="material-symbols-outlined text-[28px] fill-current">{weather.icon}</span>
                 </div>
               ) : (
-                <span className="material-symbols-outlined absolute top-4 right-4 text-4xl opacity-20 fill-current">light_mode</span>
+                <span className="material-symbols-outlined absolute top-4 right-5 text-[28px] opacity-20 fill-current">light_mode</span>
               )}
-              <div className="text-[64px] leading-[64px] tracking-[-0.04em] font-bold text-primary mt-2">{time || '10:42'}</div>
-              <div className="text-[18px] leading-[24px] mt-1 font-bold">{dateStr || 'Thursday, June 4'}</div>
+              <div className="text-[56px] leading-[56px] tracking-[-0.04em] font-bold text-primary">{time || '10:42'}</div>
+              <div className="text-[16px] leading-[24px] mt-2 font-bold opacity-90">{dateStr || 'Thursday, June 4'}</div>
             </div>
             
             {/* Where to? Card */}
