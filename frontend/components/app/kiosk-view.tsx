@@ -34,10 +34,10 @@ export function KioskView() {
       </header>
       
       {/* Main Content Area - Bento Grid */}
-      <main className="flex-1 px-8 py-4 overflow-hidden">
-        <div className="grid grid-cols-12 gap-6 h-full">
+      <main className="flex-1 px-8 py-4 overflow-hidden min-h-0">
+        <div className="grid grid-cols-12 gap-6 h-full min-h-0">
           {/* Left Column: Clock & Navigation */}
-          <div className="col-span-4 flex flex-col gap-6 h-full">
+          <div className="col-span-4 flex flex-col gap-6 h-full min-h-0">
             {/* Clock Card */}
             <div className="bg-primary-container text-on-primary-container rounded-3xl p-6 flex flex-col items-center justify-center shadow-sm relative overflow-hidden flex-shrink-0">
               <span className="material-symbols-outlined absolute top-4 right-4 text-6xl opacity-20 fill-current">light_mode</span>
@@ -46,8 +46,8 @@ export function KioskView() {
             </div>
             
             {/* Where to? Card */}
-            <div className="bg-surface-container rounded-3xl p-6 shadow-sm flex-1 flex flex-col relative overflow-y-auto kiosk-scrollbar">
-              <h2 className="text-[36px] leading-[44px] tracking-[-0.02em] text-primary mb-4 font-bold">Where to?</h2>
+            <div className="bg-surface-container rounded-3xl p-6 shadow-sm flex-1 flex flex-col relative overflow-y-auto kiosk-scrollbar min-h-0">
+              <h2 className="text-[36px] leading-[44px] tracking-[-0.02em] text-primary mb-4 font-bold flex-shrink-0">Where to?</h2>
               <div className="flex flex-col gap-4 mt-auto">
                 <button className="bg-primary text-on-primary rounded-full h-[56px] text-[24px] flex items-center justify-center gap-4 hover:bg-surface-tint transition-colors active:scale-95 shadow-md font-bold flex-shrink-0">
                   <span className="material-symbols-outlined text-3xl">school</span>
@@ -66,7 +66,7 @@ export function KioskView() {
           </div>
           
           {/* Middle Column: Events Carousel */}
-          <div className="col-span-4 h-full">
+          <div className="col-span-4 h-full min-h-0">
             <div className="bg-secondary-container rounded-3xl shadow-sm h-full overflow-hidden relative flex flex-col">
               <div className="absolute inset-0 z-0 bg-secondary-container">
                 <img alt="College Event" className="w-full h-full object-cover opacity-80 mix-blend-multiply" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASe7OPmposO-19UAIeU4spfafXd_IIkyengbRnIoJXP5vzcgsqBX4KhpYGHDv1RVod-dKhSD4LadBgQAlGEoyLGT5i8i3olLcgb8xypR5mcuEL1Q78xoqtkxWnKF9jhItfILnYltqiwrrLAeE3ZFxZ7nCEHNlwi6t2MOxghHruNkBxUQQYFFp_Rkb-PqnZNEPZKbK-jp7fxgCeZsKJJkieYur0T9mHyCpYbIlQ5BJ_1U1E1ZsWoHM1etOrM2fPLnCL8NLiGnhxxs4" />
@@ -88,8 +88,8 @@ export function KioskView() {
           </div>
           
           {/* Right Column: Faculty News */}
-          <div className="col-span-4 h-full">
-            <div className="bg-primary text-on-primary rounded-3xl p-8 shadow-md h-full flex flex-col border-4 border-primary-container/30">
+          <div className="col-span-4 h-full min-h-0">
+            <div className="bg-primary text-on-primary rounded-3xl p-8 shadow-md h-full flex flex-col border-4 border-primary-container/30 min-h-0">
               <h2 className="text-[48px] font-bold text-on-primary mb-8 flex items-center gap-3">
                 <span className="material-symbols-outlined text-5xl">campaign</span>
                 Faculty News
@@ -126,15 +126,15 @@ export function KioskView() {
       </main>
       
       {/* Footer Action Bar */}
-      <footer className="w-full bg-background flex-shrink-0 h-[180px] flex flex-col items-center justify-center pb-8 z-10 relative">
-        <div className="relative w-full min-h-16 h-auto mb-4 flex justify-center items-end px-8 text-center text-[32px] font-bold text-on-background drop-shadow-md">
+      <footer className="w-full bg-surface-container-low flex-shrink-0 h-[140px] flex flex-col items-center justify-center pb-4 z-10 relative shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="relative w-full h-12 mb-2 flex justify-center items-end px-8 text-center text-[28px] font-bold text-primary">
           {!isConnected ? (
-            <div className="relative w-full h-16 overflow-hidden">
+            <div className="relative w-full h-full overflow-hidden">
               <div className="greeting-text greeting-1 leading-normal">How can I help you?</div>
               <div className="greeting-text greeting-2 leading-normal">Tap the mic to ask a question!</div>
             </div>
           ) : (
-            <div className="w-full flex justify-center break-words pb-2 text-primary">
+            <div className="w-full flex justify-center break-words pb-1">
               {messages.filter(m => m.text).slice(-1)[0]?.text || 'Listening...'}
             </div>
           )}
@@ -142,7 +142,7 @@ export function KioskView() {
         <div className="flex justify-center w-full">
           <button 
             onClick={() => isConnected ? end() : start()}
-            className={`w-[90px] h-[90px] text-on-primary rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-transform active:scale-95 border-none ${isConnected ? 'bg-error animate-pulse' : 'bg-primary animate-neon-pulse'}`}
+            className={`w-[80px] h-[80px] text-on-primary rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-transform active:scale-95 border-none ${isConnected ? 'bg-error animate-pulse' : 'bg-primary animate-neon-pulse'}`}
             style={{ backgroundColor: isConnected ? '#ba1a1a' : 'rgb(116, 86, 96)' }}
           >
             <span className="material-symbols-outlined text-5xl fill-current">{isConnected ? 'mic_off' : 'mic'}</span>
