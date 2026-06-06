@@ -36,7 +36,7 @@ export function KioskView() {
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
       setDateStr(now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }));
     };
     updateTime();
