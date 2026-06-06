@@ -18,7 +18,7 @@ export function ChatTranscript({
   ...props
 }: ChatTranscriptProps & React.HTMLAttributes<HTMLDivElement>) {
   // Combine messages and transcriptions
-  const combinedItems = [
+  const rawItems = [
     ...messages.map((m: any) => ({
       id: m.id || String(m.timestamp),
       timestamp: m.timestamp,
@@ -34,6 +34,27 @@ export function ChatTranscript({
         isFinal: t.isFinal
     }))
   ].sort((a, b) => a.timestamp - b.timestamp);
+
+  // Deduplicate progressive transcriptions and instant messages
+  const combinedItems = rawItems.reduce((acc: any[], current: any) => {
+    if (!current.message || current.message.trim() === '') return acc;
+
+    const existingIndex = acc.findIndex(item => 
+      item.isLocal === current.isLocal && 
+      (item.message.includes(current.message) || current.message.includes(item.message)) &&
+      Math.abs(item.timestamp - current.timestamp) < 10000 // within 10 seconds
+    );
+
+    if (existingIndex >= 0) {
+      // Keep the longer (more complete) message
+      if (current.message.length > acc[existingIndex].message.length) {
+        acc[existingIndex] = { ...current, id: acc[existingIndex].id }; // preserve original ID to avoid React re-mounting
+      }
+    } else {
+      acc.push(current);
+    }
+    return acc;
+  }, []);
 
   if (hidden) return null;
 
