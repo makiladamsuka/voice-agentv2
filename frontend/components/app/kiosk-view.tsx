@@ -229,8 +229,15 @@ export function KioskView() {
             <div className="bg-secondary-container rounded-3xl shadow-sm flex-1 overflow-hidden relative flex flex-col min-h-0">
               {isConnected ? (
                 <div className="flex-1 flex flex-col relative h-full bg-surface-container pt-4">
-                  <ScrollArea ref={scrollAreaRef} className="flex-1 px-4">
-                    <ChatTranscript messages={messages} transcriptions={transcriptions} stagingText={stagingText} isLoading={isAgentInitializing} className="space-y-4 pb-4" />
+                  {isAgentInitializing && (
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none transition-all duration-1000 ease-in-out animate-pulse z-0">
+                      <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-indigo-500 opacity-60 mix-blend-screen rounded-full filter blur-[80px] animate-blob translate-y-1/2"></div>
+                      <div className="absolute bottom-0 left-1/2 w-[450px] h-[400px] bg-purple-500 opacity-60 mix-blend-screen rounded-full filter blur-[80px] animate-blob animation-delay-2000 -translate-x-1/2 translate-y-1/2"></div>
+                      <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-pink-500 opacity-60 mix-blend-screen rounded-full filter blur-[80px] animate-blob animation-delay-4000 translate-y-1/2"></div>
+                    </div>
+                  )}
+                  <ScrollArea ref={scrollAreaRef} className="flex-1 px-4 relative z-10">
+                    <ChatTranscript messages={messages} transcriptions={transcriptions} stagingText={stagingText} isLoading={false} className="space-y-4 pb-4" />
                   </ScrollArea>
                 </div>
               ) : (
@@ -310,15 +317,7 @@ export function KioskView() {
                   </div>
                 ) : (
                   <div className="w-full flex justify-center break-words pb-1 leading-tight max-w-2xl mx-auto">
-                    {isAgentInitializing ? (
-                      <div className="flex items-center gap-1.5 h-6">
-                        <span className="w-2 h-2 rounded-full bg-primary opacity-60 animate-pulse"></span>
-                        <span className="w-2 h-2 rounded-full bg-primary opacity-60 animate-pulse" style={{ animationDelay: '200ms' }}></span>
-                        <span className="w-2 h-2 rounded-full bg-primary opacity-60 animate-pulse" style={{ animationDelay: '400ms' }}></span>
-                      </div>
-                    ) : (
-                      stagingText || ''
-                    )}
+                    {stagingText || ''}
                   </div>
                 )}
               </div>
