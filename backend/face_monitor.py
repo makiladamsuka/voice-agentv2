@@ -25,7 +25,7 @@ except ImportError:
 # --- DEBUG SETTINGS ---
 SHOW_DEBUG_VIDEO = True  # Set to True only if a monitor is attached to the Pi/PC
 DEBUG_LOG_INTERVAL = 5.0  # Seconds between status prints (0 = disable)
-CAMERA_ROTATE_180 = True  # Rotate camera if mounted upside down
+CAMERA_ROTATE_180 = False  # Rotate camera if mounted upside down
 # -----------------------
 
 # --- STABILITY SETTINGS ---

@@ -42,14 +42,22 @@ class ContentTools:
             image_url = self.image_server.get_image_url("events", image_path.name)
             print(f"📷 Image URL: {image_url}")
             
-            await self.room.local_participant.publish_data(
-                json.dumps({
-                    "type": "image",
-                    "category": "event",
-                    "url": image_url,
-                    "caption": f"Event: {event_description}"
-                }).encode()
-            )
+            # Also include base64 for robust delivery
+            image_base64 = self.image_manager.encode_image(image_path)
+            
+            try:
+                await self.room.local_participant.publish_data(
+                    json.dumps({
+                        "type": "image",
+                        "category": "event",
+                        "url": image_url,
+                        "base64": f"data:image/jpeg;base64,{image_base64}",
+                        "caption": f"Event: {event_description}"
+                    }).encode()
+                )
+            except Exception as e:
+                print(f"⚠️ Failed to publish event data: {e}")
+                # We still return success because the URL might work for the user
             
             return f"I've displayed the {event_description} poster for you."
         else:
@@ -70,14 +78,21 @@ class ContentTools:
             image_url = self.image_server.get_image_url("maps", image_path.name)
             print(f"📷 Image URL: {image_url}")
             
-            await self.room.local_participant.publish_data(
-                json.dumps({
-                    "type": "image",
-                    "category": "map",
-                    "url": image_url,
-                    "caption": f"Location: {location_query}"
-                }).encode()
-            )
+            # Also include base64 for robust delivery
+            image_base64 = self.image_manager.encode_image(image_path)
+            
+            try:
+                await self.room.local_participant.publish_data(
+                    json.dumps({
+                        "type": "image",
+                        "category": "map",
+                        "url": image_url,
+                        "base64": f"data:image/jpeg;base64,{image_base64}",
+                        "caption": f"Location: {location_query}"
+                    }).encode()
+                )
+            except Exception as e:
+                print(f"⚠️ Failed to publish map data: {e}")
             
             return f"Here's the map to {location_query}."
         else:

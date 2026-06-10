@@ -10,6 +10,7 @@ env/
 
 # Environment files with secrets
 .env
+.env*.local
 
 # IDE
 .vscode/

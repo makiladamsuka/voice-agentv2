@@ -55,7 +55,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
       className={cn(
         publicSans.variable,
         commitMono.variable,
-        'scroll-smooth font-sans antialiased'
+        'scroll-smooth font-sans antialiased overflow-hidden w-screen h-screen'
       )}
     >
       <head>
@@ -65,7 +65,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
       </head>
-      <body className="overflow-x-hidden">
+      <body className="overflow-hidden w-screen h-screen bg-background text-foreground">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

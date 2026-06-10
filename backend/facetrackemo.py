@@ -40,7 +40,7 @@ except ImportError:
 MODEL_NAME = "face_detection_yunet_2023mar.onnx"
 CAMERA_MAIN_RES = (1920, 1080)
 CAMERA_RES = (1280, 720)
-CAMERA_ROTATE_180 = True
+CAMERA_ROTATE_180 = False
 
 CONFIDENCE_THRESHOLD = 0.6
 NMS_THRESHOLD = 0.3

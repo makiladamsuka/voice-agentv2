@@ -7,6 +7,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 from pathlib import Path
 import socket
+import os
 
 class ImageServer:
     """Simple HTTP server to serve media from assets directory"""
@@ -42,7 +43,9 @@ class ImageServer:
             print(f"⚠️  Media server already running on port {self.port}")
             return
         
-        if self.host == "0.0.0.0":
+        if os.getenv("IMAGE_SERVER_HOST"):
+            self._server_host = os.getenv("IMAGE_SERVER_HOST")
+        elif self.host == "0.0.0.0":
             self._server_host = self._get_local_ip()
         else:
             self._server_host = self.host
@@ -60,6 +63,47 @@ class ImageServer:
                     self._serve_single_frame()
                 else:
                     self._serve_static_file(parent_dir)
+
+            def do_POST(self):
+                """Handle POST requests - e.g., triggering a re-index"""
+                if self.path == '/trigger-index':
+                    try:
+                        import sys
+                        import importlib
+                        from pathlib import Path
+                        # Ensure backend is in path
+                        backend_dir = Path(__file__).parent
+                        if str(backend_dir) not in sys.path:
+                            sys.path.insert(0, str(backend_dir))
+
+                        # Force-reload modules so code changes are picked up without restart
+                        import event_indexer
+                        import event_database
+                        importlib.reload(event_indexer)
+                        importlib.reload(event_database)
+                        from event_database import build_event_database
+
+                        # Delete manifest to force full re-scan
+                        manifest_path = backend_dir / "event_db" / "event_manifest.json"
+                        if manifest_path.exists():
+                            manifest_path.unlink()
+
+                        print("🔄 Manual re-index triggered via API")
+                        build_event_database(Path(self.server.assets_dir))
+                        
+                        self.send_response(200)
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        self.wfile.write(b"OK")
+                    except Exception as e:
+                        print(f"❌ Error during manual re-index: {e}")
+                        self.send_response(500)
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        self.wfile.write(str(e).encode())
+                else:
+                    self.send_response(404)
+                    self.end_headers()
 
             def _serve_landing_page(self):
                 """Serve a simple HTML page with links to available services"""
@@ -212,7 +256,7 @@ class ImageServer:
                 """Handle OPTIONS for CORS"""
                 self.send_response(200)
                 self.send_header('Access-Control-Allow-Origin', '*')
-                self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+                self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
                 self.send_header('Access-Control-Allow-Headers', '*')
                 self.end_headers()
             
@@ -222,6 +266,7 @@ class ImageServer:
         try:
             self.server = HTTPServer((self.host, self.port), CustomHandler)
             self.server.face_monitor = self.face_monitor # Pass monitor to server instance object
+            self.server.assets_dir = self.assets_dir
         except OSError as e:
             if e.errno == 98:
                 print(f"⚠️  Port {self.port} already in use")

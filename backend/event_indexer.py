@@ -13,57 +13,64 @@ def index_posters(assets_dir: Path):
     Scans the assets_dir for image files, sends them to a VLM (OpenAI) 
     to extract event details, and returns a list of event dictionaries.
     """
-    events_dir = assets_dir / "events"
-    if not events_dir.exists():
-        print(f"⚠️ Events directory not found: {events_dir}")
-        return []
-
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=os.getenv("OPENROUTER_API_KEY"),
     )
 
     events = []
-    
+
     # Supported image extensions
     valid_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+    categories = ["events", "competitions", "posts"]
 
-    print(f"🔍 Scanning for posters in {events_dir}...")
-
-    for file_path in events_dir.iterdir():
-        if file_path.suffix.lower() in valid_extensions:
-            print(f"   Processing {file_path.name}...")
-            try:
-                base64_image = encode_image(file_path)
-                
-                response = client.chat.completions.create(
-                    model="google/gemini-2.0-flash-001", # Good, cheap vision model
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": "Extract event details from this poster. Return JSON with keys: title, date, time, location, description. If not an event poster, return null."},
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{base64_image}"
-                                    },
-                                },
-                            ],
-                        }
-                    ],
-                    response_format={"type": "json_object"} 
-                )
-                
-                content = response.choices[0].message.content
-                if content:
-                    event_data = json.loads(content)
-                    if event_data:
-                        event_data['source_file'] = file_path.name
-                        events.append(event_data)
-                        print(f"   ✅ Extracted: {event_data.get('title', 'Unknown Event')}")
+    for category in categories:
+        cat_dir = assets_dir / category
+        if not cat_dir.exists():
+            cat_dir.mkdir(parents=True, exist_ok=True)
             
-            except Exception as e:
-                print(f"   ❌ Failed to process {file_path.name}: {e}")
+    print(f"\n🔍 Scanning for posters in {assets_dir} (events, competitions, posts)...")
 
+    for category in ["events", "competitions", "posts"]:
+        for file_path in (assets_dir / category).iterdir():
+            if file_path.suffix.lower() in valid_extensions:
+                print(f"\n⏳ [AI OCR] Analyzing '{file_path.name}' ({category}) via Gemini 2.0 Flash...")
+                print(f"   [AI OCR] Extracting details and preparing for vectorization...")
+                try:
+                    base64_image = encode_image(file_path)
+                    
+                    response = client.chat.completions.create(
+                        model="google/gemini-2.5-flash", # Good, cheap vision model
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": "Extract details from this poster/image. Return JSON with keys: title, date, time, location, description. Do your best to extract any relevant information."},
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {
+                                            "url": f"data:image/jpeg;base64,{base64_image}"
+                                        },
+                                    },
+                                ],
+                            }
+                        ],
+                        response_format={"type": "json_object"},
+                        max_tokens=1000
+                    )
+                    
+                    content = response.choices[0].message.content
+                    if content:
+                        event_data = json.loads(content)
+                        if event_data:
+                            event_data['source_file'] = file_path.name
+                            event_data['category'] = category
+                            events.append(event_data)
+                            print(f"   ✅ [AI OCR] Successfully extracted: {event_data.get('title', 'Unknown Event')}")
+                            print(f"   🧠 [Vector DB] Vectorizing document and updating knowledge base...")
+            
+                except Exception as e:
+                    print(f"   ❌ [AI OCR] Failed to process {file_path.name}: {e}")
+
+    print("\n🏁 [Vector DB] Finished analyzing and vectorizing all posters.")
     return events

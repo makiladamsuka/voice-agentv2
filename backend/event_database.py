@@ -59,15 +59,19 @@ class EventDatabase:
         return self.collection.count() > 0
 
 
-def _compute_events_manifest(events_dir: Path) -> dict:
-    """Compute a dict of {filename: md5_hash} for all images in the folder."""
+def _compute_events_manifest(assets_dir: Path) -> dict:
+    """Compute a dict of {filename: md5_hash} for all images in the folders."""
     valid_extensions = {".jpg", ".jpeg", ".png", ".webp"}
     manifest = {}
-    if events_dir.exists():
-        for f in sorted(events_dir.iterdir()):
-            if f.suffix.lower() in valid_extensions:
-                md5 = hashlib.md5(f.read_bytes()).hexdigest()
-                manifest[f.name] = md5
+    categories = ["events", "competitions", "posts"]
+    
+    for category in categories:
+        cat_dir = assets_dir / category
+        if cat_dir.exists():
+            for f in sorted(cat_dir.iterdir()):
+                if f.suffix.lower() in valid_extensions:
+                    md5 = hashlib.md5(f.read_bytes()).hexdigest()
+                    manifest[f"{category}/{f.name}"] = md5
     return manifest
 
 
@@ -82,9 +86,8 @@ def build_event_database(assets_dir: Path):
 
     db = EventDatabase(db_path)
 
-    # Compute current state of the events folder
-    events_dir = assets_dir / "events"
-    current_manifest = _compute_events_manifest(events_dir)
+    # Compute current state of the folders
+    current_manifest = _compute_events_manifest(assets_dir)
 
     # Load previously saved manifest (if any)
     saved_manifest = {}
@@ -104,6 +107,10 @@ def build_event_database(assets_dir: Path):
     print(f"🔄 Events changed ({len(changed)} file(s) differ). Re-indexing...")
     events = index_posters(assets_dir)
     db.add_events(events)
+
+    # Save extracted events to JSON for the frontend to read
+    extracted_events_path = db_path / "extracted_events.json"
+    extracted_events_path.write_text(json.dumps(events, indent=2))
 
     # Save the new manifest
     manifest_path.write_text(json.dumps(current_manifest, indent=2))

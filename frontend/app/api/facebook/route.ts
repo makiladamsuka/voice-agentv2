@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 const CACHE_FILE = path.join(process.cwd(), '.facebook-cache.json');
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
 // Fallback data is now ONLY shown the very first time the app is ever booted before the first scrape finishes
 const fallbackData = [
@@ -32,8 +32,15 @@ export async function GET() {
   const needsRefresh = !cachedPosts || (Date.now() - lastFetchTime > CACHE_DURATION);
 
   if (needsRefresh) {
-    // Kick off background scrape via RSS feed
-    triggerRSSScrape();
+    // Fetch fresh data synchronously so the response is immediately up to date
+    await triggerRSSScrape();
+    try {
+      const fileContent = await fs.readFile(CACHE_FILE, 'utf-8');
+      const parsed = JSON.parse(fileContent);
+      cachedPosts = parsed.posts;
+    } catch (err) {
+      // Ignore read errors
+    }
   }
 
   // Return the persisted real data instantly (or the fallback if this is the first boot ever)

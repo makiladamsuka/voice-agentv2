@@ -31,7 +31,7 @@ from tools.system import SystemTools
 
 # Load environment variables
 env_path = Path(__file__).parent / ".env"
-load_dotenv(env_path)
+load_dotenv(env_path, override=True)
 
 
 
@@ -284,12 +284,8 @@ def _init_lightweight():
     """Lightweight init - only start fast services for immediate connection"""
     global _global_image_server
     
-    # Start image server for posters/maps (fast)
-    if _global_image_server is None:
-        assets_dir = Path(__file__).parent / "assets"
-        _global_image_server = ImageServer(assets_dir, port=8080)
-        _global_image_server.start()
-        print("✅ Image server started")
+    # Note: ImageServer is now started globally in __main__
+
     
     # Start OLED display (I2C must run on main thread, but it's fast)
     try:
@@ -647,6 +643,39 @@ async def entrypoint(ctx: agents.JobContext):
             except Exception as e:
                 print(f"⚠️ agent_false_interruption error: {e}")
 
+        # DATA RECEIVED — kiosk tapped a news card, frontend sends event context
+        @ctx.room.on("data_received")
+        def on_data_received(packet):
+            try:
+                payload = packet.data.decode("utf-8")
+                data = json.loads(payload)
+                if data.get("type") == "event_focus":
+                    event = data.get("event", {})
+                    title = event.get("title", "this event")
+                    description = event.get("description", "")
+                    date = event.get("date", "")
+                    location = event.get("location", "")
+                    category = event.get("category", "event")
+
+                    # Build a rich intro for the LLM to speak
+                    detail_parts = []
+                    if date:
+                        detail_parts.append(f"on {date}")
+                    if location:
+                        detail_parts.append(f"at {location}")
+                    detail_str = " ".join(detail_parts)
+
+                    desc_str = f" {description}" if description else ""
+                    intro = (
+                        f"A visitor just tapped on the '{title}' {category} news card. "
+                        f"Tell them about this {category} enthusiastically.{' It is ' + detail_str + '.' if detail_str else ''}"
+                        f"{desc_str} Then invite them to ask follow-up questions."
+                    )
+                    print(f"📲 Event focus received: {title} — injecting into session")
+                    asyncio.ensure_future(session.generate_reply(user_input=intro))
+            except Exception as e:
+                print(f"⚠️ data_received error: {e}")
+
         # START SESSION
         print("🚀 Starting LiveKit session...")
         await session.start(room=ctx.room, agent=agent)
@@ -815,6 +844,22 @@ async def entrypoint(ctx: agents.JobContext):
             print("📷 Camera released")
 
 if __name__ == "__main__":
+    # Start the Image Server globally before the worker starts so uploads can always be received
+    assets_dir = Path(__file__).parent / "assets"
+    from image_server import ImageServer
+    global_img_server = ImageServer(assets_dir, port=8080)
+    global_img_server.start()
+    print("✅ Global Image & Webhook Server started on port 8080")
+
+    # Run AI OCR + vectorization immediately at startup (independent of LiveKit)
+    print("🔍 Running startup poster indexing...")
+    try:
+        from event_database import build_event_database
+        build_event_database(assets_dir)
+        print("✅ Startup indexing complete")
+    except Exception as e:
+        print(f"⚠️ Startup indexing failed: {e}")
+
     agents.cli.run_app(agents.WorkerOptions(
         entrypoint_fnc=entrypoint,
         agent_name="campus-greeting-agent",  # Must match frontend AGENT_NAME
