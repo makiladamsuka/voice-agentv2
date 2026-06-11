@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
       return new NextResponse('Invalid path', { status: 403 });
     }
 
-    const projectRoot = path.join(process.cwd(), '..'); 
-    const fullPath = path.join(projectRoot, 'backend', 'assets', imagePath);
+    const backendDir = process.env.BACKEND_DIR ? path.resolve(process.env.BACKEND_DIR) : path.join(process.cwd(), '..', 'backend');
+    const fullPath = path.join(backendDir, 'assets', imagePath);
 
     if (!fs.existsSync(fullPath)) {
       return new NextResponse('File not found', { status: 404 });

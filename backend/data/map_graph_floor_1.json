@@ -1,0 +1,121 @@
+{
+  "nodes": [
+    {
+      "id": "1781148136543",
+      "x": 1.5,
+      "z": -3,
+      "building": "building_1",
+      "label": "dean office",
+      "type": "room",
+      "size": [
+        3.5,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "1781148162911",
+      "x": -2,
+      "z": 2,
+      "building": "building_2",
+      "label": "mainhall",
+      "type": "room",
+      "size": [
+        5.5,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "1781148187824",
+      "x": 2,
+      "z": -2,
+      "building": "building_1",
+      "label": "Waypoint",
+      "type": "waypoint"
+    },
+    {
+      "id": "1781148189507",
+      "x": -2,
+      "z": 0,
+      "building": "building_2",
+      "label": "Waypoint",
+      "type": "waypoint"
+    },
+    {
+      "id": "1781148191531",
+      "x": 2,
+      "z": -1,
+      "building": "building_1",
+      "label": "Waypoint",
+      "type": "waypoint"
+    },
+    {
+      "id": "1781148193817",
+      "x": -2,
+      "z": -1,
+      "building": "building_2",
+      "label": "Waypoint",
+      "type": "waypoint"
+    },
+    {
+      "id": "1781162040533",
+      "x": 0,
+      "z": 4,
+      "building": "building_1",
+      "label": "lab01",
+      "type": "room",
+      "size": [
+        4.5,
+        1,
+        1
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "1781148199804",
+      "source": "1781148187824",
+      "target": "1781148191531"
+    },
+    {
+      "id": "1781148206778",
+      "source": "1781148193817",
+      "target": "1781148189507"
+    },
+    {
+      "id": "1781148210547",
+      "source": "1781148191531",
+      "target": "1781148193817"
+    }
+  ],
+  "buildings": {
+    "building_1": {
+      "position": [
+        -6,
+        0,
+        0
+      ],
+      "size": [
+        10,
+        10
+      ],
+      "color": "#ffffff",
+      "name": "Building 1"
+    },
+    "building_2": {
+      "position": [
+        4,
+        0,
+        0
+      ],
+      "size": [
+        10,
+        14
+      ],
+      "color": "#a5f3fc",
+      "name": "Building 2"
+    }
+  },
+  "format": "3d"
+}

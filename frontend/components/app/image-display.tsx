@@ -3,8 +3,11 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useSessionContext } from '@livekit/components-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { DataPacket_Kind, RemoteParticipant } from 'livekit-client';
+
+// Lazy load the 3D navigation map (heavy Three.js dependency)
+const NavigationMap = lazy(() => import('@/components/app/isometric-map'));
 
 const MotionOverlay = motion.create('div');
 
@@ -15,15 +18,24 @@ interface ImageData {
     caption: string;
 }
 
+interface NavigationData {
+    destination: string;
+    floor: string;
+    path: number[][];
+    nodes: any[];
+    buildings: any;
+}
+
 export function ImageDisplay() {
     const session = useSessionContext();
     const room = session?.room;
     const [imageData, setImageData] = useState<ImageData | null>(null);
     const [showImage, setShowImage] = useState(false);
+    const [navData, setNavData] = useState<NavigationData | null>(null);
 
     useEffect(() => {
         if (!room) {
-            return; // Just return silently
+            return;
         }
 
         console.log('✅ ImageDisplay: Setting up data listener');
@@ -46,17 +58,25 @@ export function ImageDisplay() {
 
                 if (message.type === 'image') {
                     console.log('📸 Received image URL:', message.url);
-                    // Close any existing image before showing new one
                     setShowImage(false);
-                    // Small delay to allow exit animation
+                    setNavData(null);
                     setTimeout(() => {
                         setImageData(message);
                         setShowImage(true);
-                        // Auto-close after 10 seconds
                         setTimeout(() => {
                             setShowImage(false);
                         }, 10000);
                     }, 100);
+                } else if (message.type === 'navigation') {
+                    console.log('🗺️ Received navigation data:', message.destination);
+                    setShowImage(false);
+                    setNavData({
+                        destination: message.destination,
+                        floor: message.floor,
+                        path: message.path,
+                        nodes: message.nodes,
+                        buildings: message.buildings,
+                    });
                 }
             } catch (error) {
                 console.error('❌ Error parsing data message:', error);
@@ -83,76 +103,96 @@ export function ImageDisplay() {
     };
 
     return (
-        <AnimatePresence>
-            {showImage && imageData && (
-                <MotionOverlay
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
-                    onClick={handleImageClick}
-                >
-                    <button
-                        onClick={handleClose}
-                        className="absolute right-4 top-4 z-[101] flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
-                        aria-label="Close image"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="24"
-                            height="24"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                        >
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-
-                    <motion.div
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.9, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: 'easeOut' }}
-                        className="relative max-h-[90vh] max-w-7xl"
-                    >
-                        {imageData.caption && (
-                            <div className="mb-4 text-center">
-                                <h2 className="text-2xl font-semibold text-white md:text-3xl">
-                                    {imageData.caption}
-                                </h2>
-                            </div>
-                        )}
-
-                        <img
-                            src={imageData.url}
-                            alt={imageData.caption || 'Display image'}
-                            className="max-h-[80vh] w-auto rounded-lg object-contain shadow-2xl"
-                            crossOrigin="anonymous"
-                        />
-
-                        <div className="mt-4 flex justify-center">
-                            <span
-                                className={cn(
-                                    'rounded-full px-4 py-1 text-sm font-medium',
-                                    imageData.category === 'event' && 'bg-blue-500/20 text-blue-300',
-                                    imageData.category === 'map' && 'bg-green-500/20 text-green-300',
-                                    imageData.category === 'fallback' && 'bg-gray-500/20 text-gray-300'
-                                )}
-                            >
-                                {imageData.category === 'event' && '🎨 Event'}
-                                {imageData.category === 'map' && '🗺️ Location'}
-                                {imageData.category === 'fallback' && 'ℹ️ Info'}
-                            </span>
-                        </div>
-                    </motion.div>
-                </MotionOverlay>
+        <>
+            {/* Navigation Map Overlay */}
+            {navData && (
+                <Suspense fallback={
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80">
+                        <div className="text-white text-xl animate-pulse">Loading 3D Map...</div>
+                    </div>
+                }>
+                    <NavigationMap
+                        path={navData.path}
+                        nodes={navData.nodes}
+                        buildings={navData.buildings}
+                        destination={navData.destination}
+                        onClose={() => setNavData(null)}
+                    />
+                </Suspense>
             )}
-        </AnimatePresence>
+
+            {/* Image Overlay */}
+            <AnimatePresence>
+                {showImage && imageData && (
+                    <MotionOverlay
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
+                        onClick={handleImageClick}
+                    >
+                        <button
+                            onClick={handleClose}
+                            className="absolute right-4 top-4 z-[101] flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+                            aria-label="Close image"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            className="relative max-h-[90vh] max-w-7xl"
+                        >
+                            {imageData.caption && (
+                                <div className="mb-4 text-center">
+                                    <h2 className="text-2xl font-semibold text-white md:text-3xl">
+                                        {imageData.caption}
+                                    </h2>
+                                </div>
+                            )}
+
+                            <img
+                                src={imageData.url}
+                                alt={imageData.caption || 'Display image'}
+                                className="max-h-[80vh] w-auto rounded-lg object-contain shadow-2xl"
+                                crossOrigin="anonymous"
+                            />
+
+                            <div className="mt-4 flex justify-center">
+                                <span
+                                    className={cn(
+                                        'rounded-full px-4 py-1 text-sm font-medium',
+                                        imageData.category === 'event' && 'bg-blue-500/20 text-blue-300',
+                                        imageData.category === 'map' && 'bg-green-500/20 text-green-300',
+                                        imageData.category === 'fallback' && 'bg-gray-500/20 text-gray-300'
+                                    )}
+                                >
+                                    {imageData.category === 'event' && '🎨 Event'}
+                                    {imageData.category === 'map' && '🗺️ Location'}
+                                    {imageData.category === 'fallback' && 'ℹ️ Info'}
+                                </span>
+                            </div>
+                        </motion.div>
+                    </MotionOverlay>
+                )}
+            </AnimatePresence>
+        </>
     );
 }

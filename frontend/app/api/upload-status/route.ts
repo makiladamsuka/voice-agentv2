@@ -4,8 +4,8 @@ import path from 'path';
 
 export async function GET() {
   try {
-    const projectRoot = path.join(process.cwd(), '..'); 
-    const assetsDir = path.join(projectRoot, 'backend', 'assets');
+    const backendDir = process.env.BACKEND_DIR ? path.resolve(process.env.BACKEND_DIR) : path.join(process.cwd(), '..', 'backend');
+    const assetsDir = path.join(backendDir, 'assets');
     const categories = ['events', 'competitions', 'posts'];
     let latestTime = 0;
     let latestFileUrl = '';
@@ -13,7 +13,7 @@ export async function GET() {
 
     const allFiles: any[] = [];
 
-    const extractedEventsPath = path.join(projectRoot, 'backend', 'event_db', 'extracted_events.json');
+    const extractedEventsPath = path.join(backendDir, 'event_db', 'extracted_events.json');
     let extractedEvents: any[] = [];
     if (fs.existsSync(extractedEventsPath)) {
       try {

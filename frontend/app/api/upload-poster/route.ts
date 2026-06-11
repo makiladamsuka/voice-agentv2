@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
     const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
     
     // Determine the absolute path to backend/assets/{category}
-    const projectRoot = path.join(process.cwd(), '..'); 
-    const targetDir = path.join(projectRoot, 'backend', 'assets', category);
+    const backendDir = process.env.BACKEND_DIR ? path.resolve(process.env.BACKEND_DIR) : path.join(process.cwd(), '..', 'backend');
+    const targetDir = path.join(backendDir, 'assets', category);
     
     // Ensure the directory exists
     if (!fs.existsSync(targetDir)) {

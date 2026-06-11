@@ -30,8 +30,14 @@ export async function POST(req: Request) {
     }
 
     // Parse agent configuration from request body
-    const body = await req.json();
-    const agentName: string = body?.room_config?.agents?.[0]?.agent_name;
+    let agentName: string | undefined;
+    try {
+      const body = await req.json();
+      agentName = body?.room_config?.agents?.[0]?.agent_name;
+    } catch (e) {
+      // Body might be empty
+    }
+    agentName = agentName || process.env.LIVEKIT_AGENT_NAME;
 
     // Generate participant token
     const participantName = 'user';

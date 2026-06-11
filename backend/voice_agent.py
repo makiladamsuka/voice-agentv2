@@ -28,6 +28,7 @@ import display_manager  # start_emotion(), stop_emotion(), etc.
 from tools.vision import VisionTools
 from tools.content import ContentTools
 from tools.system import SystemTools
+from wayfinding import Wayfinder
 
 # Load environment variables
 env_path = Path(__file__).parent / ".env"
@@ -49,6 +50,7 @@ class CampusGreetingAgent(Agent):
         self.event_db = event_db  # Event database for Q&A
         self.face_monitor = None
         self._object_detector = None
+        self.wayfinder = None  # Pathfinding engine
         
         # Room reference
         self.room = None
@@ -196,6 +198,57 @@ class CampusGreetingAgent(Agent):
         return await self.content_tools.show_location_map(location_query, context)
     
     @function_tool
+    async def get_directions(self, destination: str, context: RunContext) -> str:
+        """Finds the shortest walking route to a campus location and displays a 3D animated map on the kiosk screen.
+        Use this when someone asks WHERE a room is, HOW TO GET TO a location, or asks for DIRECTIONS.
+        
+        Args:
+            destination: The room or location name to navigate to (e.g. 'Dean Office', 'Main Hall', 'Library')
+        """
+        print(f"🗺️ [TOOL] get_directions called for: {destination}")
+        
+        if not self.wayfinder:
+            return "I'm sorry, the navigation system is not ready yet."
+        
+        # Reload map data in case it was edited
+        self.wayfinder.reload()
+        
+        result = self.wayfinder.find_path(destination)
+        
+        if not result:
+            return "I'm sorry, I couldn't find directions to that location."
+        
+        if "error" in result:
+            return result["error"]
+        
+        # Send 3D navigation data to the kiosk frontend via LiveKit
+        if self.room:
+            try:
+                nav_data = {
+                    "type": "navigation",
+                    "destination": result["destination"],
+                    "floor": result.get("floor", "floor_1"),
+                    "path": result["path_coords"],
+                    "nodes": [{
+                        "id": n["id"],
+                        "label": n["label"],
+                        "type": n.get("type", "room"),
+                        "world": n["world"],
+                        "building": n.get("building"),
+                        "size": n.get("size", [1, 1, 1])
+                    } for n in result["nodes"]],
+                    "buildings": result["buildings"]
+                }
+                await self.room.local_participant.publish_data(
+                    json.dumps(nav_data).encode()
+                )
+                print(f"   📡 Published navigation data to kiosk")
+            except Exception as e:
+                print(f"   ⚠️ Failed to publish navigation data: {e}")
+        
+        return f"Here are the directions to {result['destination']}: {result['directions']}"
+    
+    @function_tool
     async def get_cpu_temperature(self, unit: str = "celsius", context: RunContext = None) -> str:
         """Gets the CPU temperature of the Raspberry Pi.
         
@@ -335,6 +388,14 @@ async def _init_heavy_async(agent):
     
     agent.known_faces = _global_face_monitor.known_faces
     agent.event_db = _global_event_db
+    
+    # 4. Initialize Wayfinder (fast — just reads JSON)
+    try:
+        agent.wayfinder = Wayfinder()
+        print("✅ Wayfinder navigation ready")
+    except Exception as e:
+        print(f"⚠️ Could not initialize Wayfinder: {e}")
+        agent.wayfinder = None
     
     _is_ready = True
     print("🎉 All components initialized!")

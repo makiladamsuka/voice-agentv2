@@ -354,6 +354,9 @@ export function KioskView() {
         />
       </div>
 
+      {/* Main Content Wrapper (must be above background) */}
+      <div className="relative z-10 w-full h-full flex flex-col">
+
       <style>{`
         @keyframes ambientBlob1 {
           0%, 100% { transform: translate(0px, 0px) scale(1); }
@@ -435,6 +438,7 @@ export function KioskView() {
           
           {/* Middle Column: Events Carousel & Microphone — flex-1 fills freed space */}
           <div className="flex-1 h-full min-h-0 flex flex-col gap-6 min-w-0">
+            
             <div className="bg-secondary-container rounded-3xl shadow-sm flex-1 overflow-hidden relative flex flex-col min-h-0">
               {isConnected ? (
                 <div className="flex-1 flex flex-col relative h-full bg-surface-container pt-4">
@@ -526,7 +530,6 @@ export function KioskView() {
                 </div>
               )}
             </div>
-
             {/* Microphone Action Area */}
             <div className={`flex-shrink-0 min-h-[96px] h-auto py-4 flex items-center justify-center rounded-3xl shadow-sm relative px-4 overflow-hidden transition-all duration-700 ${isConnected ? 'bg-surface-container border border-primary/20' : 'bg-surface-container-low'}`}>
               
@@ -720,6 +723,7 @@ export function KioskView() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
