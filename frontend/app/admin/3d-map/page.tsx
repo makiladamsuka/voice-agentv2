@@ -1,4 +1,6 @@
-import NavigationMap from '@/components/app/isometric-map';
+import dynamic from 'next/dynamic';
+
+const NavigationMap = dynamic(() => import('@/components/app/isometric-map'), { ssr: false });
 
 // Demo page: load Floor 1 data and display the map
 async function loadFloorData() {

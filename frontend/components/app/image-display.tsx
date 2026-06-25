@@ -3,11 +3,12 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useSessionContext } from '@livekit/components-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { DataPacket_Kind, RemoteParticipant } from 'livekit-client';
+import dynamic from 'next/dynamic';
 
 // Lazy load the 3D navigation map (heavy Three.js dependency)
-const NavigationMap = lazy(() => import('@/components/app/isometric-map'));
+const NavigationMap = dynamic(() => import('@/components/app/isometric-map'), { ssr: false });
 
 const MotionOverlay = motion.create('div');
 
@@ -26,7 +27,7 @@ interface NavigationData {
     buildings: any;
 }
 
-export function ImageDisplay() {
+export function ImageDisplay({ ignoreNavigation = false }: { ignoreNavigation?: boolean }) {
     const session = useSessionContext();
     const room = session?.room;
     const [imageData, setImageData] = useState<ImageData | null>(null);
@@ -68,15 +69,17 @@ export function ImageDisplay() {
                         }, 10000);
                     }, 100);
                 } else if (message.type === 'navigation') {
-                    console.log('🗺️ Received navigation data:', message.destination);
-                    setShowImage(false);
-                    setNavData({
-                        destination: message.destination,
-                        floor: message.floor,
-                        path: message.path,
-                        nodes: message.nodes,
-                        buildings: message.buildings,
-                    });
+                    if (!ignoreNavigation) {
+                        console.log('🗺️ Received navigation data:', message.destination);
+                        setShowImage(false);
+                        setNavData({
+                            destination: message.destination,
+                            floor: message.floor,
+                            path: message.path,
+                            nodes: message.nodes,
+                            buildings: message.buildings,
+                        });
+                    }
                 }
             } catch (error) {
                 console.error('❌ Error parsing data message:', error);

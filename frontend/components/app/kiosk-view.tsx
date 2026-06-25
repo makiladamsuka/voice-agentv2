@@ -2,12 +2,18 @@
 
 import { useSessionContext, useSessionMessages, useTranscriptions, useTracks, useTrackVolume, useVoiceAssistant, useRoomContext } from '@livekit/components-react';
 import { Track } from 'livekit-client';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { ChatTranscript } from '@/components/app/chat-transcript';
 import { ScrollArea } from '@/components/livekit/scroll-area/scroll-area';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { QRCodeSVG } from 'qrcode.react';
 import { UploadCloud, X } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { ImageDisplay } from '@/components/app/image-display';
+
+// Lazy load 3D map to avoid SSR issues with Three.js
+const CampusMapEmbed = dynamic(() => import('@/components/app/campus-map-embed'), { ssr: false });
+const NavigationMap = dynamic(() => import('@/components/app/isometric-map'), { ssr: false });
 
 export function KioskView() {
   const session = useSessionContext();
@@ -19,6 +25,7 @@ export function KioskView() {
   const [focusedEvent, setFocusedEvent] = useState<any | null>(null);
   const pendingEventRef = useRef<any | null>(null);
   const transcriptions = useTranscriptions();
+  const [navData, setNavData] = useState<any | null>(null);
 
   const { audioTrack: agentTrack, state: agentState } = useVoiceAssistant();
   const agentVolume = useTrackVolume(agentTrack);
@@ -54,6 +61,21 @@ export function KioskView() {
     }
   }, [isConnected, sendEventFocus]);
 
+  // Listen for navigation data
+  useEffect(() => {
+    if (!room) return;
+    const handleDataReceived = (payload: Uint8Array) => {
+      try {
+        const data = JSON.parse(new TextDecoder().decode(payload));
+        if (data.type === 'navigation') {
+          setNavData(data);
+        }
+      } catch (e) {}
+    };
+    room.on('dataReceived', handleDataReceived);
+    return () => { room.off('dataReceived', handleDataReceived); };
+  }, [room]);
+
   // Handle clicking a news card
   const handleNewsClick = useCallback(async (post: any) => {
     setFocusedEvent(post);
@@ -84,6 +106,22 @@ export function KioskView() {
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [qrUrl, setQrUrl] = useState('');
+
+  // 3D Map data from saved floor
+  const [mapData, setMapData] = useState<any>(null);
+  const [mapRooms, setMapRooms] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/map?floor=floor_1')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.nodes) {
+          setMapData(data);
+          setMapRooms(data.nodes.filter((n: any) => n.type !== 'waypoint'));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     async function fetchIp() {
@@ -416,22 +454,54 @@ export function KioskView() {
               <div className="text-[14px] leading-[20px] mt-1 font-bold opacity-90">{dateStr || 'Thursday, June 4'}</div>
             </div>
             
-            {/* Where to? Card */}
+            {/* Where to? Card — with embedded 3D map */}
             <div className="bg-surface-container rounded-3xl p-5 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-0">
               <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-primary mb-2 font-bold flex-shrink-0">Where to?</h2>
-              <div className="flex flex-col gap-3 mt-auto w-full">
-                <button className="bg-primary text-on-primary rounded-full h-[50px] w-full text-[17px] flex items-center justify-center gap-3 hover:bg-surface-tint transition-colors active:scale-95 shadow-md font-bold flex-shrink-0">
-                  <span className="material-symbols-outlined text-2xl">school</span>
-                  Dean's Office
-                </button>
-                <button className="bg-surface-variant text-on-surface-variant rounded-full h-[50px] w-full text-[17px] flex items-center justify-center gap-3 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold flex-shrink-0">
-                  <span className="material-symbols-outlined text-2xl">computer</span>
-                  Computer Lab 03
-                </button>
-                <button className="bg-surface-variant text-on-surface-variant rounded-full h-[50px] w-full text-[17px] flex items-center justify-center gap-3 hover:bg-surface-container-highest transition-colors active:scale-95 shadow-sm border border-outline-variant font-bold flex-shrink-0">
-                  <span className="material-symbols-outlined text-2xl">apartment</span>
-                  Lecture Hall
-                </button>
+              
+              {/* Embedded 3D Campus Map */}
+              <div className="flex-1 min-h-0 rounded-2xl overflow-hidden mb-3 bg-[#1e2024]">
+                <Suspense fallback={
+                  <div className="w-full h-full flex items-center justify-center text-white/30 animate-pulse text-sm">
+                    Loading map...
+                  </div>
+                }>
+                  <CampusMapEmbed mapData={mapData} />
+                </Suspense>
+              </div>
+
+              {/* Room buttons */}
+              <div className="flex flex-col gap-2 w-full flex-shrink-0">
+                {mapRooms.length > 0 ? (
+                  mapRooms.slice(0, 3).map((room, i) => (
+                    <button 
+                      key={room.id}
+                      onClick={() => {
+                        if (!isConnected) { start(); }
+                        setTimeout(() => {
+                          if (room && session?.room) {
+                            const payload = JSON.stringify({ type: 'event_focus', event: { title: room.label, message: `Please give me directions to ${room.label}`, category: 'navigation' } });
+                            try { session.room.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true }); } catch (e) { console.error(e); }
+                          }
+                        }, isConnected ? 100 : 3000);
+                      }}
+                      className={`${i === 0 ? 'bg-primary text-on-primary shadow-md' : 'bg-surface-variant text-on-surface-variant shadow-sm border border-outline-variant'} rounded-full h-[44px] w-full text-[15px] flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95 font-bold flex-shrink-0`}
+                    >
+                      <span className="material-symbols-outlined text-xl">{i === 0 ? 'school' : i === 1 ? 'apartment' : 'meeting_room'}</span>
+                      {room.label}
+                    </button>
+                  ))
+                ) : (
+                  <>
+                    <button className="bg-primary text-on-primary rounded-full h-[44px] w-full text-[15px] flex items-center justify-center gap-2 shadow-md font-bold flex-shrink-0">
+                      <span className="material-symbols-outlined text-xl">school</span>
+                      Dean's Office
+                    </button>
+                    <button className="bg-surface-variant text-on-surface-variant rounded-full h-[44px] w-full text-[15px] flex items-center justify-center gap-2 shadow-sm border border-outline-variant font-bold flex-shrink-0">
+                      <span className="material-symbols-outlined text-xl">apartment</span>
+                      Main Hall
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -440,7 +510,27 @@ export function KioskView() {
           <div className="flex-1 h-full min-h-0 flex flex-col gap-6 min-w-0">
             
             <div className="bg-secondary-container rounded-3xl shadow-sm flex-1 overflow-hidden relative flex flex-col min-h-0">
-              {isConnected ? (
+              {navData ? (
+                <div className="flex-1 flex flex-col relative h-full bg-black">
+                  <div className="absolute top-4 left-6 right-6 z-20 flex justify-between items-center bg-gray-900/90 border border-gray-700 rounded-2xl px-6 py-3 shadow-2xl backdrop-blur-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                      <span className="text-white text-lg font-bold">Navigating to: {navData.destination}</span>
+                    </div>
+                    <button onClick={() => setNavData(null)} className="text-gray-400 hover:text-white text-2xl font-bold transition-colors">&times;</button>
+                  </div>
+                  <Suspense fallback={<div className="flex h-full items-center justify-center text-white/50 animate-pulse">Loading 3D Map...</div>}>
+                    <NavigationMap 
+                      path={navData.path}
+                      nodes={navData.nodes}
+                      buildings={navData.buildings}
+                      destination={navData.destination}
+                      inline={true}
+                      onClose={() => setNavData(null)}
+                    />
+                  </Suspense>
+                </div>
+              ) : isConnected ? (
                 <div className="flex-1 flex flex-col relative h-full bg-surface-container pt-4">
                   {isAgentInitializing && (
                     <div className="absolute inset-0 overflow-hidden pointer-events-none transition-all duration-1000 ease-in-out animate-pulse z-0">
@@ -723,6 +813,10 @@ export function KioskView() {
           </div>
         </div>
       )}
+      
+      {/* Listens for image messages to show popup posters (ignores navigation to let KioskView handle it inline) */}
+      <ImageDisplay ignoreNavigation={true} />
+      
       </div>
     </div>
   );

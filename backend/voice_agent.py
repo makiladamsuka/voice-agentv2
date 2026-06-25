@@ -719,20 +719,25 @@ async def entrypoint(ctx: agents.JobContext):
                     category = event.get("category", "event")
 
                     # Build a rich intro for the LLM to speak
-                    detail_parts = []
-                    if date:
-                        detail_parts.append(f"on {date}")
-                    if location:
-                        detail_parts.append(f"at {location}")
-                    detail_str = " ".join(detail_parts)
+                    if category == "navigation":
+                        intro = f"A visitor just tapped the navigation button for '{title}'. Please use your get_directions tool to give them directions to '{title}'."
+                    else:
+                        detail_parts = []
+                        if date:
+                            detail_parts.append(f"on {date}")
+                        if location:
+                            detail_parts.append(f"at {location}")
+                        detail_str = " ".join(detail_parts)
 
-                    desc_str = f" {description}" if description else ""
-                    intro = (
-                        f"A visitor just tapped on the '{title}' {category} news card. "
-                        f"Tell them about this {category} enthusiastically.{' It is ' + detail_str + '.' if detail_str else ''}"
-                        f"{desc_str} Then invite them to ask follow-up questions."
-                    )
-                    print(f"📲 Event focus received: {title} — injecting into session")
+                        desc_str = f" {description}" if description else ""
+                        intro = (
+                            f"A visitor just tapped on the '{title}' {category} news card. "
+                            f"Tell them about this {category} enthusiastically.{' It is ' + detail_str + '.' if detail_str else ''}"
+                            f"{desc_str} Then invite them to ask follow-up questions."
+                        )
+                    print(f"📲 Event focus received: {title} — injecting into session (category: {category})")
+                    
+                    # Instead of generate_reply, we append to chat context and prompt
                     asyncio.ensure_future(session.generate_reply(user_input=intro))
             except Exception as e:
                 print(f"⚠️ data_received error: {e}")

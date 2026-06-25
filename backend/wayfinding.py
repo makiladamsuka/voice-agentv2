@@ -88,7 +88,8 @@ class Wayfinder:
                 bpos = building.get("position", [0, 0, 0])
                 world_x = bpos[0] + node["x"]
                 world_z = bpos[2] + node["z"]
-                world_y = 0.1 if node.get("type") == "waypoint" else (node.get("size", [1, 1, 1])[1] / 2)
+                # Extract floor number (e.g. 'floor_2' -> 2)
+                world_y = (0.1 if node.get("type") == "waypoint" else (node.get("size", [1, 1, 1])[1] / 2))
 
                 node_entry = {
                     **node,
@@ -107,9 +108,39 @@ class Wayfinder:
                     self.graph.setdefault(tgt, []).append((src, dist))
                     self.edges.append(edge)
 
+        # Auto-link Staircases across floors
+        staircases = []
+        for nid, node in self.nodes.items():
+            if node.get("label", "").lower() == "staircase":
+                staircases.append(node)
+
+        # Connect staircases that are in the same building and roughly at the same (X, Z)
+        staircase_edges = 0
+        for i in range(len(staircases)):
+            for j in range(i + 1, len(staircases)):
+                s1 = staircases[i]
+                s2 = staircases[j]
+                
+                # Only connect if they are on different floors
+                if s1["floor"] != s2["floor"]:
+                    # Must be in the same building
+                    if s1.get("building") == s2.get("building"):
+                        # Calculate 2D distance (ignore Y)
+                        dx = s1["world"][0] - s2["world"][0]
+                        dz = s1["world"][2] - s2["world"][2]
+                        dist_2d = math.sqrt(dx**2 + dz**2)
+                        
+                        # If they are vertically aligned (within 5 meters)
+                        if dist_2d < 5.0:
+                            # Add an edge (with a 10.0 distance penalty for taking stairs)
+                            penalty = 10.0
+                            self.graph.setdefault(s1["id"], []).append((s2["id"], penalty))
+                            self.graph.setdefault(s2["id"], []).append((s1["id"], penalty))
+                            staircase_edges += 1
+
         room_count = sum(1 for n in self.nodes.values() if n.get("type") != "waypoint")
         wp_count = sum(1 for n in self.nodes.values() if n.get("type") == "waypoint")
-        print(f"✅ Wayfinder graph built: {room_count} rooms, {wp_count} waypoints, {len(self.edges)} edges")
+        print(f"✅ Wayfinder graph built: {room_count} rooms, {wp_count} waypoints, {len(self.edges)} edges, {staircase_edges} cross-floor links")
 
     @staticmethod
     def _distance(a: list, b: list) -> float:
@@ -229,18 +260,31 @@ class Wayfinder:
 
         steps = []
         prev_building = None
+        prev_floor = None
 
         for i in range(len(path_ids)):
             node = self.nodes[path_ids[i]]
             current_building = node.get("building", "")
+            current_floor = node.get("floor", "floor_1")
+
+            # Announce starting floor
+            if i == 0:
+                floor_num = current_floor.replace("floor_", "")
+                steps.append(f"Starting on Floor {floor_num}")
+
+            # Detect floor change
+            if prev_floor and current_floor != prev_floor:
+                floor_num = current_floor.replace("floor_", "")
+                steps.append(f"Take the stairs to Floor {floor_num}")
 
             # Detect building change
-            if prev_building and current_building != prev_building:
+            elif prev_building and current_building != prev_building:
                 bname_old = self.buildings.get(prev_building, {}).get("name", prev_building)
                 bname_new = self.buildings.get(current_building, {}).get("name", current_building)
                 steps.append(f"Walk from {bname_old} to {bname_new}")
 
             prev_building = current_building
+            prev_floor = current_floor
 
             # Turn detection (need 3 consecutive points)
             if 0 < i < len(path_ids) - 1:
