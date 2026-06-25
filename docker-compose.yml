@@ -37,6 +37,9 @@ services:
     container_name: voice-agent-frontend
     ports:
       - "3000:3000"
+    volumes:
+      # Mount the backend directory to access map data and assets
+      - ./backend:/backend
     environment:
       # LiveKit credentials - can be overridden via .env file
       - LIVEKIT_URL=${LIVEKIT_URL}
@@ -45,6 +48,10 @@ services:
       - AGENT_NAME=${AGENT_NAME:-campus-greeting-agent}
       - NEXT_PUBLIC_APP_CONFIG_ENDPOINT=${NEXT_PUBLIC_APP_CONFIG_ENDPOINT:-}
       - SANDBOX_ID=${SANDBOX_ID:-}
+      # Path to the backend directory inside the container
+      - BACKEND_DIR=/backend
+      # Internal backend URL for API communications inside Docker network
+      - BACKEND_INTERNAL_URL=http://backend:8080
     depends_on:
       - backend
     restart: unless-stopped

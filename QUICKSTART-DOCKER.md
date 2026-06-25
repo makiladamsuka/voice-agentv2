@@ -95,8 +95,14 @@ docker build \
 
 ### Start Frontend (Docker)
 
+To allow the frontend to access map graphs/assets and communicate with the native backend, run it with the backend directory mounted and host network mode:
+
 ```bash
-docker run -d -p 3000:3000 --name voice-frontend voice-agent-frontend:latest
+docker run -d --net=host \
+  -v $(pwd)/backend:/backend \
+  -e BACKEND_DIR=/backend \
+  -e BACKEND_INTERNAL_URL=http://127.0.0.1:8080 \
+  --name voice-frontend voice-agent-frontend:latest
 ```
 
 ### Start Backend (Native Python)
@@ -125,7 +131,7 @@ ssh -L 3000:localhost:3000 nema@raspberrypi.local
 
 | Task | Command |
 |------|---------|
-| Start frontend | `docker run -d -p 3000:3000 --name voice-frontend voice-agent-frontend:latest` |
+| Start frontend | `docker run -d --net=host -v $(pwd)/backend:/backend -e BACKEND_DIR=/backend -e BACKEND_INTERNAL_URL=http://127.0.0.1:8080 --name voice-frontend voice-agent-frontend:latest` |
 | Stop frontend | `docker stop voice-frontend && docker rm voice-frontend` |
 | View frontend logs | `docker logs -f voice-frontend` |
 | Start backend | `cd backend && source ../venv/bin/activate && export $(grep -v '^#' .env \| xargs) && python voice_agent.py dev` |

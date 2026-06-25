@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
 
     // Call the python image server to trigger re-index
     try {
-      const response = await fetch('http://127.0.0.1:8080/trigger-index', {
+      const backendUrl = process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:8080';
+      const response = await fetch(`${backendUrl}/trigger-index`, {
         method: 'POST'
       });
       if (!response.ok) {
