@@ -368,10 +368,8 @@ export function KioskView() {
 
   return (
     <div className="relative text-on-background w-full h-screen overflow-hidden flex flex-col select-none bg-surface/50 dark:bg-[#0a0a0c]" style={{ fontFamily: 'Inter, sans-serif' }}>
-      {/* Subtle Premium Background */}
-      <div className="absolute inset-0 -z-20 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-surface-variant/30 via-background to-background dark:from-white/5 dark:via-black dark:to-black">
-        {/* Optional extremely subtle monochromatic accent */}
-        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+      {/* Clean Premium Background */}
+      <div className="absolute inset-0 -z-20 pointer-events-none bg-background dark:bg-black">
       </div>
 
       {/* Main Content Wrapper (must be above background) */}
@@ -405,10 +403,10 @@ export function KioskView() {
       
       {/* Main Content Area - Bento Grid */}
       <main className="flex-1 pl-8 pr-4 pt-3 pb-4 overflow-hidden min-h-0 flex flex-col">
-        <div className="flex gap-6 flex-1 min-h-0 pb-2">
+        <div className="flex gap-4 flex-1 min-h-0 pb-2">
           {/* Left Column: Clock & Navigation — collapses when poster is focused */}
           <div
-            className="flex flex-col gap-6 h-full min-h-0 flex-shrink-0 overflow-hidden transition-all duration-500 ease-in-out"
+            className="flex flex-col gap-3 h-full min-h-0 flex-shrink-0 overflow-hidden transition-all duration-500 ease-in-out"
             style={{ width: focusedEvent ? '0px' : '25%', opacity: focusedEvent ? 0 : 1 }}
           >
             {/* Clock & Weather Card */}
@@ -477,7 +475,7 @@ export function KioskView() {
           </div>
           
           {/* Middle Column: Events Carousel & Microphone — flex-1 fills freed space */}
-          <div className="flex-1 h-full min-h-0 flex flex-col gap-6 min-w-0">
+          <div className="flex-1 h-full min-h-0 flex flex-col gap-3 min-w-0">
             
             <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/5 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 overflow-hidden relative flex flex-col min-h-0">
               {navData ? (
