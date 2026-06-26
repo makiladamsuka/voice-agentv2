@@ -413,7 +413,7 @@ export function KioskView() {
             style={{ width: focusedEvent ? '0px' : '25%', opacity: focusedEvent ? 0 : 1 }}
           >
             {/* Clock & Weather Card */}
-            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] p-5 pt-8 flex flex-col items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] relative overflow-hidden flex-shrink-0">
+            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-outline-variant/30 rounded-[2rem] p-5 pt-8 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0">
               {weather ? (
                 <div className="absolute top-3 right-4 flex items-center opacity-80 text-primary">
                   <span className="material-symbols-outlined text-[24px] fill-current">{weather.icon}</span>
@@ -426,7 +426,7 @@ export function KioskView() {
             </div>
             
             {/* Where to? Card — with embedded 3D map */}
-            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 flex flex-col relative overflow-hidden min-h-0">
+            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-outline-variant/30 rounded-[2rem] p-5 flex-1 flex flex-col relative overflow-hidden min-h-0">
               <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-primary mb-2 font-bold flex-shrink-0">Where to?</h2>
               
               {/* Embedded 3D Campus Map */}
@@ -480,7 +480,7 @@ export function KioskView() {
           {/* Middle Column: Events Carousel & Microphone — flex-1 fills freed space */}
           <div className="flex-1 h-full min-h-0 flex flex-col gap-2 min-w-0">
             
-            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 overflow-hidden relative flex flex-col min-h-0">
+            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-outline-variant/30 rounded-[2rem] flex-1 overflow-hidden relative flex flex-col min-h-0">
               {navData ? (
                 <div className="flex-1 flex flex-col relative h-full bg-black">
                   <div className="absolute top-4 left-6 right-6 z-20 flex justify-between items-center bg-gray-900/90 border border-gray-700 rounded-2xl px-6 py-3 shadow-2xl backdrop-blur-sm">
@@ -590,7 +590,7 @@ export function KioskView() {
               )}
             </div>
             {/* Microphone Action Area */}
-            <div className={`flex-shrink-0 min-h-[96px] h-auto py-4 flex items-center justify-center rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-2xl relative px-4 overflow-hidden transition-all duration-[50ms] border border-white/20 dark:border-white/5 ${isConnected ? 'bg-white/90 dark:bg-white/10' : 'bg-white/80 dark:bg-white/5'}`} style={{ boxShadow: isConnected ? `0 0 ${maxVolume * 40}px rgba(var(--tw-colors-primary-rgb), ${maxVolume * 0.3})` : undefined }}>
+            <div className={`flex-shrink-0 min-h-[96px] h-auto py-4 flex items-center justify-center rounded-[2rem] backdrop-blur-2xl relative px-4 overflow-hidden transition-all duration-[50ms] border border-outline-variant/30 ${isConnected ? 'bg-white/90 dark:bg-white/10' : 'bg-white/80 dark:bg-white/5'}`} style={{ boxShadow: isConnected ? `0 0 ${maxVolume * 40}px rgba(var(--tw-colors-primary-rgb), ${maxVolume * 0.3})` : undefined }}>
 
               <div className="w-full flex justify-center items-center text-center text-[21px] font-extrabold text-on-surface dark:text-gray-100 tracking-tight leading-[1.2] min-h-[64px] relative z-10 pl-4 pr-20">
                 {!isConnected ? (
@@ -638,7 +638,7 @@ export function KioskView() {
             className="h-full min-h-0 flex-shrink-0 overflow-hidden transition-all duration-500 ease-in-out"
             style={{ width: focusedEvent ? '42%' : '25%' }}
           >
-            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] h-full flex flex-col min-h-0 overflow-hidden relative">
+            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-outline-variant/30 rounded-[2rem] h-full flex flex-col min-h-0 overflow-hidden relative">
               {focusedEvent ? (
                 /* Full poster view */
                 <>

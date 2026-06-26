@@ -38,22 +38,22 @@ export const ChatEntry = ({
     >
       <header
         className={cn(
-          'text-muted-foreground flex items-center gap-2 text-base font-semibold',
+          'text-on-surface/60 flex items-center gap-2 text-[13px] font-medium tracking-wide px-1',
           messageOrigin === 'local' ? 'flex-row-reverse' : 'text-left'
         )}
       >
-        {name && <strong className="text-lg">{name}</strong>}
-        <span className="font-mono text-sm opacity-60 transition-opacity ease-linear group-hover:opacity-100">
+        {name && <strong className="text-sm">{name}</strong>}
+        <span className="opacity-50 transition-opacity ease-linear group-hover:opacity-100 uppercase">
           {hasBeenEdited && '*'}
           {time.toLocaleTimeString(locale, { timeStyle: 'short' })}
         </span>
       </header>
       <div
         className={cn(
-          'text-[18px] leading-relaxed px-5 py-3.5 max-w-[85%] shadow-sm w-fit',
+          'text-[18px] leading-relaxed px-5 py-3.5 max-w-[85%] w-fit backdrop-blur-2xl transition-all',
           messageOrigin === 'local' 
-            ? 'ml-auto bg-primary text-on-primary rounded-3xl rounded-tr-md' 
-            : 'mr-auto bg-surface-variant text-on-surface-variant border border-outline-variant/30 rounded-3xl rounded-tl-md'
+            ? 'ml-auto bg-primary/10 dark:bg-primary/20 border border-primary/20 text-primary dark:text-primary-400 rounded-3xl rounded-tr-md' 
+            : 'mr-auto bg-white/40 dark:bg-white/5 border border-outline-variant/30 text-on-surface rounded-3xl rounded-tl-md'
         )}
       >
         {message}
