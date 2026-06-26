@@ -380,7 +380,7 @@ export function KioskView() {
 
       {/* Top App Bar */}
       <header 
-        className="bg-white/40 dark:bg-[#141316]/60 backdrop-blur-md flex-shrink-0 w-full flex justify-between items-center px-8 h-[54px] pb-1 border-b border-white/20 dark:border-white/10 shadow-sm z-20"
+        className="bg-white/40 dark:bg-[#141316]/60 backdrop-blur-md flex-shrink-0 w-full flex justify-between items-center px-4 h-[54px] pb-1 border-b border-white/20 dark:border-white/10 shadow-sm z-20"
       >
         <div className="text-[26px] font-black tracking-[-0.04em] bg-gradient-to-r from-primary to-tertiary bg-clip-text text-transparent drop-shadow-sm">NEma</div>
         <div className="flex items-center gap-4">
@@ -405,11 +405,11 @@ export function KioskView() {
       </header>
       
       {/* Main Content Area - Bento Grid */}
-      <main className="flex-1 pl-8 pr-4 pt-3 pb-4 overflow-hidden min-h-0 flex flex-col">
-        <div className="flex gap-4 flex-1 min-h-0 pb-2">
+      <main className="flex-1 px-3 pt-2 pb-3 overflow-hidden min-h-0 flex flex-col">
+        <div className="flex gap-3 flex-1 min-h-0 pb-1">
           {/* Left Column: Clock & Navigation — collapses when poster is focused */}
           <div
-            className="flex flex-col gap-3 h-full min-h-0 flex-shrink-0 overflow-hidden transition-all duration-500 ease-in-out"
+            className="flex flex-col gap-2 h-full min-h-0 flex-shrink-0 overflow-hidden transition-all duration-500 ease-in-out"
             style={{ width: focusedEvent ? '0px' : '25%', opacity: focusedEvent ? 0 : 1 }}
           >
             {/* Clock & Weather Card */}
@@ -478,7 +478,7 @@ export function KioskView() {
           </div>
           
           {/* Middle Column: Events Carousel & Microphone — flex-1 fills freed space */}
-          <div className="flex-1 h-full min-h-0 flex flex-col gap-3 min-w-0">
+          <div className="flex-1 h-full min-h-0 flex flex-col gap-2 min-w-0">
             
             <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 overflow-hidden relative flex flex-col min-h-0">
               {navData ? (
