@@ -368,8 +368,11 @@ export function KioskView() {
 
   return (
     <div className="relative text-on-background w-full h-screen overflow-hidden flex flex-col select-none bg-surface/50 dark:bg-[#0a0a0c]" style={{ fontFamily: 'Inter, sans-serif' }}>
-      {/* Clean Premium Background */}
-      <div className="absolute inset-0 -z-20 pointer-events-none bg-background dark:bg-black">
+      {/* Subtle Material You Premium Background */}
+      <div className="absolute inset-0 -z-20 pointer-events-none bg-surface-container-lowest overflow-hidden">
+        {/* Ambient Glowing Blobs */}
+        <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-primary-container/40 dark:bg-primary-container/20 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-tertiary-container/40 dark:bg-tertiary-container/20 rounded-full blur-[140px] pointer-events-none" />
       </div>
 
       {/* Main Content Wrapper (must be above background) */}
@@ -423,7 +426,7 @@ export function KioskView() {
             </div>
             
             {/* Where to? Card — with embedded 3D map */}
-            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/5 rounded-[2rem] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 flex flex-col relative overflow-hidden min-h-0">
+            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 flex flex-col relative overflow-hidden min-h-0">
               <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-primary mb-2 font-bold flex-shrink-0">Where to?</h2>
               
               {/* Embedded 3D Campus Map */}
@@ -477,7 +480,7 @@ export function KioskView() {
           {/* Middle Column: Events Carousel & Microphone — flex-1 fills freed space */}
           <div className="flex-1 h-full min-h-0 flex flex-col gap-3 min-w-0">
             
-            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/5 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 overflow-hidden relative flex flex-col min-h-0">
+            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 overflow-hidden relative flex flex-col min-h-0">
               {navData ? (
                 <div className="flex-1 flex flex-col relative h-full bg-black">
                   <div className="absolute top-4 left-6 right-6 z-20 flex justify-between items-center bg-gray-900/90 border border-gray-700 rounded-2xl px-6 py-3 shadow-2xl backdrop-blur-sm">
@@ -635,7 +638,7 @@ export function KioskView() {
             className="h-full min-h-0 flex-shrink-0 overflow-hidden transition-all duration-500 ease-in-out"
             style={{ width: focusedEvent ? '42%' : '25%' }}
           >
-            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/5 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] h-full flex flex-col min-h-0 overflow-hidden relative">
+            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] h-full flex flex-col min-h-0 overflow-hidden relative">
               {focusedEvent ? (
                 /* Full poster view */
                 <>
