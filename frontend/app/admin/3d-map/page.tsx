@@ -1,10 +1,6 @@
-import dynamic from "next/dynamic";
 import fs from "fs";
 import path from "path";
-
-const NavigationMap = dynamic(() => import("@/components/app/isometric-map"), {
-  ssr: false,
-});
+import MapClient from "./map-client";
 
 // Demo page: load Floor 1 data and display the map
 async function loadFloorData() {
@@ -33,7 +29,7 @@ export default async function ThreeDMapViewer() {
 
   return (
     <div className="w-full h-screen">
-      <NavigationMap
+      <MapClient
         path={demoPath}
         nodes={(data?.nodes || []).map(
           (n: { x: number; z: number; building: string; size?: number[] }) => {

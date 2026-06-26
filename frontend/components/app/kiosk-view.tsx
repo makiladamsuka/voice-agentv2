@@ -1,4 +1,6 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @next/next/no-img-element */
 
 import {
   useSessionContext,
@@ -17,6 +19,7 @@ import React, {
   useCallback,
   Suspense,
 } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { ChatTranscript } from "@/components/app/chat-transcript";
 import { ScrollArea } from "@/components/livekit/scroll-area/scroll-area";
 import { ThemeToggle } from "@/components/app/theme-toggle";
@@ -443,15 +446,15 @@ export function KioskView() {
       <div className="relative z-10 w-full h-full flex flex-col">
         {/* Top App Bar */}
         <header className="bg-transparent flex-shrink-0 w-full flex justify-between items-center px-6 h-[72px] pb-1 z-20">
-          <div className="text-[26px] font-black tracking-[-0.04em] bg-gradient-to-r from-primary to-tertiary bg-clip-text text-transparent drop-shadow-sm">
+          <div className="text-[26px] font-black tracking-[-0.04em] text-on-surface drop-shadow-sm">
             NEma
           </div>
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsUploadModalOpen(true)}
-              className="bg-primary/10 hover:bg-primary/20 text-primary px-5 py-1.5 rounded-full text-[13px] font-bold flex items-center gap-2 transition-all active:scale-95 border border-primary/20 shadow-sm"
+              className="bg-surface-container hover:bg-surface-container-high transition-colors rounded-full px-5 py-2 flex items-center justify-center shadow-sm border border-outline-variant/30 text-on-surface text-[13px] font-bold gap-2 active:scale-95"
             >
-              <UploadCloud className="w-4 h-4" />
+              <UploadCloud className="w-4 h-4 opacity-80" />
               Upload Poster
             </button>
             {isConnected && (
@@ -463,6 +466,22 @@ export function KioskView() {
                 Connected
               </div>
             )}
+            <button
+              onClick={() => {
+                const themes = ["", "pistachio", "coral"];
+                const current = document.documentElement.getAttribute("data-pixel-theme") || "";
+                const nextIdx = (themes.indexOf(current) + 1) % themes.length;
+                if (themes[nextIdx]) {
+                  document.documentElement.setAttribute("data-pixel-theme", themes[nextIdx]);
+                } else {
+                  document.documentElement.removeAttribute("data-pixel-theme");
+                }
+              }}
+              className="bg-surface-container hover:bg-surface-container-high transition-colors rounded-full p-2.5 flex items-center justify-center shadow-sm border border-outline-variant/30 text-on-surface active:scale-95"
+              aria-label="Cycle theme color"
+            >
+              <span className="material-symbols-outlined text-[24px] opacity-80">palette</span>
+            </button>
             <ThemeToggle />
           </div>
         </header>
@@ -471,12 +490,12 @@ export function KioskView() {
         <main className="flex-1 px-3 pt-2 pb-3 overflow-hidden min-h-0 flex flex-col">
           <div className="flex gap-3 flex-1 min-h-0 pb-1">
             {/* Left Column: Clock & Navigation — collapses when poster is focused */}
-            <div
-              className="flex flex-col gap-2 h-full min-h-0 flex-shrink-0 overflow-hidden transition-all duration-500 ease-in-out"
-              style={{
-                width: focusedEvent ? "0px" : "20%",
-                opacity: focusedEvent ? 0 : 1,
-              }}
+            <motion.div
+              layout
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: focusedEvent ? 0 : 1, y: 0, width: focusedEvent ? "0px" : "20%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="flex flex-col gap-2 h-full min-h-0 flex-shrink-0 overflow-hidden"
             >
               {/* Clock & Weather Card */}
               <div className="bg-[#d3e3fd] text-[#041e49] dark:bg-[#004a77] dark:text-[#c2e7ff] rounded-[32px] p-6 pt-10 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0 shadow-sm transition-transform hover:scale-[1.02]">
@@ -501,12 +520,12 @@ export function KioskView() {
 
               {/* Where to? Card — with embedded 3D map */}
               <div className="bg-white dark:bg-[#1e1e1f] shadow-sm rounded-[32px] p-5 flex-1 flex flex-col relative overflow-hidden min-h-0">
-                <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-primary mb-2 font-bold flex-shrink-0">
+                <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-on-surface mb-2 font-bold flex-shrink-0">
                   Where to?
                 </h2>
 
                 {/* Embedded 3D Campus Map */}
-                <div className="flex-1 min-h-0 rounded-[1.5rem] overflow-hidden mb-4 bg-black/5 dark:bg-black/40 border border-black/5 dark:border-white/10 shadow-inner relative">
+                <div className="flex-1 min-h-0 rounded-[1.5rem] overflow-hidden mb-4 bg-surface-container border-none shadow-sm relative">
                   <Suspense
                     fallback={
                       <div className="w-full h-full flex items-center justify-center text-primary/50 animate-pulse text-sm font-semibold">
@@ -552,16 +571,16 @@ export function KioskView() {
                             isConnected ? 100 : 3000,
                           );
                         }}
-                        className={`${i === 0 ? "bg-primary/10 text-primary border border-primary/20 shadow-sm" : "bg-transparent text-on-surface border border-transparent hover:bg-black/5 dark:hover:bg-white/5 hover:border-black/10 dark:hover:border-white/10"} rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-semibold flex-shrink-0`}
+                        className="bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant/30 shadow-sm rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-bold flex-shrink-0"
                       >
-                        <span className="material-symbols-outlined text-[20px] opacity-80">
+                        <span className="material-symbols-outlined text-[20px] opacity-70">
                           {i === 0
                             ? "school"
                             : i === 1
                               ? "apartment"
                               : "meeting_room"}
                         </span>
-                        <span className="truncate">{room.label}</span>
+                        <span className="truncate capitalize">{room.label.toLowerCase()}</span>
                       </button>
                     ))
                   ) : (
@@ -582,15 +601,15 @@ export function KioskView() {
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Middle Column: Events Carousel & Microphone — flex-1 fills freed space */}
-            <div className="flex-1 h-full min-h-0 flex flex-col gap-2 min-w-0">
+            <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.1 }} className="flex-1 h-full min-h-0 flex flex-col gap-2 min-w-0">
               <div className="bg-white dark:bg-[#1e1e1f] shadow-sm rounded-[32px] flex-1 overflow-hidden relative flex flex-col min-h-0">
                 {navData ? (
-                  <div className="flex-1 flex flex-col relative h-full bg-black">
-                    <div className="absolute top-4 left-6 right-6 z-20 flex justify-between items-center bg-gray-900/90 border border-gray-700 rounded-2xl px-6 py-3 shadow-2xl backdrop-blur-sm">
-                      <div className="flex items-center gap-3">
+                  <div className="flex-1 flex flex-col relative h-full bg-surface-container rounded-[32px] overflow-hidden">
+                    <div className="absolute top-4 left-6 right-6 z-20 flex justify-between items-center bg-surface-container-highest border-none rounded-full px-6 py-3 shadow-sm">
+                      <div className="flex items-center gap-3 text-on-surface">
                         <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                         <span className="text-white text-lg font-bold">
                           Navigating to: {navData.destination}
@@ -623,8 +642,19 @@ export function KioskView() {
                 ) : isConnected ? (
                   <div className="flex-1 flex flex-col relative h-full bg-transparent pt-4">
                     {isAgentInitializing && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                        <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
+                        <motion.div
+                          animate={{ scale: [0.7, 1.2, 0.7], opacity: [0.2, 0.6, 0.2] }}
+                          transition={{
+                            duration: 3,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                          }}
+                          className="w-40 h-40 rounded-full bg-primary blur-[40px] absolute"
+                        />
+                        <span className="text-primary font-bold text-[15px] opacity-80 animate-pulse relative z-10">
+                          Waking up agent...
+                        </span>
                       </div>
                     )}
 
@@ -659,7 +689,7 @@ export function KioskView() {
                           />
                         ))
                       ) : (
-                        <div className="absolute inset-0 w-full h-full bg-gradient-to-tr from-surface-variant/80 via-surface/40 to-surface-container/80 animate-breathe"></div>
+                        <div className="absolute inset-0 w-full h-full bg-surface-variant/80 animate-breathe"></div>
                       )}
                     </div>
                     <div className="relative z-10 p-6 flex flex-col h-full bg-gradient-to-t from-black/80 via-black/30 to-transparent text-white">
@@ -773,12 +803,12 @@ export function KioskView() {
                       transform: isConnected
                         ? `scale(${1 + maxVolume * 1.2})`
                         : "scale(0.8)",
-                      opacity: isConnected ? Math.max(0.2, pulseOpacity) : 0,
+                      opacity: isConnected ? Math.max(0.2, pulseOpacity ?? 0) : 0,
                     }}
                   />
                   <button
                     onClick={() => (isConnected ? end() : start())}
-                    className={`relative z-10 w-[64px] h-[64px] text-white rounded-full flex items-center justify-center shadow-md hover:scale-105 transition-transform active:scale-95 border-none ${isConnected ? "bg-error" : "bg-primary text-on-primary"}`}
+                    className={`relative z-10 w-[64px] h-[64px] rounded-full flex items-center justify-center shadow-md hover:scale-105 transition-transform active:scale-95 border-none ${isConnected ? "bg-red-600 text-white" : "bg-black dark:bg-white text-white dark:text-black"}`}
                   >
                     <span className="material-symbols-outlined text-3xl fill-current">
                       {isConnected ? "mic_off" : "mic"}
@@ -786,12 +816,15 @@ export function KioskView() {
                   </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Right Column: Faculty News / Focused Poster — expands when poster is focused */}
-            <div
-              className="h-full min-h-0 flex-shrink-0 overflow-hidden transition-all duration-500 ease-in-out"
-              style={{ width: focusedEvent ? "42%" : "20%" }}
+            <motion.div
+              layout
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0, width: focusedEvent ? "65%" : "20%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.2 }}
+              className="h-full min-h-0 flex-shrink-0 overflow-hidden"
             >
               <div className="bg-white dark:bg-[#1e1e1f] shadow-sm rounded-[32px] h-full flex flex-col min-h-0 overflow-hidden relative">
                 {focusedEvent ? (
@@ -802,7 +835,7 @@ export function KioskView() {
                       <img
                         src={focusedEvent.full_picture}
                         alt={focusedEvent.message}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain bg-black/5 dark:bg-black/40"
                       />
                       {/* Back button */}
                       <button
@@ -856,13 +889,13 @@ export function KioskView() {
                     <div className="flex-1 flex flex-col gap-3 overflow-hidden px-4 pb-5">
                       {localPosts.slice(0, 3).map((post, i) => {
                         const categoryColors: Record<string, string> = {
-                          events: "from-violet-500 to-indigo-500",
-                          competitions: "from-orange-500 to-rose-500",
-                          posts: "from-teal-500 to-cyan-500",
+                          events: "bg-violet-500",
+                          competitions: "bg-orange-500",
+                          posts: "bg-teal-500",
                         };
                         const accent =
                           categoryColors[post.category] ||
-                          "from-primary to-primary-container";
+                          "bg-primary";
                         return (
                           <button
                             key={post.id}
@@ -880,14 +913,14 @@ export function KioskView() {
                                 />
                                 {/* Gradient accent bar on left edge */}
                                 <div
-                                  className={`absolute inset-y-0 left-0 w-1 bg-gradient-to-b ${accent}`}
+                                  className={`absolute inset-y-0 left-0 w-1 ${accent}`}
                                 />
                               </div>
                               {/* Text content */}
                               <div className="flex-1 p-3 min-w-0">
                                 <div className="flex items-center gap-1.5 mb-1.5">
                                   <span
-                                    className={`inline-block w-2 h-2 rounded-full bg-gradient-to-br ${accent} flex-shrink-0`}
+                                    className={`inline-block w-2 h-2 rounded-full ${accent} flex-shrink-0`}
                                   />
                                   <span className="text-[10px] font-bold uppercase tracking-[0.12em] opacity-70">
                                     {post.category.replace(/s$/, "")}
@@ -927,7 +960,7 @@ export function KioskView() {
                   </>
                 )}
               </div>
-            </div>
+            </motion.div>
           </div>
         </main>
 

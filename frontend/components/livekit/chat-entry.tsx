@@ -50,10 +50,10 @@ export const ChatEntry = ({
       </header>
       <div
         className={cn(
-          "text-[18px] leading-relaxed px-5 py-3.5 max-w-[85%] w-fit backdrop-blur-2xl transition-all",
+          "text-[18px] leading-relaxed px-5 py-3.5 max-w-[85%] w-fit transition-all shadow-sm",
           messageOrigin === "local"
-            ? "ml-auto bg-primary/10 dark:bg-primary/20 border border-primary/20 text-primary dark:text-primary-400 rounded-3xl rounded-tr-md"
-            : "mr-auto bg-white/40 dark:bg-white/5 border border-outline-variant/30 text-on-surface rounded-3xl rounded-tl-md",
+            ? "ml-auto bg-primary text-white rounded-[28px] rounded-tr-sm border-none"
+            : "mr-auto bg-surface-container-highest text-on-surface rounded-[28px] rounded-tl-sm border-none",
         )}
       >
         {message}

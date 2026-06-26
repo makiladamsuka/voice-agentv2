@@ -1,4 +1,4 @@
-import { Public_Sans } from "next/font/google";
+import { Outfit } from "next/font/google";
 import localFont from "next/font/local";
 import { headers } from "next/headers";
 import { ThemeProvider } from "@/components/app/theme-provider";
@@ -6,8 +6,8 @@ import { ThemeToggle } from "@/components/app/theme-toggle";
 import { cn, getAppConfig, getStyles } from "@/lib/utils";
 import "@/styles/globals.css";
 
-const publicSans = Public_Sans({
-  variable: "--font-public-sans",
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
 });
 
@@ -53,7 +53,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
       lang="en"
       suppressHydrationWarning
       className={cn(
-        publicSans.variable,
+        outfit.variable,
         commitMono.variable,
         "scroll-smooth font-sans antialiased overflow-hidden w-screen h-screen",
       )}

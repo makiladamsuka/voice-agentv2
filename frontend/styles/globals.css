@@ -170,7 +170,7 @@
 
 @theme inline {
   --font-sans:
-    var(--font-public-sans), ui-sans-serif, system-ui, sans-serif,
+    var(--font-outfit), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-mono:
     var(--font-commit-mono), ui-monospace, SFMono-Regular, Menlo, Monaco,
@@ -260,6 +260,37 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  
+  /* Material You Theming Overrides */
+  [data-pixel-theme="pistachio"] {
+    --primary: #446849;
+    --primary-container: #c6efc7;
+    --on-primary-container: #002107;
+    --surface: #f6fbf3;
+    --surface-container: #eaefe6;
+  }
+  .dark[data-pixel-theme="pistachio"] {
+    --primary: #aaddad;
+    --primary-container: #2c4f33;
+    --on-primary-container: #c6efc7;
+    --surface: #101410;
+    --surface-container: #1e221d;
+  }
+
+  [data-pixel-theme="coral"] {
+    --primary: #8d4a51;
+    --primary-container: #ffd9dc;
+    --on-primary-container: #3b0711;
+    --surface: #fff8f7;
+    --surface-container: #fceae9;
+  }
+  .dark[data-pixel-theme="coral"] {
+    --primary: #ffb3ba;
+    --primary-container: #72333b;
+    --on-primary-container: #ffd9dc;
+    --surface: #1a1112;
+    --surface-container: #271d1e;
   }
 }
 
