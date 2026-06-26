@@ -367,49 +367,19 @@ export function KioskView() {
   };
 
   return (
-    <div className="relative text-on-background w-full h-screen overflow-hidden flex flex-col select-none bg-background/40" style={{ fontFamily: 'Inter, sans-serif' }}>
-      {/* Dynamic Ambient Background Glow */}
-      <div className="absolute inset-0 -z-20 overflow-hidden pointer-events-none bg-background transition-colors duration-1000">
-        <div 
-          className="absolute -top-[15%] -left-[15%] w-[50%] h-[50%] rounded-full blur-[140px] transition-all duration-[2000ms] ease-in-out"
-          style={{
-            background: fbPosts[currentSlide]?.category === 'competitions' ? 'radial-gradient(circle, rgba(249,115,22,0.18) 0%, rgba(244,63,94,0.06) 70%, rgba(255,255,255,0) 100%)' :
-                        fbPosts[currentSlide]?.category === 'events' ? 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, rgba(99,102,241,0.05) 70%, rgba(255,255,255,0) 100%)' :
-                        fbPosts[currentSlide]?.category === 'posts' ? 'radial-gradient(circle, rgba(20,184,166,0.15) 0%, rgba(6,182,212,0.05) 70%, rgba(255,255,255,0) 100%)' :
-                        'radial-gradient(circle, rgba(78,96,118,0.12) 0%, rgba(78,96,118,0.03) 70%, rgba(255,255,255,0) 100%)',
-            animation: 'ambientBlob1 12s ease-in-out infinite'
-          }}
-        />
-        <div 
-          className="absolute -bottom-[15%] -right-[15%] w-[50%] h-[50%] rounded-full blur-[140px] transition-all duration-[2000ms] ease-in-out"
-          style={{
-            background: fbPosts[currentSlide]?.category === 'competitions' ? 'radial-gradient(circle, rgba(244,63,94,0.15) 0%, rgba(249,115,22,0.05) 70%, rgba(255,255,255,0) 100%)' :
-                        fbPosts[currentSlide]?.category === 'events' ? 'radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.05) 70%, rgba(255,255,255,0) 100%)' :
-                        fbPosts[currentSlide]?.category === 'posts' ? 'radial-gradient(circle, rgba(6,182,212,0.15) 0%, rgba(20,184,166,0.05) 70%, rgba(255,255,255,0) 100%)' :
-                        'radial-gradient(circle, rgba(78,96,118,0.12) 0%, rgba(78,96,118,0.03) 70%, rgba(255,255,255,0) 100%)',
-            animation: 'ambientBlob2 12s ease-in-out infinite'
-          }}
-        />
+    <div className="relative text-on-background w-full h-screen overflow-hidden flex flex-col select-none bg-surface/50 dark:bg-[#0a0a0c]" style={{ fontFamily: 'Inter, sans-serif' }}>
+      {/* Subtle Premium Background */}
+      <div className="absolute inset-0 -z-20 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-surface-variant/30 via-background to-background dark:from-white/5 dark:via-black dark:to-black">
+        {/* Optional extremely subtle monochromatic accent */}
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
       </div>
 
       {/* Main Content Wrapper (must be above background) */}
       <div className="relative z-10 w-full h-full flex flex-col">
 
-      <style>{`
-        @keyframes ambientBlob1 {
-          0%, 100% { transform: translate(0px, 0px) scale(1); }
-          50% { transform: translate(30px, 15px) scale(1.1); }
-        }
-        @keyframes ambientBlob2 {
-          0%, 100% { transform: translate(0px, 0px) scale(1); }
-          50% { transform: translate(-30px, -15px) scale(1.1); }
-        }
-      `}</style>
-
       {/* Top App Bar */}
       <header 
-        className="bg-surface dark:bg-[#141316] flex-shrink-0 w-full flex justify-between items-center px-8 h-[54px] pb-1 border-b border-outline-variant/30 dark:border-white/10 shadow-md z-20"
-        style={{ clipPath: 'ellipse(80% 100% at 50% 0%)' }}
+        className="bg-white/40 dark:bg-[#141316]/60 backdrop-blur-md flex-shrink-0 w-full flex justify-between items-center px-8 h-[54px] pb-1 border-b border-white/20 dark:border-white/10 shadow-sm z-20"
       >
         <div className="text-2xl font-bold text-primary tracking-tight">NEma</div>
         <div className="flex items-center gap-4">
@@ -450,12 +420,12 @@ export function KioskView() {
               ) : (
                 <span className="material-symbols-outlined absolute top-3 right-4 text-[24px] opacity-20 fill-current">light_mode</span>
               )}
-              <div className="text-[44px] leading-[44px] tracking-[-0.04em] font-bold text-primary">{time || '10:42'}</div>
+              <div className="text-[64px] leading-[64px] tracking-[-0.04em] font-bold text-primary">{time || '10:42'}</div>
               <div className="text-[14px] leading-[20px] mt-1 font-bold opacity-90">{dateStr || 'Thursday, June 4'}</div>
             </div>
             
             {/* Where to? Card — with embedded 3D map */}
-            <div className="bg-surface-container rounded-3xl p-5 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-0">
+            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/5 rounded-[2rem] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 flex flex-col relative overflow-hidden min-h-0">
               <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-primary mb-2 font-bold flex-shrink-0">Where to?</h2>
               
               {/* Embedded 3D Campus Map */}
@@ -509,7 +479,7 @@ export function KioskView() {
           {/* Middle Column: Events Carousel & Microphone — flex-1 fills freed space */}
           <div className="flex-1 h-full min-h-0 flex flex-col gap-6 min-w-0">
             
-            <div className="bg-secondary-container rounded-3xl shadow-sm flex-1 overflow-hidden relative flex flex-col min-h-0">
+            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/5 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 overflow-hidden relative flex flex-col min-h-0">
               {navData ? (
                 <div className="flex-1 flex flex-col relative h-full bg-black">
                   <div className="absolute top-4 left-6 right-6 z-20 flex justify-between items-center bg-gray-900/90 border border-gray-700 rounded-2xl px-6 py-3 shadow-2xl backdrop-blur-sm">
@@ -531,12 +501,10 @@ export function KioskView() {
                   </Suspense>
                 </div>
               ) : isConnected ? (
-                <div className="flex-1 flex flex-col relative h-full bg-surface-container pt-4">
+                <div className="flex-1 flex flex-col relative h-full bg-transparent pt-4">
                   {isAgentInitializing && (
-                    <div className="absolute inset-0 overflow-hidden pointer-events-none transition-all duration-1000 ease-in-out animate-pulse z-0">
-                      <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-indigo-500 opacity-60 mix-blend-screen rounded-full filter blur-[80px] animate-blob translate-y-1/2"></div>
-                      <div className="absolute bottom-0 left-1/2 w-[450px] h-[400px] bg-purple-500 opacity-60 mix-blend-screen rounded-full filter blur-[80px] animate-blob animation-delay-2000 -translate-x-1/2 translate-y-1/2"></div>
-                      <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-pink-500 opacity-60 mix-blend-screen rounded-full filter blur-[80px] animate-blob animation-delay-4000 translate-y-1/2"></div>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                      <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
                     </div>
                   )}
 
@@ -621,14 +589,7 @@ export function KioskView() {
               )}
             </div>
             {/* Microphone Action Area */}
-            <div className={`flex-shrink-0 min-h-[96px] h-auto py-4 flex items-center justify-center rounded-3xl shadow-sm relative px-4 overflow-hidden transition-all duration-700 ${isConnected ? 'bg-surface-container border border-primary/20' : 'bg-surface-container-low'}`}>
-              
-              {/* Gemini-style Wavy Gradient Background */}
-              <div className={`absolute inset-0 overflow-hidden pointer-events-none transition-all duration-300 ease-in-out ${isThinking ? 'animate-pulse' : ''} ${!isConnected ? 'animate-breathe' : ''}`} style={isConnected ? { transform: `scale(${pulseScale})`, opacity: pulseOpacity } : undefined}>
-                <div className="absolute top-1/2 left-1/4 w-[400px] h-[250px] bg-indigo-500 opacity-80 mix-blend-screen rounded-full filter blur-[60px] animate-blob -translate-y-1/2"></div>
-                <div className="absolute top-1/2 left-1/2 w-[450px] h-[250px] bg-purple-500 opacity-80 mix-blend-screen rounded-full filter blur-[60px] animate-blob animation-delay-2000 -translate-x-1/2 -translate-y-1/2"></div>
-                <div className="absolute top-1/2 right-1/4 w-[400px] h-[250px] bg-pink-500 opacity-80 mix-blend-screen rounded-full filter blur-[60px] animate-blob animation-delay-4000 -translate-y-1/2"></div>
-              </div>
+            <div className={`flex-shrink-0 min-h-[96px] h-auto py-4 flex items-center justify-center rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-2xl relative px-4 overflow-hidden transition-all duration-[50ms] border border-white/20 dark:border-white/5 ${isConnected ? 'bg-white/60 dark:bg-white/10' : 'bg-white/40 dark:bg-white/5'}`} style={{ boxShadow: isConnected ? `0 0 ${maxVolume * 40}px rgba(var(--tw-colors-primary-rgb), ${maxVolume * 0.3})` : undefined }}>
 
               <div className="w-full flex justify-center items-center text-center text-[21px] font-extrabold text-on-surface dark:text-gray-100 tracking-tight leading-[1.2] min-h-[64px] relative z-10 pl-4 pr-20">
                 {!isConnected ? (
@@ -652,10 +613,18 @@ export function KioskView() {
                   </div>
                 )}
               </div>
-              <div className="absolute right-4 z-10">
+              <div className="absolute right-4 z-10 flex items-center justify-center">
+                {/* Premium Voice Amplitude Halo */}
+                <div 
+                  className={`absolute inset-0 rounded-full blur-[12px] pointer-events-none transition-all duration-[50ms] ease-linear ${isThinking ? 'bg-primary/50 animate-pulse' : 'bg-primary/40 dark:bg-white/30'}`}
+                  style={{ 
+                    transform: isConnected ? `scale(${1 + (maxVolume * 1.2)})` : 'scale(0.8)',
+                    opacity: isConnected ? Math.max(0.2, pulseOpacity) : 0 
+                  }}
+                />
                 <button 
                   onClick={() => isConnected ? end() : start()}
-                  className={`w-[56px] h-[56px] text-white rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-transform active:scale-95 border-none ${isConnected ? 'bg-error animate-pulse shadow-error/30' : 'bg-primary shadow-primary/30'}`}
+                  className={`relative z-10 w-[56px] h-[56px] text-white rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-transform active:scale-95 border-none ${isConnected ? 'bg-error shadow-error/30' : 'bg-black dark:bg-white dark:text-black shadow-black/20 dark:shadow-white/20'}`}
                 >
                   <span className="material-symbols-outlined text-3xl fill-current">{isConnected ? 'mic_off' : 'mic'}</span>
                 </button>

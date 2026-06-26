@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const backendDir = process.env.BACKEND_DIR ? path.resolve(process.env.BACKEND_DIR) : path.join(process.cwd(), '..', 'backend');

@@ -33,7 +33,7 @@ export async function GET() {
 
   if (needsRefresh) {
     // Fetch fresh data synchronously so the response is immediately up to date
-    await triggerRSSScrape();
+    await triggerRapidApiScrape();
     try {
       const fileContent = await fs.readFile(CACHE_FILE, 'utf-8');
       const parsed = JSON.parse(fileContent);
@@ -47,44 +47,50 @@ export async function GET() {
   return NextResponse.json(cachedPosts || fallbackData);
 }
 
-async function triggerRSSScrape() {
+async function triggerRapidApiScrape() {
   try {
-    console.log("Starting background RSS scrape for fitmoments...");
-    const response = await fetch("https://rss.app/feeds/PpO8cOM0sBcILogo.xml");
+    const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY?.trim();
+    const FB_PAGE_ID = process.env.FACEBOOK_PAGE_ID?.trim() || "fitmoments";
+    
+    if (!RAPIDAPI_KEY) {
+      console.error("RAPIDAPI_KEY is not set in environment variables.");
+      return;
+    }
+
+    console.log(`Starting background RapidAPI scrape for ${FB_PAGE_ID}...`);
+    
+    const response = await fetch(
+      `https://facebook-pages-scraper2.p.rapidapi.com/get_facebook_posts_details?link=https%3A%2F%2Fwww.facebook.com%2F${FB_PAGE_ID}&timezone=UTC`,
+      {
+        method: "GET",
+        headers: { 
+            "x-rapidapi-key": RAPIDAPI_KEY,
+            "x-rapidapi-host": "facebook-pages-scraper2.p.rapidapi.com"
+        }
+      }
+    );
     
     if (!response.ok) {
-        console.error("RSS API failed:", await response.text());
+        console.error("RapidAPI failed:", await response.text());
         return;
     }
 
-    const xml = await response.text();
+    const json = await response.json();
+    const items = json.data?.posts || [];
     
-    // Parse the XML feed manually using Regex (since this is a simple structured format)
-    const itemRegex = /<item>[\s\S]*?<\/item>/g;
-    const items = xml.match(itemRegex) || [];
-    
-    const formattedPosts = items.slice(0, 5).map((item: string, index: number) => {
-      // Extract Image
-      const imgMatch = item.match(/<media:content[^>]+url="([^"]+)"/);
-      let imgUrl = imgMatch ? imgMatch[1].replace(/&amp;/g, '&') : null;
-      if (!imgUrl) {
-         const descImgMatch = item.match(/<img src="([^"]+)"/);
-         imgUrl = descImgMatch ? descImgMatch[1].replace(/&amp;/g, '&') : null;
+    const formattedPosts = items.slice(0, 5).map((item: any, index: number) => {
+      // Extract Image and Text from ousema.frikha's RapidAPI response format
+      let imgUrl = null;
+      if (item.attachments?.all_subattachments?.nodes?.length > 0) {
+          imgUrl = item.attachments.all_subattachments.nodes[0]?.media?.image?.uri;
       }
-      
-      // Extract Text
-      const titleMatch = item.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/);
-      const message = titleMatch ? titleMatch[1].trim() : "New update from FIT Moments!";
-      
-      // Extract Date
-      const dateMatch = item.match(/<pubDate>([^<]+)<\/pubDate>/);
-      const created_time = dateMatch ? new Date(dateMatch[1]).toISOString() : new Date().toISOString();
+      const message = item.basic_info?.title || "New update from FIT Moments!";
       
       return {
-        id: `rss_${index}_${Date.now()}`,
+        id: `rapidapi_${item.basic_info?.post_id || index}_${Date.now()}`,
         full_picture: imgUrl || "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?ixlib=rb-4.0.3",
         message: message.length > 150 ? message.substring(0, 150) + "..." : message,
-        created_time
+        created_time: item.basic_info?.created_time ? new Date(item.basic_info.created_time).toISOString() : new Date().toISOString()
       };
     });
 
@@ -94,7 +100,7 @@ async function triggerRSSScrape() {
         timestamp: Date.now(),
         posts: formattedPosts
       }, null, 2));
-      console.log("Successfully cached new Facebook posts from RSS.app to disk!");
+      console.log("Successfully cached new Facebook posts from RapidAPI to disk!");
     }
   } catch (err) {
     console.error("Background scrape error:", err);
