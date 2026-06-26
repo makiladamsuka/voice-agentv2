@@ -382,11 +382,11 @@ export function KioskView() {
       <header 
         className="bg-white/40 dark:bg-[#141316]/60 backdrop-blur-md flex-shrink-0 w-full flex justify-between items-center px-8 h-[54px] pb-1 border-b border-white/20 dark:border-white/10 shadow-sm z-20"
       >
-        <div className="text-2xl font-bold text-primary tracking-tight">NEma</div>
+        <div className="text-[26px] font-black tracking-[-0.04em] bg-gradient-to-r from-primary to-tertiary bg-clip-text text-transparent drop-shadow-sm">NEma</div>
         <div className="flex items-center gap-4">
           <button
             onClick={() => setIsUploadModalOpen(true)}
-            className="bg-primary/10 hover:bg-primary/20 text-primary px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 transition-colors"
+            className="bg-primary/10 hover:bg-primary/20 text-primary px-5 py-1.5 rounded-full text-[13px] font-bold flex items-center gap-2 transition-all active:scale-95 border border-primary/20 shadow-sm"
           >
             <UploadCloud className="w-4 h-4" />
             Upload Poster
