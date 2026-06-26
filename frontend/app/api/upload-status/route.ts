@@ -1,25 +1,33 @@
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const backendDir = process.env.BACKEND_DIR ? path.resolve(process.env.BACKEND_DIR) : path.join(process.cwd(), '..', 'backend');
-    const assetsDir = path.join(backendDir, 'assets');
-    const categories = ['events', 'competitions', 'posts'];
+    const backendDir = process.env.BACKEND_DIR
+      ? path.resolve(process.env.BACKEND_DIR)
+      : path.join(process.cwd(), "..", "backend");
+    const assetsDir = path.join(backendDir, "assets");
+    const categories = ["events", "competitions", "posts"];
     let latestTime = 0;
-    let latestFileUrl = '';
-    let latestCategory = '';
+    let latestFileUrl = "";
+    let latestCategory = "";
 
     const allFiles: any[] = [];
 
-    const extractedEventsPath = path.join(backendDir, 'event_db', 'extracted_events.json');
+    const extractedEventsPath = path.join(
+      backendDir,
+      "event_db",
+      "extracted_events.json",
+    );
     let extractedEvents: any[] = [];
     if (fs.existsSync(extractedEventsPath)) {
       try {
-        extractedEvents = JSON.parse(fs.readFileSync(extractedEventsPath, 'utf8'));
+        extractedEvents = JSON.parse(
+          fs.readFileSync(extractedEventsPath, "utf8"),
+        );
       } catch (e) {}
     }
 
@@ -32,15 +40,17 @@ export async function GET() {
         if (!file.match(/\.(jpg|jpeg|png|webp)$/i)) continue;
         const stats = fs.statSync(path.join(categoryDir, file));
         const fileUrl = `/api/image?path=${category}/${file}`;
-        
-        const extractedData = extractedEvents.find((e: any) => e.source_file === file);
-        
+
+        const extractedData = extractedEvents.find(
+          (e: any) => e.source_file === file,
+        );
+
         allFiles.push({
           url: fileUrl,
           category,
           mtimeMs: stats.mtimeMs,
           name: file,
-          extracted: extractedData || null
+          extracted: extractedData || null,
         });
 
         if (stats.mtimeMs > latestTime) {
@@ -54,7 +64,12 @@ export async function GET() {
 
     allFiles.sort((a, b) => b.mtimeMs - a.mtimeMs);
 
-    return NextResponse.json({ lastUpload: latestTime, latestFileUrl, latestCategory, allFiles });
+    return NextResponse.json({
+      lastUpload: latestTime,
+      latestFileUrl,
+      latestCategory,
+      allFiles,
+    });
   } catch (error) {
     return NextResponse.json({ lastUpload: 0 });
   }

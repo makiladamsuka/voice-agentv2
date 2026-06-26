@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
-import { PaperPlaneRightIcon, SpinnerIcon } from '@phosphor-icons/react/dist/ssr';
-import { Button } from '@/components/livekit/button';
+import { useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
+import {
+  PaperPlaneRightIcon,
+  SpinnerIcon,
+} from "@phosphor-icons/react/dist/ssr";
+import { Button } from "@/components/livekit/button";
 
 const MOTION_PROPS = {
   variants: {
@@ -11,15 +14,15 @@ const MOTION_PROPS = {
       marginBottom: 0,
     },
     visible: {
-      height: 'auto',
+      height: "auto",
       opacity: 1,
       marginBottom: 12,
     },
   },
-  initial: 'hidden' as const,
+  initial: "hidden" as const,
   transition: {
     duration: 0.3,
-    ease: 'easeOut' as const,
+    ease: "easeOut" as const,
   },
 };
 
@@ -32,11 +35,11 @@ interface ChatInputProps {
 export function ChatInput({
   chatOpen,
   isAgentAvailable = false,
-  onSend = async () => { },
+  onSend = async () => {},
 }: ChatInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isSending, setIsSending] = useState(false);
-  const [message, setMessage] = useState<string>('');
+  const [message, setMessage] = useState<string>("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -44,7 +47,7 @@ export function ChatInput({
     try {
       setIsSending(true);
       await onSend(message);
-      setMessage('');
+      setMessage("");
     } catch (error) {
       console.error(error);
     } finally {
@@ -52,7 +55,8 @@ export function ChatInput({
     }
   };
 
-  const isDisabled = isSending || !isAgentAvailable || message.trim().length === 0;
+  const isDisabled =
+    isSending || !isAgentAvailable || message.trim().length === 0;
 
   useEffect(() => {
     if (chatOpen && isAgentAvailable) return;
@@ -64,7 +68,7 @@ export function ChatInput({
     <motion.div
       inert={!chatOpen}
       {...MOTION_PROPS}
-      animate={chatOpen ? 'visible' : 'hidden'}
+      animate={chatOpen ? "visible" : "hidden"}
       className="border-input/50 flex w-full items-start overflow-hidden border-b"
     >
       <form
@@ -85,8 +89,8 @@ export function ChatInput({
           size="icon"
           type="submit"
           disabled={isDisabled}
-          variant={isDisabled ? 'secondary' : 'primary'}
-          title={isSending ? 'Sending...' : 'Send'}
+          variant={isDisabled ? "secondary" : "primary"}
+          title={isSending ? "Sending..." : "Send"}
           className="self-start"
         >
           {isSending ? (

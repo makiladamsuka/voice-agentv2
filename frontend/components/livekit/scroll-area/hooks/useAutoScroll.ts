@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 const AUTO_SCROLL_THRESHOLD_PX = 100;
 

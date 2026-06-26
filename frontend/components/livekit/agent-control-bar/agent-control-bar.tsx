@@ -1,17 +1,23 @@
-'use client';
+"use client";
 
-import { type HTMLAttributes, useCallback, useState } from 'react';
-import { Track } from 'livekit-client';
-import { useChat, useRemoteParticipants } from '@livekit/components-react';
-import { ChatTextIcon, PhoneDisconnectIcon } from '@phosphor-icons/react/dist/ssr';
-import { TrackToggle } from '@/components/livekit/agent-control-bar/track-toggle';
-import { Button } from '@/components/livekit/button';
-import { Toggle } from '@/components/livekit/toggle';
-import { cn } from '@/lib/utils';
-import { ChatInput } from './chat-input';
-import { UseInputControlsProps, useInputControls } from './hooks/use-input-controls';
-import { usePublishPermissions } from './hooks/use-publish-permissions';
-import { TrackSelector } from './track-selector';
+import { type HTMLAttributes, useCallback, useState } from "react";
+import { Track } from "livekit-client";
+import { useChat, useRemoteParticipants } from "@livekit/components-react";
+import {
+  ChatTextIcon,
+  PhoneDisconnectIcon,
+} from "@phosphor-icons/react/dist/ssr";
+import { TrackToggle } from "@/components/livekit/agent-control-bar/track-toggle";
+import { Button } from "@/components/livekit/button";
+import { Toggle } from "@/components/livekit/toggle";
+import { cn } from "@/lib/utils";
+import { ChatInput } from "./chat-input";
+import {
+  UseInputControlsProps,
+  useInputControls,
+} from "./hooks/use-input-controls";
+import { usePublishPermissions } from "./hooks/use-publish-permissions";
+import { TrackSelector } from "./track-selector";
 
 export interface ControlBarControls {
   leave?: boolean;
@@ -65,7 +71,7 @@ export function AgentControlBar({
       setChatOpen(open);
       onChatOpenChange?.(open);
     },
-    [onChatOpenChange, setChatOpen]
+    [onChatOpenChange, setChatOpen],
   );
 
   const visibleControls = {
@@ -82,8 +88,8 @@ export function AgentControlBar({
     <div
       aria-label="Voice assistant controls"
       className={cn(
-        'bg-background border-input/50 dark:border-muted flex flex-col rounded-[31px] border p-3 drop-shadow-md/3',
-        className
+        "bg-background border-input/50 dark:border-muted flex flex-col rounded-[31px] border p-3 drop-shadow-md/3",
+        className,
       )}
       {...props}
     >

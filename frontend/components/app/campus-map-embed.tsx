@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { useRef, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Grid, Box, Text, Line } from '@react-three/drei';
-import * as THREE from 'three';
+import React, { useRef, useMemo } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { OrbitControls, Grid, Box, Text, Line } from "@react-three/drei";
+import * as THREE from "three";
 
 // Animated path for edges
 const EdgePath = ({ points }: { points: [number, number, number][] }) => {
@@ -15,7 +15,15 @@ const EdgePath = ({ points }: { points: [number, number, number][] }) => {
   });
   if (points.length < 2) return null;
   return (
-    <Line ref={lineRef} points={points} color="#ef4444" lineWidth={3} dashed dashSize={0.4} gapSize={0.3} />
+    <Line
+      ref={lineRef}
+      points={points}
+      color="#ef4444"
+      lineWidth={3}
+      dashed
+      dashSize={0.4}
+      gapSize={0.3}
+    />
   );
 };
 
@@ -35,7 +43,7 @@ export default function CampusMapEmbed({ mapData }: CampusMapEmbedProps) {
       const b = buildings[node.building] || { position: [0, 0, 0] };
       const wx = b.position[0] + node.x;
       const wz = b.position[2] + node.z;
-      if (node.type === 'waypoint') {
+      if (node.type === "waypoint") {
         positions[node.id] = [wx, 0.1, wz];
       } else {
         const h = node.size ? node.size[1] / 2 : 0.5;
@@ -48,7 +56,9 @@ export default function CampusMapEmbed({ mapData }: CampusMapEmbedProps) {
   if (!mapData) {
     return (
       <div className="w-full h-full flex items-center justify-center text-on-surface-variant/40 text-sm">
-        <span className="material-symbols-outlined text-3xl mr-2 opacity-30">map</span>
+        <span className="material-symbols-outlined text-3xl mr-2 opacity-30">
+          map
+        </span>
         No map data
       </div>
     );
@@ -89,39 +99,47 @@ export default function CampusMapEmbed({ mapData }: CampusMapEmbedProps) {
       ))}
 
       {/* Room Blocks */}
-      {nodes.filter((n: any) => n.type !== 'waypoint').map((node: any) => {
-        const pos = nodePositions[node.id];
-        if (!pos) return null;
-        const size = node.size || [1, 1, 1];
-        return (
-          <group key={node.id} position={pos}>
-            <Box args={size} castShadow>
-              <meshStandardMaterial color="#334155" transparent opacity={0.9} />
-            </Box>
-            <Text
-              position={[0, size[1] / 2 + 0.35, 0]}
-              fontSize={0.3}
-              color="#ffffff"
-              anchorX="center"
-              anchorY="middle"
-            >
-              {node.label}
-            </Text>
-          </group>
-        );
-      })}
+      {nodes
+        .filter((n: any) => n.type !== "waypoint")
+        .map((node: any) => {
+          const pos = nodePositions[node.id];
+          if (!pos) return null;
+          const size = node.size || [1, 1, 1];
+          return (
+            <group key={node.id} position={pos}>
+              <Box args={size} castShadow>
+                <meshStandardMaterial
+                  color="#334155"
+                  transparent
+                  opacity={0.9}
+                />
+              </Box>
+              <Text
+                position={[0, size[1] / 2 + 0.35, 0]}
+                fontSize={0.3}
+                color="#ffffff"
+                anchorX="center"
+                anchorY="middle"
+              >
+                {node.label}
+              </Text>
+            </group>
+          );
+        })}
 
       {/* Waypoints (small teal discs) */}
-      {nodes.filter((n: any) => n.type === 'waypoint').map((node: any) => {
-        const pos = nodePositions[node.id];
-        if (!pos) return null;
-        return (
-          <mesh key={node.id} position={pos} rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[0.2, 16]} />
-            <meshStandardMaterial color="#14b8a6" transparent opacity={0.6} />
-          </mesh>
-        );
-      })}
+      {nodes
+        .filter((n: any) => n.type === "waypoint")
+        .map((node: any) => {
+          const pos = nodePositions[node.id];
+          if (!pos) return null;
+          return (
+            <mesh key={node.id} position={pos} rotation={[-Math.PI / 2, 0, 0]}>
+              <circleGeometry args={[0.2, 16]} />
+              <meshStandardMaterial color="#14b8a6" transparent opacity={0.6} />
+            </mesh>
+          );
+        })}
 
       {/* Edges (paths) */}
       {edges.map((edge: any) => {
@@ -130,7 +148,7 @@ export default function CampusMapEmbed({ mapData }: CampusMapEmbedProps) {
         if (!p1 || !p2) return null;
         const points: [number, number, number][] = [
           [p1[0], 0.15, p1[2]],
-          [p2[0], 0.15, p2[2]]
+          [p2[0], 0.15, p2[2]],
         ];
         return <EdgePath key={edge.id} points={points} />;
       })}

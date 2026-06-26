@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
+@import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -170,11 +170,11 @@
 
 @theme inline {
   --font-sans:
-    var(--font-public-sans), ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
-    'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    var(--font-public-sans), ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-mono:
-    var(--font-commit-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    'Liberation Mono', 'Courier New', monospace;
+    var(--font-commit-mono), ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -332,38 +332,69 @@
 
   /* Neon Pulse Animation for FAB */
   @keyframes neon-pulse {
-      0% { box-shadow: 0 0 0 0 rgba(78, 96, 118, 0.4); }
-      70% { box-shadow: 0 0 0 20px rgba(78, 96, 118, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(78, 96, 118, 0); }
+    0% {
+      box-shadow: 0 0 0 0 rgba(78, 96, 118, 0.4);
+    }
+    70% {
+      box-shadow: 0 0 0 20px rgba(78, 96, 118, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(78, 96, 118, 0);
+    }
   }
   .animate-neon-pulse {
-      animation: neon-pulse 2s infinite;
-      border: 4px solid #d1e4ff;
+    animation: neon-pulse 2s infinite;
+    border: 4px solid #d1e4ff;
   }
 
   /* Text Carousel Animation for 3 items (9s total) */
   @keyframes text-carousel {
-      0%, 5% { opacity: 0; transform: translateY(10px); }
-      15%, 25% { opacity: 1; transform: translateY(0); }
-      30%, 100% { opacity: 0; transform: translateY(-10px); }
-  }
-  
-  .greeting-text {
-      position: absolute;
-      width: 100%;
-      text-align: center;
+    0%,
+    5% {
       opacity: 0;
-      animation: text-carousel 9s infinite ease-in-out;
+      transform: translateY(10px);
+    }
+    15%,
+    25% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    30%,
+    100% {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
   }
-  
-  .greeting-1 { animation-delay: 0s; }
-  .greeting-2 { animation-delay: 3s; }
-  .greeting-3 { animation-delay: 6s; }
+
+  .greeting-text {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    opacity: 0;
+    animation: text-carousel 9s infinite ease-in-out;
+  }
+
+  .greeting-1 {
+    animation-delay: 0s;
+  }
+  .greeting-2 {
+    animation-delay: 3s;
+  }
+  .greeting-3 {
+    animation-delay: 6s;
+  }
 
   /* Custom Scrollbar for Right Column */
-  .kiosk-scrollbar::-webkit-scrollbar { width: 6px; }
-  .kiosk-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .kiosk-scrollbar::-webkit-scrollbar-thumb { background: #e5e1e7; border-radius: 10px; }
+  .kiosk-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .kiosk-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .kiosk-scrollbar::-webkit-scrollbar-thumb {
+    background: #e5e1e7;
+    border-radius: 10px;
+  }
 }
 
 @layer utilities {
@@ -392,8 +423,15 @@
   }
 
   @keyframes breathe {
-    0%, 100% { transform: scale(1); opacity: 0.2; }
-    50% { transform: scale(1.05); opacity: 0.5; }
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.2;
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 0.5;
+    }
   }
 
   .animate-breathe {

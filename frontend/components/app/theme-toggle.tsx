@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useTheme } from 'next-themes';
-import { MoonIcon, SunIcon } from '@phosphor-icons/react';
-import { cn } from '@/lib/utils';
-import { useEffect, useState } from 'react';
+import { useTheme } from "next-themes";
+import { MoonIcon, SunIcon } from "@phosphor-icons/react";
+import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 interface ThemeToggleProps {
   className?: string;
@@ -19,15 +19,15 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
 
   if (!mounted) return null;
 
-  const isDark = resolvedTheme === 'dark';
+  const isDark = resolvedTheme === "dark";
 
   return (
     <button
       type="button"
-      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
       className={cn(
-        'text-primary bg-surface-container hover:bg-surface-container-high transition-colors rounded-full p-2.5 flex items-center justify-center shadow-sm border border-outline-variant/30',
-        className
+        "text-primary bg-surface-container hover:bg-surface-container-high transition-colors rounded-full p-2.5 flex items-center justify-center shadow-sm border border-outline-variant/30",
+        className,
       )}
       aria-label="Toggle theme"
     >

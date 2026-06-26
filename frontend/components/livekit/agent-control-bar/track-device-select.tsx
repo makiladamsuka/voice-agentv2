@@ -1,21 +1,24 @@
-'use client';
+"use client";
 
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { cva } from 'class-variance-authority';
-import { LocalAudioTrack, LocalVideoTrack } from 'livekit-client';
-import { useMaybeRoomContext, useMediaDeviceSelect } from '@livekit/components-react';
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { cva } from "class-variance-authority";
+import { LocalAudioTrack, LocalVideoTrack } from "livekit-client";
+import {
+  useMaybeRoomContext,
+  useMediaDeviceSelect,
+} from "@livekit/components-react";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/livekit/select';
-import { cn } from '@/lib/utils';
+} from "@/components/livekit/select";
+import { cn } from "@/lib/utils";
 
 type DeviceSelectProps = React.ComponentProps<typeof SelectTrigger> & {
   kind: MediaDeviceKind;
-  variant?: 'default' | 'small';
+  variant?: "default" | "small";
   track?: LocalAudioTrack | LocalVideoTrack | undefined;
   requestPermissions?: boolean;
   onMediaDeviceError?: (error: Error) => void;
@@ -24,24 +27,24 @@ type DeviceSelectProps = React.ComponentProps<typeof SelectTrigger> & {
 };
 
 const selectVariants = cva(
-  'w-full rounded-full px-3 py-2 text-sm cursor-pointer disabled:not-allowed',
+  "w-full rounded-full px-3 py-2 text-sm cursor-pointer disabled:not-allowed",
   {
     variants: {
       size: {
-        default: 'w-[180px]',
-        sm: 'w-auto',
+        default: "w-[180px]",
+        sm: "w-auto",
       },
     },
     defaultVariants: {
-      size: 'default',
+      size: "default",
     },
-  }
+  },
 );
 
 export function TrackDeviceSelect({
   kind,
   track,
-  size = 'default',
+  size = "default",
   requestPermissions = false,
   onMediaDeviceError,
   onDeviceListChange,
@@ -50,14 +53,16 @@ export function TrackDeviceSelect({
 }: DeviceSelectProps) {
   const room = useMaybeRoomContext();
   const [open, setOpen] = useState(false);
-  const [requestPermissionsState, setRequestPermissionsState] = useState(requestPermissions);
-  const { devices, activeDeviceId, setActiveMediaDevice } = useMediaDeviceSelect({
-    room,
-    kind,
-    track,
-    requestPermissions: requestPermissionsState,
-    onError: onMediaDeviceError,
-  });
+  const [requestPermissionsState, setRequestPermissionsState] =
+    useState(requestPermissions);
+  const { devices, activeDeviceId, setActiveMediaDevice } =
+    useMediaDeviceSelect({
+      room,
+      kind,
+      track,
+      requestPermissions: requestPermissionsState,
+      onError: onMediaDeviceError,
+    });
 
   useEffect(() => {
     onDeviceListChange?.(devices);
@@ -76,7 +81,10 @@ export function TrackDeviceSelect({
     onActiveDeviceChange?.(deviceId);
   };
 
-  const filteredDevices = useMemo(() => devices.filter((d) => d.deviceId !== ''), [devices]);
+  const filteredDevices = useMemo(
+    () => devices.filter((d) => d.deviceId !== ""),
+    [devices],
+  );
 
   if (filteredDevices.length < 2) {
     return null;
@@ -90,13 +98,20 @@ export function TrackDeviceSelect({
       onValueChange={handleActiveDeviceChange}
     >
       <SelectTrigger className={cn(selectVariants({ size }), props.className)}>
-        {size !== 'sm' && (
-          <SelectValue className="font-mono text-sm" placeholder={`Select a ${kind}`} />
+        {size !== "sm" && (
+          <SelectValue
+            className="font-mono text-sm"
+            placeholder={`Select a ${kind}`}
+          />
         )}
       </SelectTrigger>
       <SelectContent>
         {filteredDevices.map((device) => (
-          <SelectItem key={device.deviceId} value={device.deviceId} className="font-mono text-xs">
+          <SelectItem
+            key={device.deviceId}
+            value={device.deviceId}
+            className="font-mono text-xs"
+          >
             {device.label}
           </SelectItem>
         ))}

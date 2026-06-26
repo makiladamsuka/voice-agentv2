@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import { AnimatePresence, motion } from 'motion/react';
-import { type ReceivedMessage } from '@livekit/components-react';
-import { ShimmerText } from '@/components/livekit/shimmer-text';
-import { cn } from '@/lib/utils';
+import { AnimatePresence, motion } from "motion/react";
+import { type ReceivedMessage } from "@livekit/components-react";
+import { ShimmerText } from "@/components/livekit/shimmer-text";
+import { cn } from "@/lib/utils";
 
-const MotionMessage = motion.create('p');
+const MotionMessage = motion.create("p");
 
 const VIEW_MOTION_PROPS = {
   variants: {
     visible: {
       opacity: 1,
       transition: {
-        ease: 'easeIn' as const,
+        ease: "easeIn" as const,
         duration: 0.5,
         delay: 0.8,
       },
@@ -20,15 +20,15 @@ const VIEW_MOTION_PROPS = {
     hidden: {
       opacity: 0,
       transition: {
-        ease: 'easeIn' as const,
+        ease: "easeIn" as const,
         duration: 0.5,
         delay: 0,
       },
     },
   },
-  initial: 'hidden' as const,
-  animate: 'visible' as const,
-  exit: 'hidden' as const,
+  initial: "hidden" as const,
+  animate: "visible" as const,
+  exit: "hidden" as const,
 };
 
 interface PreConnectMessageProps {
@@ -36,14 +36,17 @@ interface PreConnectMessageProps {
   className?: string;
 }
 
-export function PreConnectMessage({ className, messages = [] }: PreConnectMessageProps) {
+export function PreConnectMessage({
+  className,
+  messages = [],
+}: PreConnectMessageProps) {
   return (
     <AnimatePresence>
       {messages.length === 0 && (
         <MotionMessage
           {...VIEW_MOTION_PROPS}
           aria-hidden={messages.length > 0}
-          className={cn('pointer-events-none text-center', className)}
+          className={cn("pointer-events-none text-center", className)}
         >
           <ShimmerText className="text-sm font-semibold">
             Agent is listening, ask it a question

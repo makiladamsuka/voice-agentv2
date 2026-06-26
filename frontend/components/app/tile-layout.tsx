@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
-import { Track } from 'livekit-client';
-import { AnimatePresence, motion } from 'motion/react';
+import React, { useMemo } from "react";
+import { Track } from "livekit-client";
+import { AnimatePresence, motion } from "motion/react";
 import {
   BarVisualizer,
   type TrackReference,
@@ -8,13 +8,13 @@ import {
   useLocalParticipant,
   useTracks,
   useVoiceAssistant,
-} from '@livekit/components-react';
-import { cn } from '@/lib/utils';
+} from "@livekit/components-react";
+import { cn } from "@/lib/utils";
 
-const MotionContainer = motion.create('div');
+const MotionContainer = motion.create("div");
 
 const ANIMATION_TRANSITION = {
-  type: 'spring' as const,
+  type: "spring" as const,
   stiffness: 675,
   damping: 75,
   mass: 1,
@@ -24,47 +24,64 @@ const classNames = {
   // GRID
   // 2 Columns x 3 Rows
   grid: [
-    'h-full w-full',
-    'grid gap-x-2 place-content-center',
-    'grid-cols-[1fr_1fr] grid-rows-[90px_1fr_90px]',
+    "h-full w-full",
+    "grid gap-x-2 place-content-center",
+    "grid-cols-[1fr_1fr] grid-rows-[90px_1fr_90px]",
   ],
   // Agent
   // chatOpen: true,
   // hasSecondTile: true
   // layout: Column 1 / Row 1
   // align: x-end y-center
-  agentChatOpenWithSecondTile: ['col-start-1 row-start-1', 'self-center justify-self-end'],
+  agentChatOpenWithSecondTile: [
+    "col-start-1 row-start-1",
+    "self-center justify-self-end",
+  ],
   // Agent
   // chatOpen: true,
   // hasSecondTile: false
   // layout: Column 1 / Row 1 / Column-Span 2
   // align: x-center y-center
-  agentChatOpenWithoutSecondTile: ['col-start-1 row-start-1', 'col-span-2', 'place-content-center'],
+  agentChatOpenWithoutSecondTile: [
+    "col-start-1 row-start-1",
+    "col-span-2",
+    "place-content-center",
+  ],
   // Agent
   // chatOpen: false
   // layout: Column 1 / Row 1 / Column-Span 2 / Row-Span 3
   // align: x-center y-center
-  agentChatClosed: ['col-start-1 row-start-1', 'col-span-2 row-span-3', 'place-content-center'],
+  agentChatClosed: [
+    "col-start-1 row-start-1",
+    "col-span-2 row-span-3",
+    "place-content-center",
+  ],
   // Second tile
   // chatOpen: true,
   // hasSecondTile: true
   // layout: Column 2 / Row 1
   // align: x-start y-center
-  secondTileChatOpen: ['col-start-2 row-start-1', 'self-center justify-self-start'],
+  secondTileChatOpen: [
+    "col-start-2 row-start-1",
+    "self-center justify-self-start",
+  ],
   // Second tile
   // chatOpen: false,
   // hasSecondTile: false
   // layout: Column 2 / Row 2
   // align: x-end y-end
-  secondTileChatClosed: ['col-start-2 row-start-3', 'place-content-end'],
+  secondTileChatClosed: ["col-start-2 row-start-3", "place-content-end"],
 };
 
 export function useLocalTrackRef(source: Track.Source) {
   const { localParticipant } = useLocalParticipant();
   const publication = localParticipant.getTrackPublication(source);
   const trackRef = useMemo<TrackReference | undefined>(
-    () => (publication ? { source, participant: localParticipant, publication } : undefined),
-    [source, publication, localParticipant]
+    () =>
+      publication
+        ? { source, participant: localParticipant, publication }
+        : undefined,
+    [source, publication, localParticipant],
   );
   return trackRef;
 }
@@ -80,10 +97,13 @@ export function TileLayout({ chatOpen }: TileLayoutProps) {
     videoTrack: agentVideoTrack,
   } = useVoiceAssistant();
   const [screenShareTrack] = useTracks([Track.Source.ScreenShare]);
-  const cameraTrack: TrackReference | undefined = useLocalTrackRef(Track.Source.Camera);
+  const cameraTrack: TrackReference | undefined = useLocalTrackRef(
+    Track.Source.Camera,
+  );
 
   const isCameraEnabled = cameraTrack && !cameraTrack.publication.isMuted;
-  const isScreenShareEnabled = screenShareTrack && !screenShareTrack.publication.isMuted;
+  const isScreenShareEnabled =
+    screenShareTrack && !screenShareTrack.publication.isMuted;
   const hasSecondTile = isCameraEnabled || isScreenShareEnabled;
 
   const animationDelay = chatOpen ? 0 : 0.15;
@@ -98,10 +118,14 @@ export function TileLayout({ chatOpen }: TileLayoutProps) {
           {/* Agent */}
           <div
             className={cn([
-              'grid',
+              "grid",
               !chatOpen && classNames.agentChatClosed,
-              chatOpen && hasSecondTile && classNames.agentChatOpenWithSecondTile,
-              chatOpen && !hasSecondTile && classNames.agentChatOpenWithoutSecondTile,
+              chatOpen &&
+                hasSecondTile &&
+                classNames.agentChatOpenWithSecondTile,
+              chatOpen &&
+                !hasSecondTile &&
+                classNames.agentChatOpenWithoutSecondTile,
             ])}
           >
             <AnimatePresence mode="popLayout">
@@ -114,13 +138,13 @@ export function TileLayout({ chatOpen }: TileLayoutProps) {
                     scale: 1,
                     opacity: 1,
                     maskImage:
-                      'radial-gradient(circle, rgba(0, 0, 0, 1) 0, rgba(0, 0, 0, 1) 20px, transparent 20px)',
-                    filter: 'blur(20px)',
+                      "radial-gradient(circle, rgba(0, 0, 0, 1) 0, rgba(0, 0, 0, 1) 20px, transparent 20px)",
+                    filter: "blur(20px)",
                   }}
                   animate={{
                     maskImage:
-                      'radial-gradient(circle, rgba(0, 0, 0, 1) 0, rgba(0, 0, 0, 1) 500px, transparent 500px)',
-                    filter: 'blur(0px)',
+                      "radial-gradient(circle, rgba(0, 0, 0, 1) 0, rgba(0, 0, 0, 1) 500px, transparent 500px)",
+                    filter: "blur(0px)",
                     borderRadius: chatOpen ? 6 : 12,
                   }}
                   transition={{
@@ -134,15 +158,15 @@ export function TileLayout({ chatOpen }: TileLayoutProps) {
                     },
                   }}
                   className={cn(
-                    'overflow-hidden bg-black drop-shadow-xl/80',
-                    chatOpen ? 'h-[90px]' : 'h-auto w-full'
+                    "overflow-hidden bg-black drop-shadow-xl/80",
+                    chatOpen ? "h-[90px]" : "h-auto w-full",
                   )}
                 >
                   <VideoTrack
                     width={videoWidth}
                     height={videoHeight}
                     trackRef={agentVideoTrack}
-                    className={cn(chatOpen && 'size-[90px] object-cover')}
+                    className={cn(chatOpen && "size-[90px] object-cover")}
                   />
                 </MotionContainer>
               )}
@@ -151,14 +175,15 @@ export function TileLayout({ chatOpen }: TileLayoutProps) {
 
           <div
             className={cn([
-              'grid',
+              "grid",
               chatOpen && classNames.secondTileChatOpen,
               !chatOpen && classNames.secondTileChatClosed,
             ])}
           >
             {/* Camera & Screen Share */}
             <AnimatePresence>
-              {((cameraTrack && isCameraEnabled) || (screenShareTrack && isScreenShareEnabled)) && (
+              {((cameraTrack && isCameraEnabled) ||
+                (screenShareTrack && isScreenShareEnabled)) && (
                 <MotionContainer
                   key="camera"
                   layout="position"
@@ -183,8 +208,14 @@ export function TileLayout({ chatOpen }: TileLayoutProps) {
                 >
                   <VideoTrack
                     trackRef={cameraTrack || screenShareTrack}
-                    width={(cameraTrack || screenShareTrack)?.publication.dimensions?.width ?? 0}
-                    height={(cameraTrack || screenShareTrack)?.publication.dimensions?.height ?? 0}
+                    width={
+                      (cameraTrack || screenShareTrack)?.publication.dimensions
+                        ?.width ?? 0
+                    }
+                    height={
+                      (cameraTrack || screenShareTrack)?.publication.dimensions
+                        ?.height ?? 0
+                    }
                     className="bg-muted aspect-square w-[90px] rounded-md object-cover"
                   />
                 </MotionContainer>

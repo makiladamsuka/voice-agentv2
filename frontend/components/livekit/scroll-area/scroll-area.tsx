@@ -1,47 +1,50 @@
-'use client';
+"use client";
 
-import { forwardRef, useCallback, useRef } from 'react';
-import { useAutoScroll } from '@/components/livekit/scroll-area/hooks/useAutoScroll';
-import { cn } from '@/lib/utils';
+import { forwardRef, useCallback, useRef } from "react";
+import { useAutoScroll } from "@/components/livekit/scroll-area/hooks/useAutoScroll";
+import { cn } from "@/lib/utils";
 
 interface ScrollAreaProps {
   children?: React.ReactNode;
   className?: string;
 }
 
-export const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(function ScrollArea(
-  { className, children },
-  ref
-) {
-  const scrollContentRef = useRef<HTMLDivElement>(null);
+export const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(
+  function ScrollArea({ className, children }, ref) {
+    const scrollContentRef = useRef<HTMLDivElement>(null);
 
-  useAutoScroll(scrollContentRef.current);
+    useAutoScroll(scrollContentRef.current);
 
-  const mergedRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      scrollContentRef.current = node;
+    const mergedRef = useCallback(
+      (node: HTMLDivElement | null) => {
+        scrollContentRef.current = node;
 
-      if (typeof ref === 'function') {
-        ref(node);
-      } else if (ref) {
-        ref.current = node;
-      }
-    },
-    [ref]
-  );
+        if (typeof ref === "function") {
+          ref(node);
+        } else if (ref) {
+          ref.current = node;
+        }
+      },
+      [ref],
+    );
 
-  return (
-    <div 
-      ref={mergedRef} 
-      className={cn('overflow-y-auto scroll-smooth', className)}
-      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-    >
-      <style dangerouslySetInnerHTML={{__html: `
+    return (
+      <div
+        ref={mergedRef}
+        className={cn("overflow-y-auto scroll-smooth", className)}
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
         div::-webkit-scrollbar {
           display: none;
         }
-      `}} />
-      <div>{children}</div>
-    </div>
-  );
-});
+      `,
+          }}
+        />
+        <div>{children}</div>
+      </div>
+    );
+  },
+);

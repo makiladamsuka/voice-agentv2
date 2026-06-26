@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import type { AppConfig } from '@/app-config';
-import { KioskView } from '@/components/app/kiosk-view';
+import type { AppConfig } from "@/app-config";
+import { KioskView } from "@/components/app/kiosk-view";
 
 interface ViewControllerProps {
   appConfig: AppConfig;

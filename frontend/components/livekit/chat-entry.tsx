@@ -1,5 +1,5 @@
-import * as React from 'react';
-import { cn } from '@/lib/utils';
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 export interface ChatEntryProps extends React.HTMLAttributes<HTMLLIElement> {
   /** The locale to use for the timestamp. */
@@ -9,7 +9,7 @@ export interface ChatEntryProps extends React.HTMLAttributes<HTMLLIElement> {
   /** The message to display. */
   message: string;
   /** The origin of the message. */
-  messageOrigin: 'local' | 'remote';
+  messageOrigin: "local" | "remote";
   /** The sender's name. */
   name?: string;
   /** Whether the message has been edited. */
@@ -27,33 +27,33 @@ export const ChatEntry = ({
   ...props
 }: ChatEntryProps) => {
   const time = new Date(timestamp);
-  const title = time.toLocaleTimeString(locale, { timeStyle: 'full' });
+  const title = time.toLocaleTimeString(locale, { timeStyle: "full" });
 
   return (
     <li
       title={title}
       data-lk-message-origin={messageOrigin}
-      className={cn('group flex w-full flex-col gap-2', className)}
+      className={cn("group flex w-full flex-col gap-2", className)}
       {...props}
     >
       <header
         className={cn(
-          'text-on-surface/60 flex items-center gap-2 text-[13px] font-medium tracking-wide px-1',
-          messageOrigin === 'local' ? 'flex-row-reverse' : 'text-left'
+          "text-on-surface/60 flex items-center gap-2 text-[13px] font-medium tracking-wide px-1",
+          messageOrigin === "local" ? "flex-row-reverse" : "text-left",
         )}
       >
         {name && <strong className="text-sm">{name}</strong>}
         <span className="opacity-50 transition-opacity ease-linear group-hover:opacity-100 uppercase">
-          {hasBeenEdited && '*'}
-          {time.toLocaleTimeString(locale, { timeStyle: 'short' })}
+          {hasBeenEdited && "*"}
+          {time.toLocaleTimeString(locale, { timeStyle: "short" })}
         </span>
       </header>
       <div
         className={cn(
-          'text-[18px] leading-relaxed px-5 py-3.5 max-w-[85%] w-fit backdrop-blur-2xl transition-all',
-          messageOrigin === 'local' 
-            ? 'ml-auto bg-primary/10 dark:bg-primary/20 border border-primary/20 text-primary dark:text-primary-400 rounded-3xl rounded-tr-md' 
-            : 'mr-auto bg-white/40 dark:bg-white/5 border border-outline-variant/30 text-on-surface rounded-3xl rounded-tl-md'
+          "text-[18px] leading-relaxed px-5 py-3.5 max-w-[85%] w-fit backdrop-blur-2xl transition-all",
+          messageOrigin === "local"
+            ? "ml-auto bg-primary/10 dark:bg-primary/20 border border-primary/20 text-primary dark:text-primary-400 rounded-3xl rounded-tr-md"
+            : "mr-auto bg-white/40 dark:bg-white/5 border border-outline-variant/30 text-on-surface rounded-3xl rounded-tl-md",
         )}
       >
         {message}

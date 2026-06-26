@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
 import {
   BarVisualizer,
   type TrackReferenceOrPlaceholder,
   useTrackToggle,
-} from '@livekit/components-react';
-import { TrackDeviceSelect } from '@/components/livekit/agent-control-bar/track-device-select';
-import { TrackToggle } from '@/components/livekit/agent-control-bar/track-toggle';
-import { cn } from '@/lib/utils';
+} from "@livekit/components-react";
+import { TrackDeviceSelect } from "@/components/livekit/agent-control-bar/track-device-select";
+import { TrackToggle } from "@/components/livekit/agent-control-bar/track-toggle";
+import { cn } from "@/lib/utils";
 
 interface TrackSelectorProps {
   kind: MediaDeviceKind;
-  source: Parameters<typeof useTrackToggle>[0]['source'];
+  source: Parameters<typeof useTrackToggle>[0]["source"];
   pressed?: boolean;
   pending?: boolean;
   disabled?: boolean;
@@ -35,7 +35,7 @@ export function TrackSelector({
   onActiveDeviceChange,
 }: TrackSelectorProps) {
   return (
-    <div className={cn('flex items-center gap-0', className)}>
+    <div className={cn("flex items-center gap-0", className)}>
       <TrackToggle
         size="icon"
         variant="primary"
@@ -55,9 +55,9 @@ export function TrackSelector({
           >
             <span
               className={cn([
-                'h-full w-0.5 origin-center rounded-2xl',
-                'group-data-[state=on]/track:bg-foreground group-data-[state=off]/track:bg-destructive',
-                'data-lk-muted:bg-muted',
+                "h-full w-0.5 origin-center rounded-2xl",
+                "group-data-[state=on]/track:bg-foreground group-data-[state=off]/track:bg-destructive",
+                "data-lk-muted:bg-muted",
               ])}
             />
           </BarVisualizer>
@@ -71,11 +71,11 @@ export function TrackSelector({
         onMediaDeviceError={onMediaDeviceError}
         onActiveDeviceChange={onActiveDeviceChange}
         className={cn([
-          'rounded-l-none pl-2',
-          'peer-data-[state=off]/track:text-destructive',
-          'hover:text-foreground focus:text-foreground',
-          'hover:peer-data-[state=off]/track:text-foreground',
-          'focus:peer-data-[state=off]/track:text-destructive',
+          "rounded-l-none pl-2",
+          "peer-data-[state=off]/track:text-destructive",
+          "hover:text-foreground focus:text-foreground",
+          "hover:peer-data-[state=off]/track:text-foreground",
+          "focus:peer-data-[state=off]/track:text-destructive",
         ])}
       />
     </div>
