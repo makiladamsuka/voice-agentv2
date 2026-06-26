@@ -369,10 +369,10 @@ export function KioskView() {
   return (
     <div className="relative text-on-background w-full h-screen overflow-hidden flex flex-col select-none bg-surface/50 dark:bg-[#0a0a0c]" style={{ fontFamily: 'Inter, sans-serif' }}>
       {/* Subtle Material You Premium Background */}
-      <div className="absolute inset-0 -z-20 pointer-events-none bg-surface-container-lowest overflow-hidden">
+      <div className="absolute inset-0 -z-20 pointer-events-none bg-surface-container dark:bg-[#0a0a0c] overflow-hidden">
         {/* Ambient Glowing Blobs */}
-        <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-primary-container/40 dark:bg-primary-container/20 rounded-full blur-[140px] pointer-events-none" />
-        <div className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-tertiary-container/40 dark:bg-tertiary-container/20 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-primary-container/60 dark:bg-primary-container/20 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-tertiary-container/60 dark:bg-tertiary-container/20 rounded-full blur-[140px] pointer-events-none" />
       </div>
 
       {/* Main Content Wrapper (must be above background) */}
@@ -413,7 +413,7 @@ export function KioskView() {
             style={{ width: focusedEvent ? '0px' : '25%', opacity: focusedEvent ? 0 : 1 }}
           >
             {/* Clock & Weather Card */}
-            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/5 rounded-[2rem] p-5 pt-8 flex flex-col items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] relative overflow-hidden flex-shrink-0">
+            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] p-5 pt-8 flex flex-col items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] relative overflow-hidden flex-shrink-0">
               {weather ? (
                 <div className="absolute top-3 right-4 flex items-center opacity-80 text-primary">
                   <span className="material-symbols-outlined text-[24px] fill-current">{weather.icon}</span>
@@ -426,13 +426,13 @@ export function KioskView() {
             </div>
             
             {/* Where to? Card — with embedded 3D map */}
-            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 flex flex-col relative overflow-hidden min-h-0">
+            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 flex flex-col relative overflow-hidden min-h-0">
               <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-primary mb-2 font-bold flex-shrink-0">Where to?</h2>
               
               {/* Embedded 3D Campus Map */}
-              <div className="flex-1 min-h-0 rounded-2xl overflow-hidden mb-3 bg-[#1e2024]">
+              <div className="flex-1 min-h-0 rounded-[1.5rem] overflow-hidden mb-4 bg-black/5 dark:bg-black/40 border border-black/5 dark:border-white/10 shadow-inner relative">
                 <Suspense fallback={
-                  <div className="w-full h-full flex items-center justify-center text-white/30 animate-pulse text-sm">
+                  <div className="w-full h-full flex items-center justify-center text-primary/50 animate-pulse text-sm font-semibold">
                     Loading map...
                   </div>
                 }>
@@ -455,21 +455,21 @@ export function KioskView() {
                           }
                         }, isConnected ? 100 : 3000);
                       }}
-                      className={`${i === 0 ? 'bg-primary/90 hover:bg-primary text-on-primary shadow-md' : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-on-surface'} border border-white/20 dark:border-white/5 backdrop-blur-md rounded-2xl h-[44px] w-full text-[14px] flex items-center justify-center gap-2 transition-all active:scale-95 font-semibold flex-shrink-0`}
+                      className={`${i === 0 ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'bg-transparent text-on-surface border border-transparent hover:bg-black/5 dark:hover:bg-white/5 hover:border-black/10 dark:hover:border-white/10'} rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-semibold flex-shrink-0`}
                     >
-                      <span className="material-symbols-outlined text-[18px] opacity-80">{i === 0 ? 'school' : i === 1 ? 'apartment' : 'meeting_room'}</span>
-                      {room.label}
+                      <span className="material-symbols-outlined text-[20px] opacity-80">{i === 0 ? 'school' : i === 1 ? 'apartment' : 'meeting_room'}</span>
+                      <span className="truncate">{room.label}</span>
                     </button>
                   ))
                 ) : (
                   <>
-                    <button className="bg-primary/90 hover:bg-primary text-on-primary shadow-md border border-white/20 dark:border-white/5 backdrop-blur-md rounded-2xl h-[44px] w-full text-[14px] flex items-center justify-center gap-2 transition-all active:scale-95 font-semibold flex-shrink-0">
-                      <span className="material-symbols-outlined text-[18px] opacity-80">school</span>
-                      Dean's Office
+                    <button className="bg-primary/10 text-primary border border-primary/20 shadow-sm rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-semibold flex-shrink-0">
+                      <span className="material-symbols-outlined text-[20px] opacity-80">school</span>
+                      <span className="truncate">Dean's Office</span>
                     </button>
-                    <button className="bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-on-surface border border-white/20 dark:border-white/5 backdrop-blur-md rounded-2xl h-[44px] w-full text-[14px] flex items-center justify-center gap-2 transition-all active:scale-95 font-semibold flex-shrink-0">
-                      <span className="material-symbols-outlined text-[18px] opacity-80">apartment</span>
-                      Main Hall
+                    <button className="bg-transparent text-on-surface border border-transparent hover:bg-black/5 dark:hover:bg-white/5 hover:border-black/10 dark:hover:border-white/10 rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-semibold flex-shrink-0">
+                      <span className="material-symbols-outlined text-[20px] opacity-80">apartment</span>
+                      <span className="truncate">Main Hall</span>
                     </button>
                   </>
                 )}
@@ -480,7 +480,7 @@ export function KioskView() {
           {/* Middle Column: Events Carousel & Microphone — flex-1 fills freed space */}
           <div className="flex-1 h-full min-h-0 flex flex-col gap-3 min-w-0">
             
-            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 overflow-hidden relative flex flex-col min-h-0">
+            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 overflow-hidden relative flex flex-col min-h-0">
               {navData ? (
                 <div className="flex-1 flex flex-col relative h-full bg-black">
                   <div className="absolute top-4 left-6 right-6 z-20 flex justify-between items-center bg-gray-900/90 border border-gray-700 rounded-2xl px-6 py-3 shadow-2xl backdrop-blur-sm">
@@ -590,7 +590,7 @@ export function KioskView() {
               )}
             </div>
             {/* Microphone Action Area */}
-            <div className={`flex-shrink-0 min-h-[96px] h-auto py-4 flex items-center justify-center rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-2xl relative px-4 overflow-hidden transition-all duration-[50ms] border border-white/20 dark:border-white/5 ${isConnected ? 'bg-white/60 dark:bg-white/10' : 'bg-white/40 dark:bg-white/5'}`} style={{ boxShadow: isConnected ? `0 0 ${maxVolume * 40}px rgba(var(--tw-colors-primary-rgb), ${maxVolume * 0.3})` : undefined }}>
+            <div className={`flex-shrink-0 min-h-[96px] h-auto py-4 flex items-center justify-center rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-2xl relative px-4 overflow-hidden transition-all duration-[50ms] border border-white/20 dark:border-white/5 ${isConnected ? 'bg-white/90 dark:bg-white/10' : 'bg-white/80 dark:bg-white/5'}`} style={{ boxShadow: isConnected ? `0 0 ${maxVolume * 40}px rgba(var(--tw-colors-primary-rgb), ${maxVolume * 0.3})` : undefined }}>
 
               <div className="w-full flex justify-center items-center text-center text-[21px] font-extrabold text-on-surface dark:text-gray-100 tracking-tight leading-[1.2] min-h-[64px] relative z-10 pl-4 pr-20">
                 {!isConnected ? (
@@ -638,7 +638,7 @@ export function KioskView() {
             className="h-full min-h-0 flex-shrink-0 overflow-hidden transition-all duration-500 ease-in-out"
             style={{ width: focusedEvent ? '42%' : '25%' }}
           >
-            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] h-full flex flex-col min-h-0 overflow-hidden relative">
+            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] h-full flex flex-col min-h-0 overflow-hidden relative">
               {focusedEvent ? (
                 /* Full poster view */
                 <>
