@@ -367,9 +367,9 @@ export function KioskView() {
   };
 
   return (
-    <div className="relative text-on-background w-full h-screen overflow-hidden flex flex-col select-none bg-surface/50 dark:bg-[#0a0a0c]" style={{ fontFamily: 'Inter, sans-serif' }}>
+    <div className="relative text-on-background w-full h-screen overflow-hidden flex flex-col select-none bg-surface-container dark:bg-[#0a0a0c]" style={{ fontFamily: 'Inter, sans-serif' }}>
       {/* Subtle Material You Premium Background */}
-      <div className="absolute inset-0 -z-20 pointer-events-none bg-surface-container dark:bg-[#0a0a0c] overflow-hidden">
+      <div className="absolute inset-0 -z-20 pointer-events-none bg-surface-variant/40 dark:bg-transparent overflow-hidden">
         {/* Ambient Glowing Blobs */}
         <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-primary-container/60 dark:bg-primary-container/20 rounded-full blur-[140px] pointer-events-none" />
         <div className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-tertiary-container/60 dark:bg-tertiary-container/20 rounded-full blur-[140px] pointer-events-none" />
