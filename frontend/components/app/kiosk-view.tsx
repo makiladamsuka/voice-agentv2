@@ -427,10 +427,10 @@ export function KioskView() {
             
             {/* Where to? Card — with embedded 3D map */}
             <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-[2rem] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] flex-1 flex flex-col relative overflow-hidden min-h-0">
-              <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-on-surface mb-2 font-bold flex-shrink-0">Where to?</h2>
+              <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-primary mb-2 font-bold flex-shrink-0">Where to?</h2>
               
               {/* Embedded 3D Campus Map */}
-              <div className="flex-1 min-h-0 rounded-2xl overflow-hidden mb-3 bg-[#1e2024] border border-white/20 dark:border-white/5 shadow-inner">
+              <div className="flex-1 min-h-0 rounded-2xl overflow-hidden mb-3 bg-[#1e2024]">
                 <Suspense fallback={
                   <div className="w-full h-full flex items-center justify-center text-white/30 animate-pulse text-sm">
                     Loading map...
@@ -455,7 +455,7 @@ export function KioskView() {
                           }
                         }, isConnected ? 100 : 3000);
                       }}
-                      className={`${i === 0 ? 'bg-primary/10 hover:bg-primary/20 border-primary/30 text-primary shadow-sm' : 'bg-white/50 dark:bg-black/20 hover:bg-white/70 dark:hover:bg-black/40 border-white/40 dark:border-white/10 text-on-surface'} border backdrop-blur-md rounded-2xl h-[44px] w-full text-[14px] flex items-center justify-center gap-2 transition-all active:scale-95 font-semibold flex-shrink-0`}
+                      className={`${i === 0 ? 'bg-primary/90 hover:bg-primary text-on-primary shadow-md' : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-on-surface'} border border-white/20 dark:border-white/5 backdrop-blur-md rounded-2xl h-[44px] w-full text-[14px] flex items-center justify-center gap-2 transition-all active:scale-95 font-semibold flex-shrink-0`}
                     >
                       <span className="material-symbols-outlined text-[18px] opacity-80">{i === 0 ? 'school' : i === 1 ? 'apartment' : 'meeting_room'}</span>
                       {room.label}
@@ -463,11 +463,11 @@ export function KioskView() {
                   ))
                 ) : (
                   <>
-                    <button className="bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary shadow-sm backdrop-blur-md rounded-2xl h-[44px] w-full text-[14px] flex items-center justify-center gap-2 transition-all active:scale-95 font-semibold flex-shrink-0">
+                    <button className="bg-primary/90 hover:bg-primary text-on-primary shadow-md border border-white/20 dark:border-white/5 backdrop-blur-md rounded-2xl h-[44px] w-full text-[14px] flex items-center justify-center gap-2 transition-all active:scale-95 font-semibold flex-shrink-0">
                       <span className="material-symbols-outlined text-[18px] opacity-80">school</span>
                       Dean's Office
                     </button>
-                    <button className="bg-white/50 dark:bg-black/20 hover:bg-white/70 dark:hover:bg-black/40 border border-white/40 dark:border-white/10 text-on-surface backdrop-blur-md rounded-2xl h-[44px] w-full text-[14px] flex items-center justify-center gap-2 transition-all active:scale-95 font-semibold flex-shrink-0">
+                    <button className="bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-on-surface border border-white/20 dark:border-white/5 backdrop-blur-md rounded-2xl h-[44px] w-full text-[14px] flex items-center justify-center gap-2 transition-all active:scale-95 font-semibold flex-shrink-0">
                       <span className="material-symbols-outlined text-[18px] opacity-80">apartment</span>
                       Main Hall
                     </button>
