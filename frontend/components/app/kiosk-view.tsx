@@ -412,7 +412,7 @@ export function KioskView() {
             style={{ width: focusedEvent ? '0px' : '25%', opacity: focusedEvent ? 0 : 1 }}
           >
             {/* Clock & Weather Card */}
-            <div className="bg-primary-container text-on-primary-container rounded-3xl p-5 pt-8 flex flex-col items-center justify-center shadow-sm relative overflow-hidden flex-shrink-0">
+            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/5 rounded-[2rem] p-5 pt-8 flex flex-col items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] relative overflow-hidden flex-shrink-0">
               {weather ? (
                 <div className="absolute top-3 right-4 flex items-center opacity-80 text-primary">
                   <span className="material-symbols-outlined text-[24px] fill-current">{weather.icon}</span>
@@ -420,8 +420,8 @@ export function KioskView() {
               ) : (
                 <span className="material-symbols-outlined absolute top-3 right-4 text-[24px] opacity-20 fill-current">light_mode</span>
               )}
-              <div className="text-[64px] leading-[64px] tracking-[-0.04em] font-bold text-primary">{time || '10:42'}</div>
-              <div className="text-[14px] leading-[20px] mt-1 font-bold opacity-90">{dateStr || 'Thursday, June 4'}</div>
+              <div className="text-[64px] leading-[64px] tracking-[-0.04em] font-bold text-black dark:text-white">{time || '10:42'}</div>
+              <div className="text-[14px] leading-[20px] mt-1 font-semibold opacity-80">{dateStr || 'Thursday, June 4'}</div>
             </div>
             
             {/* Where to? Card — with embedded 3D map */}
@@ -454,20 +454,20 @@ export function KioskView() {
                           }
                         }, isConnected ? 100 : 3000);
                       }}
-                      className={`${i === 0 ? 'bg-primary text-on-primary shadow-md' : 'bg-surface-variant text-on-surface-variant shadow-sm border border-outline-variant'} rounded-full h-[44px] w-full text-[15px] flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95 font-bold flex-shrink-0`}
+                      className={`${i === 0 ? 'bg-primary/90 hover:bg-primary text-on-primary shadow-md' : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-on-surface'} border border-white/20 dark:border-white/5 backdrop-blur-md rounded-2xl h-[44px] w-full text-[14px] flex items-center justify-center gap-2 transition-all active:scale-95 font-semibold flex-shrink-0`}
                     >
-                      <span className="material-symbols-outlined text-xl">{i === 0 ? 'school' : i === 1 ? 'apartment' : 'meeting_room'}</span>
+                      <span className="material-symbols-outlined text-[18px] opacity-80">{i === 0 ? 'school' : i === 1 ? 'apartment' : 'meeting_room'}</span>
                       {room.label}
                     </button>
                   ))
                 ) : (
                   <>
-                    <button className="bg-primary text-on-primary rounded-full h-[44px] w-full text-[15px] flex items-center justify-center gap-2 shadow-md font-bold flex-shrink-0">
-                      <span className="material-symbols-outlined text-xl">school</span>
+                    <button className="bg-primary/90 hover:bg-primary text-on-primary shadow-md border border-white/20 dark:border-white/5 backdrop-blur-md rounded-2xl h-[44px] w-full text-[14px] flex items-center justify-center gap-2 transition-all active:scale-95 font-semibold flex-shrink-0">
+                      <span className="material-symbols-outlined text-[18px] opacity-80">school</span>
                       Dean's Office
                     </button>
-                    <button className="bg-surface-variant text-on-surface-variant rounded-full h-[44px] w-full text-[15px] flex items-center justify-center gap-2 shadow-sm border border-outline-variant font-bold flex-shrink-0">
-                      <span className="material-symbols-outlined text-xl">apartment</span>
+                    <button className="bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-on-surface border border-white/20 dark:border-white/5 backdrop-blur-md rounded-2xl h-[44px] w-full text-[14px] flex items-center justify-center gap-2 transition-all active:scale-95 font-semibold flex-shrink-0">
+                      <span className="material-symbols-outlined text-[18px] opacity-80">apartment</span>
                       Main Hall
                     </button>
                   </>
@@ -637,7 +637,7 @@ export function KioskView() {
             className="h-full min-h-0 flex-shrink-0 overflow-hidden transition-all duration-500 ease-in-out"
             style={{ width: focusedEvent ? '42%' : '25%' }}
           >
-            <div className="bg-primary text-on-primary rounded-3xl shadow-md h-full flex flex-col border-4 border-primary-container/30 min-h-0 overflow-hidden relative">
+            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/5 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] h-full flex flex-col min-h-0 overflow-hidden relative">
               {focusedEvent ? (
                 /* Full poster view */
                 <>
@@ -659,19 +659,19 @@ export function KioskView() {
 
                   </div>
                   {/* Event details below image */}
-                  <div className="flex-shrink-0 p-4 bg-primary">
-                    <p className="text-on-primary font-bold text-[16px] leading-snug mb-1">{focusedEvent.message}</p>
+                  <div className="flex-shrink-0 p-5 bg-white/60 dark:bg-black/40 backdrop-blur-lg border-t border-white/20 dark:border-white/5">
+                    <p className="text-on-surface font-semibold text-[16px] leading-snug mb-1">{focusedEvent.message}</p>
                     {focusedEvent.description && (
-                      <p className="text-on-primary/75 text-[12px] leading-relaxed line-clamp-3 mb-2">{focusedEvent.description}</p>
+                      <p className="text-on-surface/75 text-[13px] leading-relaxed line-clamp-3 mb-3">{focusedEvent.description}</p>
                     )}
                     <div className="flex flex-wrap gap-2">
                       {focusedEvent.extracted_date && (
-                        <span className="bg-primary-container text-on-primary-container px-2 py-1 rounded-full text-[11px] font-semibold">
+                        <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full text-[11px] font-semibold">
                           📅 {focusedEvent.extracted_date}
                         </span>
                       )}
                       {focusedEvent.extracted_location && (
-                        <span className="bg-primary-container text-on-primary-container px-2 py-1 rounded-full text-[11px] font-semibold">
+                        <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full text-[11px] font-semibold">
                           📍 {focusedEvent.extracted_location}
                         </span>
                       )}
@@ -683,8 +683,8 @@ export function KioskView() {
                 <>
                   {/* Header */}
                   <div className="flex-shrink-0 px-5 pt-5 pb-3">
-                    <h2 className="text-[28px] font-black text-on-primary tracking-tight flex items-center gap-2">
-                      <span className="material-symbols-outlined text-4xl">campaign</span>
+                    <h2 className="text-[26px] font-bold text-on-surface tracking-tight flex items-center gap-2">
+                      <span className="material-symbols-outlined text-3xl opacity-80">campaign</span>
                       Faculty News
                     </h2>
                   </div>
@@ -705,7 +705,7 @@ export function KioskView() {
                           onClick={() => handleNewsClick(post)}
                         >
                           {/* Card: image thumbnail + text side by side */}
-                          <div className="flex bg-white/10 hover:bg-white/20 transition-colors duration-150">
+                          <div className="flex bg-white/50 dark:bg-black/20 hover:bg-white/70 dark:hover:bg-black/40 border border-white/20 dark:border-white/5 backdrop-blur-sm transition-all duration-200">
                             {/* Thumbnail */}
                             <div className="relative w-[80px] flex-shrink-0 overflow-hidden">
                               <img
@@ -720,20 +720,20 @@ export function KioskView() {
                             <div className="flex-1 p-3 min-w-0">
                               <div className="flex items-center gap-1.5 mb-1.5">
                                 <span className={`inline-block w-2 h-2 rounded-full bg-gradient-to-br ${accent} flex-shrink-0`} />
-                                <span className="text-[10px] font-black uppercase tracking-[0.12em] text-on-primary/70">
+                                <span className="text-[10px] font-bold uppercase tracking-[0.12em] opacity-70">
                                   {post.category.replace(/s$/, '')}
                                 </span>
                                 {post.extracted_date && (
-                                  <span className="ml-auto text-[10px] font-semibold text-on-primary/50 flex-shrink-0">
+                                  <span className="ml-auto text-[10px] font-semibold opacity-50 flex-shrink-0">
                                     {post.extracted_date.substring(0, 6)}
                                   </span>
                                 )}
                               </div>
-                              <p className="text-[14px] font-bold text-on-primary leading-tight line-clamp-2">
+                              <p className="text-[14px] font-semibold text-on-surface leading-tight line-clamp-2">
                                 {post.message}
                               </p>
                               {post.description && (
-                                <p className="text-[11px] text-on-primary/60 mt-1 line-clamp-1">
+                                <p className="text-[12px] text-on-surface/60 mt-1 line-clamp-1">
                                   {post.description}
                                 </p>
                               )}
