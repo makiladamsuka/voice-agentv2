@@ -84,7 +84,7 @@ async function triggerRapidApiScrape() {
       if (item.attachments?.all_subattachments?.nodes?.length > 0) {
           imgUrl = item.attachments.all_subattachments.nodes[0]?.media?.image?.uri;
       }
-      const message = item.basic_info?.title || "New update from FIT Moments!";
+      const message = item.values?.text || item.text || item.basic_info?.title || item.basic_info?.text || "New update from FIT Moments!";
       
       return {
         id: `rapidapi_${item.basic_info?.post_id || index}_${Date.now()}`,
