@@ -147,6 +147,7 @@ export function KioskView() {
   const [dateStr, setDateStr] = useState("");
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isColorModalOpen, setIsColorModalOpen] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
 
   // 3D Map data from saved floor
@@ -467,16 +468,7 @@ export function KioskView() {
               </div>
             )}
             <button
-              onClick={() => {
-                const themes = ["", "pistachio", "coral"];
-                const current = document.documentElement.getAttribute("data-pixel-theme") || "";
-                const nextIdx = (themes.indexOf(current) + 1) % themes.length;
-                if (themes[nextIdx]) {
-                  document.documentElement.setAttribute("data-pixel-theme", themes[nextIdx]);
-                } else {
-                  document.documentElement.removeAttribute("data-pixel-theme");
-                }
-              }}
+              onClick={() => setIsColorModalOpen(true)}
               className="bg-surface-container hover:bg-surface-container-high transition-colors rounded-full p-2.5 flex items-center justify-center shadow-sm border border-outline-variant/30 text-on-surface active:scale-95"
               aria-label="Cycle theme color"
             >
@@ -993,6 +985,69 @@ export function KioskView() {
                   <br />
                   <span className="text-primary">{qrUrl}</span>
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isColorModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-surface text-on-surface p-8 rounded-3xl shadow-2xl max-w-md w-full relative animate-in zoom-in-95 duration-200">
+              <button
+                onClick={() => setIsColorModalOpen(false)}
+                className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface bg-surface-variant/50 hover:bg-surface-variant p-2 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex flex-col items-center text-center space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Customize Eyes</h2>
+                  <p className="text-on-surface-variant">
+                    Select a color to change the robot's eye color and UI theme.
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-4 w-full">
+                  {[
+                    { name: "White", theme: "", color: "bg-white border-gray-200" },
+                    { name: "Pistachio", theme: "pistachio", color: "bg-[#93c572]" },
+                    { name: "Coral", theme: "coral", color: "bg-[#ff7f50]" },
+                    { name: "Red", theme: "", color: "bg-red-500 border-red-600" },
+                    { name: "Green", theme: "", color: "bg-green-500 border-green-600" },
+                    { name: "Blue", theme: "", color: "bg-blue-500 border-blue-600" },
+                    { name: "Yellow", theme: "", color: "bg-yellow-400 border-yellow-500" },
+                    { name: "Cyan", theme: "", color: "bg-cyan-400 border-cyan-500" },
+                    { name: "Magenta", theme: "", color: "bg-fuchsia-500 border-fuchsia-600" },
+                  ].map((c) => (
+                    <button
+                      key={c.name}
+                      onClick={() => {
+                        if (c.theme) {
+                          document.documentElement.setAttribute("data-pixel-theme", c.theme);
+                        } else {
+                          document.documentElement.removeAttribute("data-pixel-theme");
+                        }
+                        if (session?.room) {
+                          const payload = JSON.stringify({
+                            type: "change_eye_color",
+                            color: c.name.toLowerCase()
+                          });
+                          try {
+                            session.room.localParticipant.publishData(
+                              new TextEncoder().encode(payload),
+                              { reliable: true }
+                            );
+                          } catch (e) {
+                            console.error("Failed to publish color data:", e);
+                          }
+                        }
+                        setIsColorModalOpen(false);
+                      }}
+                      className={`h-12 rounded-xl flex items-center justify-center font-bold shadow-sm transition-transform active:scale-95 border ${c.color} ${c.name === 'White' || c.name === 'Yellow' || c.name === 'Cyan' ? 'text-black' : 'text-white'}`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
