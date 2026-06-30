@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/livekit/scroll-area/scroll-area';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { QRCodeSVG } from 'qrcode.react';
 import { UploadCloud, X } from 'lucide-react';
+import { robotApiUrl } from '@/lib/robot-api';
 
 export function KioskView() {
   const session = useSessionContext();
@@ -254,15 +255,22 @@ export function KioskView() {
     }
 
     const themeName = nextTheme || 'default';
+    const eyeColorUrl = robotApiUrl('/api/eye-color');
     try {
-      await fetch('/api/eye-color', {
+      const res = await fetch(eyeColorUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ theme: themeName }),
       });
-      console.log('👁️ Eye color set via API:', themeName);
+      if (!res.ok) {
+        throw new Error(`${res.status} ${await res.text()}`);
+      }
+      console.log('👁️ Eye color set via API:', themeName, eyeColorUrl);
     } catch (e) {
-      console.error('Failed to set eye color via API:', e);
+      console.error(
+        'Failed to set eye color. If frontend is not on the Pi, set NEXT_PUBLIC_ROBOT_API_URL=http://<pi-ip>:8080 in .env.local',
+        e,
+      );
     }
 
     if (room?.localParticipant) {
