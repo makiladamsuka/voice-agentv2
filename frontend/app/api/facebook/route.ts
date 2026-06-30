@@ -36,7 +36,21 @@ export async function GET() {
 
   if (needsRefresh) {
     // Fetch fresh data synchronously so the response is immediately up to date
-    await triggerRapidApiScrape();
+    const success = await triggerRapidApiScrape();
+    if (!success) {
+      // On failure, update the timestamp with the old data to prevent spamming the API
+      await fs.writeFile(
+        CACHE_FILE,
+        JSON.stringify(
+          {
+            timestamp: Date.now(),
+            posts: cachedPosts || fallbackData,
+          },
+          null,
+          2
+        )
+      ).catch(() => {});
+    }
     try {
       const fileContent = await fs.readFile(CACHE_FILE, "utf-8");
       const parsed = JSON.parse(fileContent);
@@ -57,7 +71,7 @@ async function triggerRapidApiScrape() {
 
     if (!RAPIDAPI_KEY) {
       console.error("RAPIDAPI_KEY is not set in environment variables.");
-      return;
+      return false;
     }
 
     console.log(`Starting background RapidAPI scrape for ${FB_PAGE_ID}...`);
@@ -75,7 +89,7 @@ async function triggerRapidApiScrape() {
 
     if (!response.ok) {
       console.error("RapidAPI failed:", await response.text());
-      return;
+      return false;
     }
 
     const json = await response.json();
@@ -124,8 +138,11 @@ async function triggerRapidApiScrape() {
       console.log(
         "Successfully cached new Facebook posts from RapidAPI to disk!",
       );
+      return true;
     }
+    return false;
   } catch (err) {
     console.error("Background scrape error:", err);
+    return false;
   }
 }
