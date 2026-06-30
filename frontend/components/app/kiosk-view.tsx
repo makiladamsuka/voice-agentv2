@@ -24,9 +24,10 @@ import { ChatTranscript } from "@/components/app/chat-transcript";
 import { ScrollArea } from "@/components/livekit/scroll-area/scroll-area";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { QRCodeSVG } from "qrcode.react";
-import { UploadCloud, X } from "lucide-react";
+import { UploadCloud, X, Settings } from "lucide-react";
 import dynamic from "next/dynamic";
-import LoadingOverlay from "@/components/ui/LoadingOverlay.tsx";
+import LoadingOverlay from "@/components/ui/LoadingOverlay";
+import { GeminiMorphButton } from "@/components/ui/GeminiMorphButton";
 import { ImageDisplay } from "@/components/app/image-display";
 
 // Lazy load 3D map to avoid SSR issues with Three.js
@@ -60,6 +61,10 @@ export function KioskView() {
     : 0;
 
   const isThinking = agentState === "thinking";
+  const isAgentInitializing =
+    isConnected &&
+    messages.filter((m) => !m.from?.isLocal).length === 0 &&
+    transcriptions.length === 0;
   // Dramatically amplify the scaling and opacity for the visual pulse effect
   const pulseScale = isThinking
     ? 1.05
@@ -116,6 +121,8 @@ export function KioskView() {
     };
   }, [room]);
 
+  const [isConnecting, setIsConnecting] = useState(false);
+
   // Handle clicking a news card
   const handleNewsClick = useCallback(
     async (post: any) => {
@@ -129,6 +136,31 @@ export function KioskView() {
     },
     [isConnected, start, sendEventFocus],
   );
+
+  // Handle mic button press — show blob overlay while connecting
+  const handleMicClick = useCallback(async () => {
+    if (isConnected) {
+      end();
+      return;
+    }
+    setIsConnecting(true);
+    try {
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Connection timeout")), 15000)
+      );
+      await Promise.race([start(), timeoutPromise]);
+    } catch (e) {
+      console.error("Agent connection failed:", e);
+      setIsConnecting(false);
+    }
+  }, [isConnected, start, end]);
+
+  // Auto-dismiss morphing button once agent is fully ready
+  useEffect(() => {
+    if (isConnected && !isAgentInitializing && isConnecting) {
+      setIsConnecting(false);
+    }
+  }, [isConnected, isAgentInitializing, isConnecting]);
 
   const latestTranscription = transcriptions[transcriptions.length - 1];
   const [stagingText, setStagingText] = useState("");
@@ -244,10 +276,6 @@ export function KioskView() {
     return () => clearInterval(interval);
   }, []);
 
-  const isAgentInitializing =
-    isConnected &&
-    messages.filter((m) => !m.from?.isLocal).length === 0 &&
-    transcriptions.length === 0;
 
   // Merged Posts State
   const [facebookPosts, setFacebookPosts] = useState<any[]>([]);
@@ -448,32 +476,32 @@ export function KioskView() {
       <div className="relative z-10 w-full h-full flex flex-col">
         {/* Top App Bar */}
         <header className="bg-transparent flex-shrink-0 w-full flex justify-between items-center px-6 h-[72px] pb-1 z-20">
-          <div className="text-[26px] font-black tracking-[-0.04em] text-on-surface drop-shadow-sm">
+          <div className="text-[26px] font-black tracking-[-0.04em] text-black dark:text-white">
             NEma
           </div>
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsUploadModalOpen(true)}
-              className="bg-surface-container hover:bg-surface-container-high transition-colors rounded-full px-5 py-2 flex items-center justify-center shadow-sm border border-outline-variant/30 text-on-surface text-[13px] font-bold gap-2 active:scale-95"
+              className="border border-black/15 dark:border-white/15 hover:bg-black/5 dark:hover:bg-white/5 transition-colors rounded-full px-5 py-2 flex items-center justify-center text-black dark:text-white text-[13px] font-semibold gap-2 active:scale-95"
             >
-              <UploadCloud className="w-4 h-4 opacity-80" />
+              <UploadCloud className="w-4 h-4" />
               Upload Poster
             </button>
             {isConnected && (
-              <div className="bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-400 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm">
+              <div className="border border-black/15 dark:border-white/15 text-black/60 dark:text-white/60 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-black/40 dark:bg-white/40 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-black/70 dark:bg-white/70"></span>
                 </span>
                 Connected
               </div>
             )}
             <button
               onClick={() => setIsColorModalOpen(true)}
-              className="bg-surface-container hover:bg-surface-container-high transition-colors rounded-full p-2.5 flex items-center justify-center shadow-sm border border-outline-variant/30 text-on-surface active:scale-95"
-              aria-label="Cycle theme color"
+              className="border border-black/15 dark:border-white/15 hover:bg-black/5 dark:hover:bg-white/5 transition-colors rounded-full p-2.5 flex items-center justify-center text-black dark:text-white active:scale-95"
+              aria-label="Open settings"
             >
-              <span className="material-symbols-outlined text-[24px] opacity-80">palette</span>
+              <Settings className="w-[22px] h-[22px]" />
             </button>
             <ThemeToggle />
           </div>
@@ -630,24 +658,8 @@ export function KioskView() {
                       />
                     </Suspense>
                   </div>
-                ) : isConnected ? (
+                ) : (isConnected && !isAgentInitializing) ? (
                   <div className="flex-1 flex flex-col relative h-full bg-transparent pt-4">
-                    {isAgentInitializing && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
-                        <motion.div
-                          animate={{ scale: [0.7, 1.2, 0.7], opacity: [0.2, 0.6, 0.2] }}
-                          transition={{
-                            duration: 3,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                          }}
-                          className="w-40 h-40 rounded-full bg-primary blur-[40px] absolute"
-                        />
-                        <span className="text-primary font-bold text-[15px] opacity-80 animate-pulse relative z-10">
-                          Waking up agent...
-                        </span>
-                      </div>
-                    )}
 
                     <ScrollArea
                       ref={scrollAreaRef}
@@ -787,24 +799,22 @@ export function KioskView() {
                   )}
                 </div>
                 <div className="absolute right-4 z-10 flex items-center justify-center">
-                  {/* Premium Voice Amplitude Halo */}
-                  <div
-                    className={`absolute inset-0 rounded-full blur-[12px] pointer-events-none transition-all duration-[50ms] ease-linear ${isThinking ? "bg-primary/50 animate-pulse" : "bg-primary/40 dark:bg-white/30"}`}
-                    style={{
-                      transform: isConnected
-                        ? `scale(${1 + maxVolume * 1.2})`
-                        : "scale(0.8)",
-                      opacity: isConnected ? Math.max(0.2, pulseOpacity ?? 0) : 0,
-                    }}
+                  {/* Premium Voice Amplitude Halo — only when connected */}
+                  {isConnected && (
+                    <div
+                      className="absolute inset-0 rounded-full blur-[12px] pointer-events-none transition-all duration-[50ms] ease-linear bg-primary/40 dark:bg-white/30"
+                      style={{
+                        transform: `scale(${1 + maxVolume * 1.2})`,
+                        opacity: Math.max(0.2, pulseOpacity ?? 0),
+                      }}
+                    />
+                  )}
+                  {/* Gemini morphing shape replaces mic button while connecting */}
+                  <GeminiMorphButton
+                    isAnimating={isConnecting}
+                    isConnected={isConnected}
+                    onClick={handleMicClick}
                   />
-                  <button
-                    onClick={() => (isConnected ? end() : start())}
-                    className={`relative z-10 w-[64px] h-[64px] rounded-full flex items-center justify-center shadow-md hover:scale-105 transition-transform active:scale-95 border-none ${isConnected ? "bg-red-600 text-white" : "bg-black dark:bg-white text-white dark:text-black"}`}
-                  >
-                    <span className="material-symbols-outlined text-3xl fill-current">
-                      {isConnected ? "mic_off" : "mic"}
-                    </span>
-                  </button>
                 </div>
               </div>
             </motion.div>
@@ -1055,6 +1065,7 @@ export function KioskView() {
         {/* Listens for image messages to show popup posters (ignores navigation to let KioskView handle it inline) */}
         <ImageDisplay ignoreNavigation={true} />
       </div>
+
     </div>
   );
 }
