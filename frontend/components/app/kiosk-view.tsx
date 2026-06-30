@@ -572,7 +572,7 @@ export function KioskView() {
                               ? "apartment"
                               : "meeting_room"}
                         </span>
-                        <span className="truncate capitalize">{room.label.toLowerCase()}</span>
+                        <span className="truncate capitalize">{roomNode.label.toLowerCase()}</span>
                       </button>
                     ))
                   ) : (
