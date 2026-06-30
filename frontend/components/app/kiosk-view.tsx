@@ -532,26 +532,26 @@ export function KioskView() {
                 {/* Room buttons */}
                 <div className="flex flex-col gap-2 w-full flex-shrink-0">
                   {mapRooms.length > 0 ? (
-                    mapRooms.slice(0, 3).map((room, i) => (
+                    mapRooms.slice(0, 3).map((roomNode, i) => (
                       <button
-                        key={room.id}
+                        key={roomNode.id}
                         onClick={() => {
                           if (!isConnected) {
                             start();
                           }
                           setTimeout(
                             () => {
-                              if (room && session?.room) {
+                              if (room) {
                                 const payload = JSON.stringify({
                                   type: "event_focus",
                                   event: {
-                                    title: room.label,
-                                    message: `Please give me directions to ${room.label}`,
+                                    title: roomNode.label,
+                                    message: `Please give me directions to ${roomNode.label}`,
                                     category: "navigation",
                                   },
                                 });
                                 try {
-                                  session.room.localParticipant.publishData(
+                                  room.localParticipant.publishData(
                                     new TextEncoder().encode(payload),
                                     { reliable: true },
                                   );
@@ -1026,13 +1026,13 @@ export function KioskView() {
                         } else {
                           document.documentElement.removeAttribute("data-pixel-theme");
                         }
-                        if (session?.room) {
+                        if (room) {
                           const payload = JSON.stringify({
                             type: "change_eye_color",
                             color: c.name.toLowerCase()
                           });
                           try {
-                            session.room.localParticipant.publishData(
+                            room.localParticipant.publishData(
                               new TextEncoder().encode(payload),
                               { reliable: true }
                             );
