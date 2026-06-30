@@ -26,6 +26,7 @@ import { ThemeToggle } from "@/components/app/theme-toggle";
 import { QRCodeSVG } from "qrcode.react";
 import { UploadCloud, X } from "lucide-react";
 import dynamic from "next/dynamic";
+import LoadingOverlay from "@/components/ui/LoadingOverlay.tsx";
 import { ImageDisplay } from "@/components/app/image-display";
 
 // Lazy load 3D map to avoid SSR issues with Three.js
@@ -520,9 +521,7 @@ export function KioskView() {
                 <div className="flex-1 min-h-0 rounded-[1.5rem] overflow-hidden mb-4 bg-surface-container border-none shadow-sm relative">
                   <Suspense
                     fallback={
-                      <div className="w-full h-full flex items-center justify-center text-primary/50 animate-pulse text-sm font-semibold">
-                        Loading map...
-                      </div>
+                      <LoadingOverlay label="Loading map..." />
                     }
                   >
                     <CampusMapEmbed mapData={mapData} />

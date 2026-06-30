@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useEffect, useState, Suspense } from "react";
 import { DataPacket_Kind, RemoteParticipant } from "livekit-client";
 import dynamic from "next/dynamic";
+import LoadingOverlay from "@/components/ui/LoadingOverlay.tsx";
 
 // Lazy load the 3D navigation map (heavy Three.js dependency)
 const NavigationMap = dynamic(() => import("@/components/app/isometric-map"), {
