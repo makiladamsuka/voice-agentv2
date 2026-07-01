@@ -687,7 +687,7 @@ export function KioskView() {
                           <img
                             key={post.id}
                             alt="Facebook Post"
-                            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${index === currentSlide ? "opacity-100" : "opacity-0"}`}
+                            className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out ${index === currentSlide ? "opacity-100 scale-100 blur-none" : "opacity-0 scale-[1.05] blur-[4px]"}`}
                             src={post.full_picture}
                           />
                         ))
@@ -696,43 +696,52 @@ export function KioskView() {
                       )}
                     </div>
                     <div className="relative z-10 p-6 flex flex-col h-full bg-gradient-to-t from-black/80 via-black/30 to-transparent text-white">
-                      <div className="mt-auto">
+                      <div className="flex-1 w-full relative">
                         {fbPosts.length > 0 ? (
-                          <>
-                            <h3 className="text-[20px] font-normal leading-tight mb-2 line-clamp-3 opacity-90">
-                              {fbPosts[currentSlide].message}
-                            </h3>
+                          fbPosts.map((post, index) => (
+                            <div
+                              key={post.id}
+                              className={`absolute bottom-2 left-0 w-full flex flex-col justify-end transition-all duration-1000 ease-in-out ${
+                                index === currentSlide
+                                  ? "opacity-100 translate-y-0 blur-none scale-100 pointer-events-auto"
+                                  : "opacity-0 translate-y-3 blur-[4px] scale-[0.98] pointer-events-none"
+                              }`}
+                            >
+                              <h3 className="text-[20px] font-normal leading-tight mb-2 line-clamp-3 opacity-90">
+                                {post.message}
+                              </h3>
 
-                            {fbPosts[currentSlide].description && (
-                              <p className="text-[14px] opacity-80 mb-2 line-clamp-2">
-                                {fbPosts[currentSlide].description}
+                              {post.description && (
+                                <p className="text-[14px] opacity-80 mb-2 line-clamp-2">
+                                  {post.description}
+                                </p>
+                              )}
+
+                              {post.extracted_date && (
+                                <p className="text-[13px] font-semibold text-indigo-300 mb-1 drop-shadow-md">
+                                  📅 {post.extracted_date}{" "}
+                                  {post.extracted_time
+                                    ? `• ${post.extracted_time}`
+                                    : ""}
+                                </p>
+                              )}
+
+                              {post.extracted_location && (
+                                <p className="text-[13px] font-semibold text-purple-300 mb-3 drop-shadow-md">
+                                  📍 {post.extracted_location}
+                                </p>
+                              )}
+
+                              <p className="text-[11px] opacity-60">
+                                Posted on:{" "}
+                                {new Date(
+                                  post.created_time,
+                                ).toLocaleDateString()}
                               </p>
-                            )}
-
-                            {fbPosts[currentSlide].extracted_date && (
-                              <p className="text-[13px] font-semibold text-indigo-300 mb-1 drop-shadow-md">
-                                📅 {fbPosts[currentSlide].extracted_date}{" "}
-                                {fbPosts[currentSlide].extracted_time
-                                  ? `• ${fbPosts[currentSlide].extracted_time}`
-                                  : ""}
-                              </p>
-                            )}
-
-                            {fbPosts[currentSlide].extracted_location && (
-                              <p className="text-[13px] font-semibold text-purple-300 mb-3 drop-shadow-md">
-                                📍 {fbPosts[currentSlide].extracted_location}
-                              </p>
-                            )}
-
-                            <p className="text-[11px] opacity-60">
-                              Posted on:{" "}
-                              {new Date(
-                                fbPosts[currentSlide].created_time,
-                              ).toLocaleDateString()}
-                            </p>
-                          </>
+                            </div>
+                          ))
                         ) : (
-                          <div className="space-y-3 animate-breathe opacity-60">
+                          <div className="space-y-3 animate-breathe opacity-60 absolute bottom-2 left-0 w-full">
                             <div className="h-7 bg-white/30 rounded-md w-3/4"></div>
                             <div className="h-5 bg-white/30 rounded-md w-1/2"></div>
                             <div className="h-4 bg-white/30 rounded-md w-1/4 mt-4"></div>
