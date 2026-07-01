@@ -135,7 +135,7 @@ export function GeminiMorphButton({
     return (
       <div
         onClick={onClick}
-        className="relative z-10 w-[64px] h-[64px] rounded-full flex items-center justify-center shadow-md cursor-pointer hover:scale-105 transition-transform active:scale-95"
+        className="relative z-10 w-[64px] h-[64px] rounded-full flex items-center justify-center cursor-pointer hover:scale-105 transition-transform active:scale-95"
       >
         <svg
           viewBox="0 0 80 80"
@@ -166,7 +166,7 @@ export function GeminiMorphButton({
   return (
     <button
       onClick={onClick}
-      className={`relative z-10 w-[64px] h-[64px] rounded-full flex items-center justify-center shadow-md hover:scale-105 transition-transform active:scale-95 border-none ${
+      className={`relative z-10 w-[64px] h-[64px] rounded-full flex items-center justify-center hover:scale-105 transition-transform active:scale-95 border-none ${
         isConnected
           ? "bg-red-600 text-white"
           : "bg-black dark:bg-white text-white dark:text-black"

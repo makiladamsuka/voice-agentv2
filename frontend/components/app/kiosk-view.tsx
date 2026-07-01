@@ -28,6 +28,7 @@ import { UploadCloud, X, Settings } from "lucide-react";
 import dynamic from "next/dynamic";
 import LoadingOverlay from "@/components/ui/LoadingOverlay";
 import { GeminiMorphButton } from "@/components/ui/GeminiMorphButton";
+import { SiriGlow } from "@/components/ui/SiriGlow";
 import { ImageDisplay } from "@/components/app/image-display";
 
 // Lazy load 3D map to avoid SSR issues with Three.js
@@ -40,6 +41,7 @@ const NavigationMap = dynamic(() => import("@/components/app/isometric-map"), {
 });
 
 export function KioskView() {
+  const [glowingSection, setGlowingSection] = useState<'where-to' | 'chat' | 'mic' | 'news' | null>(null);
   const session = useSessionContext();
   const { isConnected, start, end } = session;
   const { messages } = useSessionMessages(session);
@@ -497,6 +499,16 @@ export function KioskView() {
               </div>
             )}
             <button
+              onClick={() => {
+                 const states = [null, 'where-to', 'chat', 'mic', 'news'] as any;
+                 const nextIdx = (states.indexOf(glowingSection) + 1) % states.length;
+                 setGlowingSection(states[nextIdx]);
+              }}
+              className="border border-black/15 dark:border-white/15 hover:bg-black/5 dark:hover:bg-white/5 transition-colors rounded-full px-5 py-2 flex items-center justify-center text-black dark:text-white text-[13px] font-semibold gap-2 active:scale-95"
+            >
+              Glow: {glowingSection || 'Off'}
+            </button>
+            <button
               onClick={() => setIsColorModalOpen(true)}
               className="border border-black/15 dark:border-white/15 hover:bg-black/5 dark:hover:bg-white/5 transition-colors rounded-full p-2.5 flex items-center justify-center text-black dark:text-white active:scale-95"
               aria-label="Open settings"
@@ -508,7 +520,7 @@ export function KioskView() {
         </header>
 
         {/* Main Content Area - Bento Grid */}
-        <main className="flex-1 px-3 pt-0 pb-3 overflow-hidden min-h-0 flex flex-col">
+        <main className="flex-1 px-3 pt-0 pb-3 min-h-0 flex flex-col">
           <div className="flex gap-3 flex-1 min-h-0 pb-1">
             {/* Left Column: Clock & Navigation — collapses when poster is focused */}
             <motion.div
@@ -516,7 +528,7 @@ export function KioskView() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: focusedEvent ? 0 : 1, y: 0, width: focusedEvent ? "0px" : "20%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="flex flex-col gap-2 h-full min-h-0 flex-shrink-0 overflow-hidden"
+              className="flex flex-col gap-2 h-full min-h-0 flex-shrink-0"
             >
               {/* Clock & Weather Card */}
               <div className="bg-[#d3e3fd] text-[#041e49] dark:bg-[#004a77] dark:text-[#c2e7ff] rounded-[32px] p-6 pt-10 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0 shadow-sm transition-transform hover:scale-[1.02]">
@@ -540,7 +552,9 @@ export function KioskView() {
               </div>
 
               {/* Where to? Card — with embedded 3D map (Material Secondary Tint) */}
-              <div className="bg-[#f3edf7] dark:bg-[#211a2a] shadow-sm rounded-[32px] p-5 flex-1 flex flex-col relative overflow-hidden min-h-0">
+              <div className="relative flex-1 flex flex-col min-h-0">
+                <SiriGlow active={glowingSection === 'where-to'} />
+                <div className="z-10 bg-[#f3edf7] dark:bg-[#211a2a] shadow-sm rounded-[32px] p-5 flex-1 flex flex-col relative overflow-hidden min-h-0">
                 <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-on-surface mb-2 font-bold flex-shrink-0">
                   Where to?
                 </h2>
@@ -590,7 +604,7 @@ export function KioskView() {
                             isConnected ? 100 : 3000,
                           );
                         }}
-                        className="bg-white/50 dark:bg-black/20 hover:bg-white/80 dark:hover:bg-black/40 text-on-surface border border-outline-variant/30 shadow-sm rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-bold flex-shrink-0"
+                        className="bg-white/50 dark:bg-black/20 hover:bg-white/80 dark:hover:bg-black/40 text-on-surface border border-outline-variant/30 rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-bold flex-shrink-0"
                       >
                         <span className="material-symbols-outlined text-[20px] opacity-70">
                           {i === 0
@@ -604,7 +618,7 @@ export function KioskView() {
                     ))
                   ) : (
                     <>
-                      <button className="bg-primary/10 text-primary border border-primary/20 shadow-sm rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-semibold flex-shrink-0">
+                      <button className="bg-primary/10 text-primary border border-primary/20 rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-semibold flex-shrink-0">
                         <span className="material-symbols-outlined text-[20px] opacity-80">
                           school
                         </span>
@@ -619,6 +633,7 @@ export function KioskView() {
                     </>
                   )}
                 </div>
+              </div>
               </div>
             </motion.div>
 
@@ -777,14 +792,16 @@ export function KioskView() {
                 )}
               </div>
               {/* Microphone Action Area */}
-              <div
-                className={`flex-shrink-0 min-h-[112px] h-auto py-4 flex items-center justify-center rounded-[32px] shadow-sm relative px-4 overflow-hidden transition-all duration-300 ${isConnected ? "bg-primary-container dark:bg-primary-container" : "bg-[#f0f4f9] dark:bg-[#1a2235]"}`}
-                style={{
-                  boxShadow: isConnected
-                    ? `0 0 ${maxVolume * 40}px rgba(var(--tw-colors-primary-rgb), ${maxVolume * 0.3})`
-                    : undefined,
-                }}
-              >
+              <div className="relative flex-shrink-0 min-h-[112px] h-auto rounded-[32px] w-full">
+                <SiriGlow active={glowingSection === 'mic'} />
+                <div
+                  className={`z-10 h-full py-4 flex items-center justify-center rounded-[32px] shadow-sm relative px-4 overflow-hidden transition-all duration-300 ${isConnected ? "bg-primary-container dark:bg-primary-container" : "bg-[#f0f4f9] dark:bg-[#1a2235]"}`}
+                  style={{
+                    boxShadow: isConnected
+                      ? `0 0 ${maxVolume * 40}px rgba(var(--tw-colors-primary-rgb), ${maxVolume * 0.3})`
+                      : undefined,
+                  }}
+                >
                 <div className="w-full flex justify-center items-center text-center font-extrabold text-black dark:text-white tracking-tight leading-[1.2] min-h-[64px] relative z-10 pl-4 pr-20">
                   {!isConnected ? (
                     <div className="relative w-full overflow-hidden flex items-center justify-center h-full min-h-[64px]">
@@ -826,6 +843,7 @@ export function KioskView() {
                   />
                 </div>
               </div>
+              </div>
             </motion.div>
 
             {/* Right Column: Faculty News / Focused Poster — expands when poster is focused */}
@@ -834,9 +852,11 @@ export function KioskView() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0, width: focusedEvent ? "65%" : "20%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.2 }}
-              className="h-full min-h-0 flex-shrink-0 overflow-hidden"
+              className="h-full min-h-0 flex-shrink-0"
             >
-              <div className="bg-white dark:bg-[#1e1e1f] shadow-sm rounded-[32px] h-full flex flex-col min-h-0 overflow-hidden relative">
+              <div className="relative h-full flex flex-col min-h-0">
+                <SiriGlow active={glowingSection === 'news'} />
+                <div className="z-10 bg-white dark:bg-[#1e1e1f] shadow-sm rounded-[32px] h-full flex flex-col min-h-0 overflow-hidden relative">
                 {focusedEvent ? (
                   /* Full poster view */
                   <>
@@ -970,6 +990,7 @@ export function KioskView() {
                   </>
                 )}
               </div>
+              </div>
             </motion.div>
           </div>
         </main>
@@ -1060,7 +1081,7 @@ export function KioskView() {
                         }
                         setIsColorModalOpen(false);
                       }}
-                      className={`h-12 rounded-xl flex items-center justify-center font-bold shadow-sm transition-transform active:scale-95 border ${c.color} ${c.name === 'White' || c.name === 'Yellow' || c.name === 'Cyan' ? 'text-black' : 'text-white'}`}
+                      className={`h-12 rounded-xl flex items-center justify-center font-bold transition-transform active:scale-95 border ${c.color} ${c.name === 'White' || c.name === 'Yellow' || c.name === 'Cyan' ? 'text-black' : 'text-white'}`}
                     >
                       {c.name}
                     </button>
