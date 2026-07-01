@@ -539,8 +539,8 @@ export function KioskView() {
                 </div>
               </div>
 
-              {/* Where to? Card — with embedded 3D map */}
-              <div className="bg-white dark:bg-[#1e1e1f] shadow-sm rounded-[32px] p-5 flex-1 flex flex-col relative overflow-hidden min-h-0">
+              {/* Where to? Card — with embedded 3D map (Material Secondary Tint) */}
+              <div className="bg-[#f3edf7] dark:bg-[#211a2a] shadow-sm rounded-[32px] p-5 flex-1 flex flex-col relative overflow-hidden min-h-0">
                 <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-on-surface mb-2 font-bold flex-shrink-0">
                   Where to?
                 </h2>
@@ -590,7 +590,7 @@ export function KioskView() {
                             isConnected ? 100 : 3000,
                           );
                         }}
-                        className="bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant/30 shadow-sm rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-bold flex-shrink-0"
+                        className="bg-white/50 dark:bg-black/20 hover:bg-white/80 dark:hover:bg-black/40 text-on-surface border border-outline-variant/30 shadow-sm rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-bold flex-shrink-0"
                       >
                         <span className="material-symbols-outlined text-[20px] opacity-70">
                           {i === 0
@@ -624,7 +624,7 @@ export function KioskView() {
 
             {/* Middle Column: Events Carousel & Microphone — flex-1 fills freed space */}
             <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.1 }} className="flex-1 h-full min-h-0 flex flex-col gap-2 min-w-0">
-              <div className="bg-white dark:bg-[#1e1e1f] shadow-sm rounded-[32px] flex-1 overflow-hidden relative flex flex-col min-h-0">
+              <div className="bg-[#e6f4ea] dark:bg-[#182a1d] shadow-sm rounded-[32px] flex-1 overflow-hidden relative flex flex-col min-h-0">
                 {navData ? (
                   <div className="flex-1 flex flex-col relative h-full bg-surface-container rounded-[32px] overflow-hidden">
                     <div className="absolute top-4 left-6 right-6 z-20 flex justify-between items-center bg-surface-container-highest border-none rounded-full px-6 py-3 shadow-sm">
@@ -778,7 +778,7 @@ export function KioskView() {
               </div>
               {/* Microphone Action Area */}
               <div
-                className={`flex-shrink-0 min-h-[112px] h-auto py-4 flex items-center justify-center rounded-[32px] shadow-sm relative px-4 overflow-hidden transition-all duration-300 ${isConnected ? "bg-primary-container dark:bg-primary-container" : "bg-white dark:bg-[#1e1e1f]"}`}
+                className={`flex-shrink-0 min-h-[112px] h-auto py-4 flex items-center justify-center rounded-[32px] shadow-sm relative px-4 overflow-hidden transition-all duration-300 ${isConnected ? "bg-primary-container dark:bg-primary-container" : "bg-[#f0f4f9] dark:bg-[#1a2235]"}`}
                 style={{
                   boxShadow: isConnected
                     ? `0 0 ${maxVolume * 40}px rgba(var(--tw-colors-primary-rgb), ${maxVolume * 0.3})`
