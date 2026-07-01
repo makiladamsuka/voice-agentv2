@@ -31,15 +31,25 @@ const SHAPES: Record<string, number[]> = {
   
   // 8-petal deep scallop
   scallop8_deep: getPolarShape(8, 0.14),
+  
+  // 5-petal pentagon
+  pentagon: getPolarShape(5, 0.12, 0),
+  
+  // 6-petal hexagon
+  hexagon: getPolarShape(6, 0.12, 0),
+  
+  // Ultra-smooth, low-depth blobs for minimal visual "noise"
+  smooth4: getPolarShape(4, 0.05, Math.PI),
+  smooth6: getPolarShape(6, 0.04, 0),
+  smooth8: getPolarShape(8, 0.03, 0),
 };
 
-// Only use the user-requested shapes, no plain circles or squircles
+// Sequence using only smooth, low-depth shapes to reduce "visual noise"
 const SEQUENCE = [
-  "scallop8",
-  "cushion4",
-  "scallop6",
-  "scallop8_deep",
-  "cushion4"
+  "smooth4",
+  "smooth6",
+  "smooth8",
+  "smooth6"
 ];
 
 // ─── Math helpers ─────────────────────────────────────────────────────────────
@@ -81,7 +91,7 @@ export function GeminiMorphButton({
   const animRef = useRef<number | null>(null);
   const segIdx = useRef(0);
   const segStart = useRef(0);
-  const SEGMENT_MS = 2500; // Increased from 1300ms for a slower, calmer morph
+  const SEGMENT_MS = 4000; // Increased to 4000ms for ultra-smooth, calm morphing
 
   // ── Shape morph loop ──────────────────────────────────────────────────────
   useEffect(() => {

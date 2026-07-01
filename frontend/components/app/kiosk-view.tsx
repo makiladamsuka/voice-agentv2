@@ -475,7 +475,7 @@ export function KioskView() {
       {/* Main Content Wrapper (must be above background) */}
       <div className="relative z-10 w-full h-full flex flex-col">
         {/* Top App Bar */}
-        <header className="bg-transparent flex-shrink-0 w-full flex justify-between items-center px-6 h-[72px] pb-1 z-20">
+        <header className="bg-transparent flex-shrink-0 w-full flex justify-between items-center px-6 h-[60px] z-20">
           <div className="text-[26px] font-black tracking-[-0.04em] text-black dark:text-white">
             NEma
           </div>
@@ -508,7 +508,7 @@ export function KioskView() {
         </header>
 
         {/* Main Content Area - Bento Grid */}
-        <main className="flex-1 px-3 pt-2 pb-3 overflow-hidden min-h-0 flex flex-col">
+        <main className="flex-1 px-3 pt-0 pb-3 overflow-hidden min-h-0 flex flex-col">
           <div className="flex gap-3 flex-1 min-h-0 pb-1">
             {/* Left Column: Clock & Navigation — collapses when poster is focused */}
             <motion.div
