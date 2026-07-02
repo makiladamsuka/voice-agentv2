@@ -522,11 +522,11 @@ export function KioskView() {
         {/* Main Content Area - Bento Grid */}
         <main className="flex-1 px-3 pt-0 pb-3 min-h-0 flex flex-col">
           <div className="flex gap-3 flex-1 min-h-0 pb-1">
-            {/* Left Column: Clock & Navigation — collapses when poster is focused */}
+            {/* Left Column: Clock & Faculty News — expands when poster is focused */}
             <motion.div
               layout
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: focusedEvent ? 0 : 1, y: 0, width: focusedEvent ? "0px" : "20%" }}
+              animate={{ opacity: 1, y: 0, width: focusedEvent ? "65%" : "20%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className="flex flex-col gap-2 h-full min-h-0 flex-shrink-0"
             >
@@ -551,88 +551,141 @@ export function KioskView() {
                 </div>
               </div>
 
-              {/* Where to? Card — with embedded 3D map (Material Secondary Tint) */}
-              <div className="relative flex-1 flex flex-col min-h-0">
-                <SiriGlow active={glowingSection === 'where-to'} />
-                <div className="z-10 bg-[#f3edf7] dark:bg-[#211a2a] shadow-sm rounded-[32px] p-5 flex-1 flex flex-col relative overflow-hidden min-h-0">
-                <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-on-surface mb-2 font-bold flex-shrink-0">
-                  Where to?
-                </h2>
-
-                {/* Embedded 3D Campus Map */}
-                <div className="flex-1 min-h-0 rounded-[1.5rem] overflow-hidden mb-4 bg-surface-container border-none shadow-sm relative">
-                  <Suspense
-                    fallback={
-                      <LoadingOverlay label="Loading map..." />
-                    }
-                  >
-                    <CampusMapEmbed mapData={mapData} />
-                  </Suspense>
-                </div>
-
-                {/* Room buttons */}
-                <div className="flex flex-col gap-2 w-full flex-shrink-0">
-                  {mapRooms.length > 0 ? (
-                    mapRooms.slice(0, 3).map((roomNode, i) => (
+              <div className="relative h-full flex flex-col min-h-0">
+                <SiriGlow active={glowingSection === 'news'} />
+                <div className="z-10 bg-white dark:bg-[#1e1e1f] shadow-sm rounded-[32px] h-full flex flex-col min-h-0 overflow-hidden relative">
+                {focusedEvent ? (
+                  /* Full poster view */
+                  <>
+                    {/* Poster image fills top */}
+                    <div className="relative flex-1 min-h-0">
+                      <img
+                        src={focusedEvent.full_picture}
+                        alt={focusedEvent.message}
+                        className="w-full h-full object-contain bg-black/5 dark:bg-black/40"
+                      />
+                      {/* Back button */}
                       <button
-                        key={roomNode.id}
-                        onClick={() => {
-                          if (!isConnected) {
-                            start();
-                          }
-                          setTimeout(
-                            () => {
-                              if (room) {
-                                const payload = JSON.stringify({
-                                  type: "event_focus",
-                                  event: {
-                                    title: roomNode.label,
-                                    message: `Please give me directions to ${roomNode.label}`,
-                                    category: "navigation",
-                                  },
-                                });
-                                try {
-                                  room.localParticipant.publishData(
-                                    new TextEncoder().encode(payload),
-                                    { reliable: true },
-                                  );
-                                } catch (e) {
-                                  console.error(e);
-                                }
-                              }
-                            },
-                            isConnected ? 100 : 3000,
-                          );
-                        }}
-                        className="bg-white/50 dark:bg-black/20 hover:bg-white/80 dark:hover:bg-black/40 text-on-surface border border-outline-variant/30 rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-bold flex-shrink-0"
+                        onClick={() => setFocusedEvent(null)}
+                        className="absolute top-3 left-3 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full px-3 py-1.5 text-[12px] font-bold flex items-center gap-1.5 transition-colors backdrop-blur-sm"
                       >
-                        <span className="material-symbols-outlined text-[20px] opacity-70">
-                          {i === 0
-                            ? "school"
-                            : i === 1
-                              ? "apartment"
-                              : "meeting_room"}
+                        <span className="material-symbols-outlined text-[16px]">
+                          arrow_back
                         </span>
-                        <span className="truncate capitalize">{roomNode.label.toLowerCase()}</span>
+                        Back
                       </button>
-                    ))
-                  ) : (
-                    <>
-                      <button className="bg-primary/10 text-primary border border-primary/20 rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-semibold flex-shrink-0">
-                        <span className="material-symbols-outlined text-[20px] opacity-80">
-                          school
+                    </div>
+                    {/* Event details below image */}
+                    <div className="flex-shrink-0 p-5 bg-white/60 dark:bg-black/40 backdrop-blur-lg border-t border-white/20 dark:border-white/5">
+                      <p className="text-on-surface font-semibold text-[16px] leading-snug mb-1">
+                        {focusedEvent.message}
+                      </p>
+                      {focusedEvent.description && (
+                        <p className="text-on-surface/75 text-[13px] leading-relaxed line-clamp-3 mb-3">
+                          {focusedEvent.description}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        {focusedEvent.extracted_date && (
+                          <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full text-[11px] font-semibold">
+                            📅 {focusedEvent.extracted_date}
+                          </span>
+                        )}
+                        {focusedEvent.extracted_location && (
+                          <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full text-[11px] font-semibold">
+                            📍 {focusedEvent.extracted_location}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  /* Normal news list */
+                  <>
+                    {/* Header */}
+                    <div className="flex-shrink-0 px-5 pt-5 pb-3">
+                      <h2 className="text-[26px] font-bold text-on-surface tracking-tight flex items-center gap-2">
+                        <span className="material-symbols-outlined text-3xl opacity-80">
+                          campaign
                         </span>
-                        <span className="truncate">Dean's Office</span>
-                      </button>
-                      <button className="bg-transparent text-on-surface border border-transparent hover:bg-black/5 dark:hover:bg-white/5 hover:border-black/10 dark:hover:border-white/10 rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-semibold flex-shrink-0">
-                        <span className="material-symbols-outlined text-[20px] opacity-80">
-                          apartment
-                        </span>
-                        <span className="truncate">Main Hall</span>
-                      </button>
-                    </>
-                  )}
-                </div>
+                        Faculty News
+                      </h2>
+                    </div>
+
+                    {/* Category color map */}
+                    <div className="flex-1 flex flex-col gap-3 overflow-hidden px-4 pb-5">
+                      {localPosts.slice(0, 3).map((post, i) => {
+                        const categoryColors: Record<string, string> = {
+                          events: "bg-violet-500",
+                          competitions: "bg-orange-500",
+                          posts: "bg-teal-500",
+                        };
+                        const accent =
+                          categoryColors[post.category] ||
+                          "bg-primary";
+                        return (
+                          <button
+                            key={post.id}
+                            className="w-full text-left rounded-2xl overflow-hidden cursor-pointer active:scale-[0.97] transition-transform focus:outline-none"
+                            onClick={() => handleNewsClick(post)}
+                          >
+                            {/* Card: image thumbnail + text side by side */}
+                            <div className="flex bg-white/50 dark:bg-black/20 hover:bg-white/70 dark:hover:bg-black/40 border border-white/20 dark:border-white/5 backdrop-blur-sm transition-all duration-200">
+                              {/* Thumbnail */}
+                              <div className="relative w-[80px] flex-shrink-0 overflow-hidden">
+                                <img
+                                  src={post.full_picture}
+                                  alt={post.message}
+                                  className="w-full h-full object-cover min-h-[80px]"
+                                />
+                                {/* Gradient accent bar on left edge */}
+                                <div
+                                  className={`absolute inset-y-0 left-0 w-1 ${accent}`}
+                                />
+                              </div>
+                              {/* Text content */}
+                              <div className="flex-1 p-3 min-w-0">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <span
+                                    className={`inline-block w-2 h-2 rounded-full ${accent} flex-shrink-0`}
+                                  />
+                                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] opacity-70">
+                                    {post.category.replace(/s$/, "")}
+                                  </span>
+                                  {post.extracted_date && (
+                                    <span className="ml-auto text-[10px] font-semibold opacity-50 flex-shrink-0">
+                                      {post.extracted_date.substring(0, 6)}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[14px] font-semibold text-on-surface leading-tight line-clamp-2">
+                                  {post.message}
+                                </p>
+                                {post.description && (
+                                  <p className="text-[12px] text-on-surface/60 mt-1 line-clamp-1">
+                                    {post.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                      {localPosts.length === 0 && (
+                        <div className="flex-1 flex flex-col items-center justify-center gap-3 opacity-50">
+                          <span className="material-symbols-outlined text-5xl">
+                            newspaper
+                          </span>
+                          <p className="text-[14px] italic text-center">
+                            No recent news.
+                            <br />
+                            Upload a poster to get started.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
               </div>
             </motion.div>
@@ -846,149 +899,96 @@ export function KioskView() {
               </div>
             </motion.div>
 
-            {/* Right Column: Faculty News / Focused Poster — expands when poster is focused */}
+            {/* Right Column: Navigation — collapses when poster is focused */}
             <motion.div
               layout
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0, width: focusedEvent ? "65%" : "20%" }}
+              animate={{ opacity: focusedEvent ? 0 : 1, y: 0, width: focusedEvent ? "0px" : "20%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.2 }}
-              className="h-full min-h-0 flex-shrink-0"
+              className="flex flex-col gap-2 h-full min-h-0 flex-shrink-0"
             >
-              <div className="relative h-full flex flex-col min-h-0">
-                <SiriGlow active={glowingSection === 'news'} />
-                <div className="z-10 bg-white dark:bg-[#1e1e1f] shadow-sm rounded-[32px] h-full flex flex-col min-h-0 overflow-hidden relative">
-                {focusedEvent ? (
-                  /* Full poster view */
-                  <>
-                    {/* Poster image fills top */}
-                    <div className="relative flex-1 min-h-0">
-                      <img
-                        src={focusedEvent.full_picture}
-                        alt={focusedEvent.message}
-                        className="w-full h-full object-contain bg-black/5 dark:bg-black/40"
-                      />
-                      {/* Back button */}
-                      <button
-                        onClick={() => setFocusedEvent(null)}
-                        className="absolute top-3 left-3 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full px-3 py-1.5 text-[12px] font-bold flex items-center gap-1.5 transition-colors backdrop-blur-sm"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">
-                          arrow_back
-                        </span>
-                        Back
-                      </button>
-                    </div>
-                    {/* Event details below image */}
-                    <div className="flex-shrink-0 p-5 bg-white/60 dark:bg-black/40 backdrop-blur-lg border-t border-white/20 dark:border-white/5">
-                      <p className="text-on-surface font-semibold text-[16px] leading-snug mb-1">
-                        {focusedEvent.message}
-                      </p>
-                      {focusedEvent.description && (
-                        <p className="text-on-surface/75 text-[13px] leading-relaxed line-clamp-3 mb-3">
-                          {focusedEvent.description}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap gap-2">
-                        {focusedEvent.extracted_date && (
-                          <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full text-[11px] font-semibold">
-                            📅 {focusedEvent.extracted_date}
-                          </span>
-                        )}
-                        {focusedEvent.extracted_location && (
-                          <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full text-[11px] font-semibold">
-                            📍 {focusedEvent.extracted_location}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  /* Normal news list */
-                  <>
-                    {/* Header */}
-                    <div className="flex-shrink-0 px-5 pt-5 pb-3">
-                      <h2 className="text-[26px] font-bold text-on-surface tracking-tight flex items-center gap-2">
-                        <span className="material-symbols-outlined text-3xl opacity-80">
-                          campaign
-                        </span>
-                        Faculty News
-                      </h2>
-                    </div>
+              {/* Where to? Card — with embedded 3D map (Material Secondary Tint) */}
+              <div className="relative flex-1 flex flex-col min-h-0">
+                <SiriGlow active={glowingSection === 'where-to'} />
+                <div className="z-10 bg-[#f3edf7] dark:bg-[#211a2a] shadow-sm rounded-[32px] p-5 flex-1 flex flex-col relative overflow-hidden min-h-0">
+                <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-on-surface mb-2 font-bold flex-shrink-0">
+                  Where to?
+                </h2>
 
-                    {/* Category color map */}
-                    <div className="flex-1 flex flex-col gap-3 overflow-hidden px-4 pb-5">
-                      {localPosts.slice(0, 3).map((post, i) => {
-                        const categoryColors: Record<string, string> = {
-                          events: "bg-violet-500",
-                          competitions: "bg-orange-500",
-                          posts: "bg-teal-500",
-                        };
-                        const accent =
-                          categoryColors[post.category] ||
-                          "bg-primary";
-                        return (
-                          <button
-                            key={post.id}
-                            className="w-full text-left rounded-2xl overflow-hidden cursor-pointer active:scale-[0.97] transition-transform focus:outline-none"
-                            onClick={() => handleNewsClick(post)}
-                          >
-                            {/* Card: image thumbnail + text side by side */}
-                            <div className="flex bg-white/50 dark:bg-black/20 hover:bg-white/70 dark:hover:bg-black/40 border border-white/20 dark:border-white/5 backdrop-blur-sm transition-all duration-200">
-                              {/* Thumbnail */}
-                              <div className="relative w-[80px] flex-shrink-0 overflow-hidden">
-                                <img
-                                  src={post.full_picture}
-                                  alt={post.message}
-                                  className="w-full h-full object-cover min-h-[80px]"
-                                />
-                                {/* Gradient accent bar on left edge */}
-                                <div
-                                  className={`absolute inset-y-0 left-0 w-1 ${accent}`}
-                                />
-                              </div>
-                              {/* Text content */}
-                              <div className="flex-1 p-3 min-w-0">
-                                <div className="flex items-center gap-1.5 mb-1.5">
-                                  <span
-                                    className={`inline-block w-2 h-2 rounded-full ${accent} flex-shrink-0`}
-                                  />
-                                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] opacity-70">
-                                    {post.category.replace(/s$/, "")}
-                                  </span>
-                                  {post.extracted_date && (
-                                    <span className="ml-auto text-[10px] font-semibold opacity-50 flex-shrink-0">
-                                      {post.extracted_date.substring(0, 6)}
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-[14px] font-semibold text-on-surface leading-tight line-clamp-2">
-                                  {post.message}
-                                </p>
-                                {post.description && (
-                                  <p className="text-[12px] text-on-surface/60 mt-1 line-clamp-1">
-                                    {post.description}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                      {localPosts.length === 0 && (
-                        <div className="flex-1 flex flex-col items-center justify-center gap-3 opacity-50">
-                          <span className="material-symbols-outlined text-5xl">
-                            newspaper
-                          </span>
-                          <p className="text-[14px] italic text-center">
-                            No recent news.
-                            <br />
-                            Upload a poster to get started.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
+                {/* Embedded 3D Campus Map */}
+                <div className="flex-1 min-h-0 rounded-[1.5rem] overflow-hidden mb-4 bg-surface-container border-none shadow-sm relative">
+                  <Suspense
+                    fallback={
+                      <LoadingOverlay label="Loading map..." />
+                    }
+                  >
+                    <CampusMapEmbed mapData={mapData} />
+                  </Suspense>
+                </div>
+
+                {/* Room buttons */}
+                <div className="flex flex-col gap-2 w-full flex-shrink-0">
+                  {mapRooms.length > 0 ? (
+                    mapRooms.slice(0, 3).map((roomNode, i) => (
+                      <button
+                        key={roomNode.id}
+                        onClick={() => {
+                          if (!isConnected) {
+                            start();
+                          }
+                          setTimeout(
+                            () => {
+                              if (room) {
+                                const payload = JSON.stringify({
+                                  type: "event_focus",
+                                  event: {
+                                    title: roomNode.label,
+                                    message: `Please give me directions to ${roomNode.label}`,
+                                    category: "navigation",
+                                  },
+                                });
+                                try {
+                                  room.localParticipant.publishData(
+                                    new TextEncoder().encode(payload),
+                                    { reliable: true },
+                                  );
+                                } catch (e) {
+                                  console.error(e);
+                                }
+                              }
+                            },
+                            isConnected ? 100 : 3000,
+                          );
+                        }}
+                        className="bg-white/50 dark:bg-black/20 hover:bg-white/80 dark:hover:bg-black/40 text-on-surface border border-outline-variant/30 rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-bold flex-shrink-0"
+                      >
+                        <span className="material-symbols-outlined text-[20px] opacity-70">
+                          {i === 0
+                            ? "school"
+                            : i === 1
+                              ? "apartment"
+                              : "meeting_room"}
+                        </span>
+                        <span className="truncate capitalize">{roomNode.label.toLowerCase()}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <>
+                      <button className="bg-primary/10 text-primary border border-primary/20 rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-semibold flex-shrink-0">
+                        <span className="material-symbols-outlined text-[20px] opacity-80">
+                          school
+                        </span>
+                        <span className="truncate">Dean's Office</span>
+                      </button>
+                      <button className="bg-transparent text-on-surface border border-transparent hover:bg-black/5 dark:hover:bg-white/5 hover:border-black/10 dark:hover:border-white/10 rounded-2xl h-[48px] w-full text-[14px] flex items-center justify-start px-5 gap-3 transition-all active:scale-[0.98] font-semibold flex-shrink-0">
+                        <span className="material-symbols-outlined text-[20px] opacity-80">
+                          apartment
+                        </span>
+                        <span className="truncate">Main Hall</span>
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               </div>
             </motion.div>
