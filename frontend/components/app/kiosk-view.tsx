@@ -531,7 +531,7 @@ export function KioskView() {
               className="flex flex-col gap-2 h-full min-h-0 flex-shrink-0"
             >
               {/* Clock & Weather Card */}
-              <div className="bg-[#d3e3fd] text-[#041e49] dark:bg-[#004a77] dark:text-[#c2e7ff] rounded-[32px] p-6 pt-10 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0 shadow-sm transition-transform hover:scale-[1.02]">
+              <div className="bg-[#d3e3fd] text-[#041e49] dark:bg-[#004a77] dark:text-[#c2e7ff] rounded-[32px] p-6 pt-10 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0 transition-transform hover:scale-[1.02]">
                 {weather ? (
                   <div className="absolute top-3 right-4 flex items-center opacity-80 text-primary">
                     <span className="material-symbols-outlined text-[24px] fill-current">
@@ -553,7 +553,7 @@ export function KioskView() {
 
               <div className="relative h-full flex flex-col min-h-0">
                 <SiriGlow active={glowingSection === 'news'} />
-                <div className="z-10 bg-white dark:bg-[#1e1e1f] shadow-sm rounded-[32px] h-full flex flex-col min-h-0 overflow-hidden relative">
+                <div className="z-10 bg-[#ffe7e3] dark:bg-[#33201e] rounded-[32px] h-full flex flex-col min-h-0 overflow-hidden relative">
                 {focusedEvent ? (
                   /* Full poster view */
                   <>
@@ -604,10 +604,7 @@ export function KioskView() {
                   <>
                     {/* Header */}
                     <div className="flex-shrink-0 px-5 pt-5 pb-3">
-                      <h2 className="text-[26px] font-bold text-on-surface tracking-tight flex items-center gap-2">
-                        <span className="material-symbols-outlined text-3xl opacity-80">
-                          campaign
-                        </span>
+                      <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-on-surface font-bold flex-shrink-0">
                         Faculty News
                       </h2>
                     </div>
@@ -692,10 +689,10 @@ export function KioskView() {
 
             {/* Middle Column: Events Carousel & Microphone — flex-1 fills freed space */}
             <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.1 }} className="flex-1 h-full min-h-0 flex flex-col gap-2 min-w-0">
-              <div className="bg-[#e6f4ea] dark:bg-[#182a1d] shadow-sm rounded-[32px] flex-1 overflow-hidden relative flex flex-col min-h-0">
+              <div className="bg-[#e6f4ea] dark:bg-[#182a1d] rounded-[32px] flex-1 overflow-hidden relative flex flex-col min-h-0">
                 {navData ? (
                   <div className="flex-1 flex flex-col relative h-full bg-surface-container rounded-[32px] overflow-hidden">
-                    <div className="absolute top-4 left-6 right-6 z-20 flex justify-between items-center bg-surface-container-highest border-none rounded-full px-6 py-3 shadow-sm">
+                    <div className="absolute top-4 left-6 right-6 z-20 flex justify-between items-center bg-surface-container-highest border-none rounded-full px-6 py-3">
                       <div className="flex items-center gap-3 text-on-surface">
                         <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                         <span className="text-white text-lg font-bold">
@@ -786,7 +783,7 @@ export function KioskView() {
                               )}
 
                               {post.extracted_date && (
-                                <p className="text-[13px] font-semibold text-indigo-300 mb-1 drop-shadow-md">
+                                <p className="text-[13px] font-semibold text-indigo-300 mb-1">
                                   📅 {post.extracted_date}{" "}
                                   {post.extracted_time
                                     ? `• ${post.extracted_time}`
@@ -795,7 +792,7 @@ export function KioskView() {
                               )}
 
                               {post.extracted_location && (
-                                <p className="text-[13px] font-semibold text-purple-300 mb-3 drop-shadow-md">
+                                <p className="text-[13px] font-semibold text-purple-300 mb-3">
                                   📍 {post.extracted_location}
                                 </p>
                               )}
@@ -831,7 +828,7 @@ export function KioskView() {
                     )}
                     {/* Facebook Logo Watermark */}
                     {fbPosts.length > 0 && !fbPosts[currentSlide]?.isLocal && (
-                      <div className="absolute bottom-4 right-4 z-20 text-[#1877F2] bg-white rounded-full p-[2px] shadow-lg flex items-center justify-center pointer-events-none">
+                      <div className="absolute bottom-4 right-4 z-20 text-[#1877F2] bg-white rounded-full p-[2px] flex items-center justify-center pointer-events-none">
                         <svg
                           viewBox="0 0 24 24"
                           fill="currentColor"
@@ -848,7 +845,7 @@ export function KioskView() {
               <div className="relative flex-shrink-0 min-h-[112px] h-auto rounded-[32px] w-full">
                 <SiriGlow active={glowingSection === 'mic'} />
                 <div
-                  className={`z-10 h-full py-4 flex items-center justify-center rounded-[32px] shadow-sm relative px-4 overflow-hidden transition-all duration-300 ${isConnected ? "bg-primary-container dark:bg-primary-container" : "bg-[#f0f4f9] dark:bg-[#1a2235]"}`}
+                  className={`z-10 h-full py-4 flex items-center justify-center rounded-[32px] relative px-4 overflow-hidden transition-all duration-300 ${isConnected ? "bg-primary-container dark:bg-primary-container" : "bg-[#f0f4f9] dark:bg-[#1a2235]"}`}
                   style={{
                     boxShadow: isConnected
                       ? `0 0 ${maxVolume * 40}px rgba(var(--tw-colors-primary-rgb), ${maxVolume * 0.3})`
@@ -910,13 +907,13 @@ export function KioskView() {
               {/* Where to? Card — with embedded 3D map (Material Secondary Tint) */}
               <div className="relative flex-1 flex flex-col min-h-0">
                 <SiriGlow active={glowingSection === 'where-to'} />
-                <div className="z-10 bg-[#f3edf7] dark:bg-[#211a2a] shadow-sm rounded-[32px] p-5 flex-1 flex flex-col relative overflow-hidden min-h-0">
+                <div className="z-10 bg-[#f3edf7] dark:bg-[#211a2a] rounded-[32px] p-5 flex-1 flex flex-col relative overflow-hidden min-h-0">
                 <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-on-surface mb-2 font-bold flex-shrink-0">
                   Where to?
                 </h2>
 
                 {/* Embedded 3D Campus Map */}
-                <div className="flex-1 min-h-0 rounded-[1.5rem] overflow-hidden mb-4 bg-surface-container border-none shadow-sm relative">
+                <div className="flex-1 min-h-0 rounded-[1.5rem] overflow-hidden mb-4 bg-surface-container border-none relative">
                   <Suspense
                     fallback={
                       <LoadingOverlay label="Loading map..." />
@@ -998,7 +995,7 @@ export function KioskView() {
         {/* Upload Poster QR Modal */}
         {isUploadModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-surface text-on-surface p-8 rounded-3xl shadow-2xl max-w-md w-full relative animate-in zoom-in-95 duration-200">
+            <div className="bg-surface text-on-surface p-8 rounded-3xl max-w-md w-full relative animate-in zoom-in-95 duration-200">
               <button
                 onClick={() => setIsUploadModalOpen(false)}
                 className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface bg-surface-variant/50 hover:bg-surface-variant p-2 rounded-full transition-colors"
@@ -1016,7 +1013,7 @@ export function KioskView() {
                     poster to the Kiosk.
                   </p>
                 </div>
-                <div className="bg-white p-4 rounded-2xl shadow-sm">
+                <div className="bg-white p-4 rounded-2xl">
                   <QRCodeSVG value={qrUrl} size={200} />
                 </div>
                 <p className="text-sm font-medium opacity-60">
@@ -1031,7 +1028,7 @@ export function KioskView() {
 
         {isColorModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-surface text-on-surface p-8 rounded-3xl shadow-2xl max-w-md w-full relative animate-in zoom-in-95 duration-200">
+            <div className="bg-surface text-on-surface p-8 rounded-3xl max-w-md w-full relative animate-in zoom-in-95 duration-200">
               <button
                 onClick={() => setIsColorModalOpen(false)}
                 className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface bg-surface-variant/50 hover:bg-surface-variant p-2 rounded-full transition-colors"
