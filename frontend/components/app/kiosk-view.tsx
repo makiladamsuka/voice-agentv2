@@ -531,7 +531,8 @@ export function KioskView() {
               className="flex flex-col gap-2 h-full min-h-0 flex-shrink-0"
             >
               {/* Clock & Weather Card */}
-              <div className="bg-[#d3e3fd] text-[#041e49] dark:bg-[#004a77] dark:text-[#c2e7ff] rounded-[32px] p-6 pt-10 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0 transition-transform hover:scale-[1.02]">
+              {!focusedEvent && (
+                <div className="bg-[#d3e3fd] text-[#041e49] dark:bg-[#004a77] dark:text-[#c2e7ff] rounded-[32px] p-6 pt-10 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0 transition-transform hover:scale-[1.02]">
                 {weather ? (
                   <div className="absolute top-3 right-4 flex items-center opacity-80 text-primary">
                     <span className="material-symbols-outlined text-[24px] fill-current">
@@ -549,7 +550,8 @@ export function KioskView() {
                 <div className="text-[14px] leading-[20px] mt-1 font-semibold opacity-80">
                   {dateStr || "Thursday, June 4"}
                 </div>
-              </div>
+                </div>
+              )}
 
               <div className="relative h-full flex flex-col min-h-0">
                 <SiriGlow active={glowingSection === 'news'} />
