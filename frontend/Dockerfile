@@ -7,18 +7,15 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json* pnpm-lock.yaml* ./
+# Copy package files (npm only — avoids corepack fetching pnpm over the network)
+COPY package.json package-lock.json ./
 
-# Install dependencies using the package manager detected
-RUN \
-  if [ -f pnpm-lock.yaml ]; then \
-    corepack enable pnpm && pnpm i --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then \
-    npm ci; \
-  else \
-    echo "Lockfile not found." && exit 1; \
-  fi
+# Retry fetches on flaky Pi DNS/network during image builds
+RUN npm config set fetch-retries 5 \
+  && npm config set fetch-retry-mintimeout 20000 \
+  && npm config set fetch-retry-maxtimeout 120000
+
+RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -32,12 +29,8 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build the application
-RUN \
-  if [ -f pnpm-lock.yaml ]; then \
-    corepack enable pnpm && pnpm run build; \
-  else \
-    npm run build; \
-  fi
+RUN npm run format
+RUN npm run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -60,6 +53,8 @@ RUN chown nextjs:nodejs .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+RUN test -s server.js && test -s /etc/passwd
 
 USER nextjs
 

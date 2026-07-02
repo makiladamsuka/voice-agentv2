@@ -21,7 +21,7 @@ const MOTION_PROPS = {
     duration: 0.3,
     ease: 'easeOut',
   },
-};
+} as const;
 
 interface ChatInputProps {
   chatOpen: boolean;

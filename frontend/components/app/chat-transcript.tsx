@@ -33,7 +33,7 @@ const CONTAINER_MOTION_PROPS = {
   initial: 'hidden',
   animate: 'visible',
   exit: 'hidden',
-};
+} as const;
 
 const MESSAGE_MOTION_PROPS = {
   variants: {
@@ -46,7 +46,7 @@ const MESSAGE_MOTION_PROPS = {
       translateY: 0,
     },
   },
-};
+} as const;
 
 interface ChatTranscriptProps {
   hidden?: boolean;

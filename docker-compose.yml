@@ -24,6 +24,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      network: host
     container_name: voice-agent-frontend
     ports:
       - "3000:3000"
