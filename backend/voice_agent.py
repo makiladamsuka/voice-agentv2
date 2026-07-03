@@ -475,7 +475,11 @@ async def entrypoint(ctx: agents.JobContext):
     
     # Create session immediately (no waiting for ML models)
     session = AgentSession(
-        stt=deepgram.STT(model="nova-3", interim_results=True, smart_format=True),
+        stt=deepgram.STT(
+            model="nova-3", 
+            interim_results=True, 
+            smart_format=True
+        ),
         tts=deepgram.TTS(model="aura-luna-en"),
         vad=silero.VAD.load(
             min_speech_duration=0.05,
@@ -616,40 +620,40 @@ async def entrypoint(ctx: agents.JobContext):
                                 print(f"✅ Greeting known person: {name} -> {greeting}")
                                 if display_manager.DISPLAY_RUNNING:
                                     display_manager.start_emotion("excited", duration=3.0, blink_shift=True)
-                                await session.say(greeting)
+                                # await session.say(greeting)
                             else:
                                 name = ", ".join(known_people)
                                 greeting = generate_group_greeting(known_people, 0)
                                 print(f"✅ Greeting multiple known people -> {greeting}")
                                 if display_manager.DISPLAY_RUNNING:
                                     display_manager.start_emotion("excited", duration=4.0, blink_shift=True)
-                                await session.say(greeting)
+                                # await session.say(greeting)
                         
                         elif known_people and unknown_count > 0:
                             greeting = generate_group_greeting(known_people, unknown_count)
                             print(f"🤔 Greeting mix -> {greeting}")
                             if display_manager.DISPLAY_RUNNING:
                                 display_manager.start_emotion("friendly", duration=3.0, blink_shift=True)
-                            await session.say(greeting)
+                            # await session.say(greeting)
                         
                         elif unknown_count == 1:
                             greeting = generate_greeting("Unknown", is_known=False)
                             print(f"🤔 Greeting unknown person -> {greeting}")
                             if display_manager.DISPLAY_RUNNING:
                                 display_manager.start_emotion("curious", duration=3.0, blink_shift=True)
-                            await session.say(greeting)
+                            # await session.say(greeting)
                         
                         elif unknown_count > 1:
                             greeting = generate_group_greeting([], unknown_count)
                             print(f"🤔 Greeting unknown group -> {greeting}")
                             if display_manager.DISPLAY_RUNNING:
                                 display_manager.start_emotion("curious", duration=4.0, blink_shift=True)
-                            await session.say(greeting)
+                            # await session.say(greeting)
                         
                         else:
                             greeting = generate_group_greeting([], unknown_count)
                             print(f"👥 Greeting {unknown_count} unknown people -> {greeting}")
-                            await session.say(greeting)
+                            # await session.say(greeting)
                             
                     except RuntimeError:
                         print("⚠️ Session closing, stopping greetings")
