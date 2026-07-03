@@ -44,6 +44,15 @@ export function ChatTranscript({
       {rawItems.map((item) => {
         if (!item.message) return null;
 
+        // Hide the item from chat if it's currently being spoken in the staging area!
+        if (
+          stagingText &&
+          (item.message.includes(stagingText) ||
+            stagingText.includes(item.message))
+        ) {
+          return null;
+        }
+
         const locale = navigator?.language ?? "en-US";
         const messageOrigin = item.isLocal ? "local" : "remote";
 
@@ -58,19 +67,6 @@ export function ChatTranscript({
           />
         );
       })}
-      
-      {/* Show the interim typing/transcribing text instantly */}
-      {stagingText && stagingText.trim() !== "" && (
-        <ChatEntry
-          key="staging-text"
-          locale={navigator?.language ?? "en-US"}
-          timestamp={Date.now()}
-          message={stagingText}
-          messageOrigin="local"
-          hasBeenEdited={false}
-          className="opacity-60 italic"
-        />
-      )}
     </div>
   );
 }
