@@ -378,6 +378,27 @@ async def _init_heavy_async(agent):
         except Exception as e:
             print(f"⚠️ Could not build event database: {e}")
             _global_event_db = None
+            
+    # Load event summary for LLM context
+    try:
+        events_json_path = Path(__file__).parent / "event_db" / "extracted_events.json"
+        if events_json_path.exists():
+            events_data = json.loads(events_json_path.read_text())
+            if events_data:
+                summary_lines = ["Here is a quick summary of the currently available campus events/news (do not list all of them unless asked, just know they exist):"]
+                for e in events_data:
+                    title = e.get('title', 'Unknown Event')
+                    category = e.get('category', 'event')
+                    summary_lines.append(f"- {title} ({category})")
+                summary_lines.append("If the user asks 'what is happening on campus' or 'what events do you have', briefly mention these titles. To get detailed dates/descriptions, use the ask_about_events or list_available_events tools.")
+                agent.event_summary = "\n".join(summary_lines)
+            else:
+                agent.event_summary = "There are currently no events."
+        else:
+            agent.event_summary = "Event database not found."
+    except Exception as e:
+        print(f"⚠️ Failed to load event summary: {e}")
+        agent.event_summary = "Failed to load events."
     
     # 3. Start camera and face recognition (slowest)
     if _global_face_monitor is None:
@@ -523,6 +544,15 @@ async def entrypoint(ctx: agents.JobContext):
             )
         
         chat_ctx.messages.insert(0, context_msg)
+        
+        # Inject Event Summary
+        if hasattr(agent, "event_summary"):
+            event_msg = ChatMessage(
+                role=ChatRole.SYSTEM,
+                content=agent.event_summary
+            )
+            chat_ctx.messages.insert(0, event_msg)
+            
         return chat_ctx
         
     session.before_llm_cb = inject_person_context
