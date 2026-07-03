@@ -845,7 +845,7 @@ export function KioskView() {
               </div>
               {/* Microphone Action Area */}
               <div className="relative flex-shrink-0 min-h-[112px] h-auto rounded-[32px] w-full">
-                <SiriGlow active={glowingSection === 'mic'} />
+                <SiriGlow active={glowingSection === 'mic' || isThinking} />
                 <div
                   className={`z-10 h-full py-4 flex items-center justify-center rounded-[32px] relative px-4 overflow-hidden transition-all duration-300 ${isConnected ? "bg-primary-container dark:bg-primary-container" : "bg-[#f0f4f9] dark:bg-[#1a2235]"}`}
                   style={{
