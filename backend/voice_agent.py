@@ -445,18 +445,18 @@ async def entrypoint(ctx: agents.JobContext):
     
     # Create session immediately (no waiting for ML models)
     session = AgentSession(
-        stt=deepgram.STT(model="nova-2"),
+        stt=deepgram.STT(model="nova-3", interim_results=True, smart_format=True),
         tts=deepgram.TTS(model="aura-luna-en"),
         vad=silero.VAD.load(
-            min_speech_duration=0.1,
-            min_silence_duration=0.3,  # Aggressive turn-taking
-            prefix_padding_duration=0.2
+            min_speech_duration=0.05,
+            min_silence_duration=0.2,  # Ultra-aggressive turn-taking
+            prefix_padding_duration=0.1
         ),
         llm=openai.LLM(
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY"),
-            # Switched to openrouter/auto for better resilience (Gemma/Llama endpoints failing)
-            model="openrouter/auto"
+            # Switched to gpt-4o-mini for ultra-low latency response
+            model="openai/gpt-4o-mini"
         ),
     )
     

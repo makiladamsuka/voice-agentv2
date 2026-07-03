@@ -21,19 +21,30 @@ export function ChatTranscript({
   isLoading = false,
   ...props
 }: ChatTranscriptProps & React.HTMLAttributes<HTMLDivElement>) {
-  // Combine only messages (LiveKit automatically syncs STT into messages)
-  const rawItems = messages
-    .map((m: any) => {
-      const text = m.message || m.text;
-      const isLocal = m.from?.isLocal || false;
-      return {
-        id: m.id || String(m.timestamp),
-        timestamp: m.timestamp,
-        message: text,
-        isLocal: isLocal,
-        isFinal: true,
-      };
-    })
+  // Combine messages (finalized) and transcriptions (interim/ongoing)
+  const messageItems = messages.map((m: any) => {
+    const text = m.message || m.text;
+    const isLocal = m.from?.isLocal || false;
+    return {
+      id: m.id || String(m.timestamp),
+      timestamp: m.timestamp || Date.now(),
+      message: text,
+      isLocal: isLocal,
+      isFinal: true,
+    };
+  });
+
+  const transcriptItems = transcriptions.map((t: any) => {
+    return {
+      id: t.id || String(Date.now()),
+      timestamp: t.firstReceivedTime || t.startTime || Date.now(),
+      message: t.text,
+      isLocal: t.participant?.isLocal || false,
+      isFinal: t.isFinal,
+    };
+  });
+
+  const rawItems = [...messageItems, ...transcriptItems]
     .sort((a: any, b: any) => a.timestamp - b.timestamp);
 
   // Deduplicate progressive transcriptions and instant messages
