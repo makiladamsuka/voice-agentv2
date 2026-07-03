@@ -11,6 +11,7 @@ import re
 import random
 import signal
 import time
+from datetime import datetime
 import numpy as np
 from pathlib import Path
 from image_manager import ImageManager
@@ -267,6 +268,14 @@ class CampusGreetingAgent(Agent):
         """
         print("💻 [TOOL] get_system_info called")
         return await self.system_tools.get_system_info(context)
+    
+    @function_tool
+    async def get_current_time(self, context: RunContext = None) -> str:
+        """Gets the current local time and date. Use this when the user asks for the time or date."""
+        print("🕒 [TOOL] get_current_time called")
+        now = datetime.now()
+        # Return a nice readable format for the LLM
+        return f"The current date and time is: {now.strftime('%A, %B %d, %Y at %I:%M %p')}"
     
     @function_tool
     async def get_cpu_usage(self, format_type: str = "percentage", context: RunContext = None) -> str:
