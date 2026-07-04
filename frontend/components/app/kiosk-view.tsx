@@ -84,11 +84,13 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
           className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-50 scale-110"
         />
         {/* Uncropped foreground poster */}
-        <img
-          src={focusedEvent.full_picture}
-          alt={focusedEvent.message}
-          className="relative z-10 w-full h-full object-contain pt-[56px] pb-8 drop-shadow-[0_10px_30px_rgba(0,0,0,0.4)]"
-        />
+        <div className="relative z-10 w-full h-full pt-[56px] pb-10 px-6 flex items-center justify-center drop-shadow-[0_15px_40px_rgba(0,0,0,0.4)]">
+          <img
+            src={focusedEvent.full_picture}
+            alt={focusedEvent.message}
+            className="max-w-full max-h-full object-contain rounded-[24px]"
+          />
+        </div>
       </motion.div>
 
       {/* Scrollable Event Details */}
