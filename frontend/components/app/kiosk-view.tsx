@@ -42,19 +42,8 @@ const NavigationMap = dynamic(() => import("@/components/app/isometric-map"), {
 });
 
 function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClose: () => void }) {
-  const posterScrollRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ container: posterScrollRef });
-  
-  // Material You Expressive Parallax Transforms
-  const imageScale = useTransform(scrollYProgress, [0, 0.5], [1, 0.85]);
-  const imageY = useTransform(scrollYProgress, [0, 0.5], [0, 100]);
-  const imageOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0.3]);
-
   return (
-    <div 
-      ref={posterScrollRef}
-      className="relative w-full h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400/50 scrollbar-track-transparent"
-    >
+    <div className="relative w-full h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400/50 scrollbar-track-transparent">
       {/* Sticky Back Button */}
       <div className="sticky top-0 z-30 pointer-events-none p-3 w-full flex justify-start">
         <button
@@ -68,15 +57,8 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
         </button>
       </div>
 
-      {/* Parallax Image Container (Hardware Accelerated) */}
-      <motion.div 
-        className="sticky top-0 w-full h-[65vh] -mt-[48px] flex flex-col justify-center bg-black/5 dark:bg-black/40 -z-10 origin-top overflow-hidden"
-        style={{ 
-          scale: imageScale,
-          y: imageY,
-          opacity: imageOpacity
-        }}
-      >
+      {/* Static Image Container */}
+      <div className="relative w-full h-[65vh] -mt-[48px] flex flex-col justify-center bg-black/5 dark:bg-black/40 overflow-hidden">
         {/* Blurred ambient background to fill empty space */}
         <img
           src={focusedEvent.full_picture}
@@ -91,7 +73,7 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
             className="max-w-full max-h-full object-contain rounded-[24px]"
           />
         </div>
-      </motion.div>
+      </div>
 
       {/* Scrollable Event Details */}
       <div className="relative z-20 p-6 bg-white/95 dark:bg-[#202020]/95 backdrop-blur-2xl border-t border-black/10 dark:border-white/10 min-h-[50vh] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] rounded-t-[32px] -mt-6">
