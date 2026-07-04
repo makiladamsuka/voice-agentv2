@@ -502,60 +502,75 @@ async def entrypoint(ctx: agents.JobContext):
     
     # Context Injection: LLM always knows who's in front (handles None face_monitor)
     async def inject_person_context(assistant: AgentSession, chat_ctx):
-        # Check if face monitor is ready
-        if not _is_ready or agent.face_monitor is None:
-            from livekit.agents.llm import ChatMessage, ChatRole
-            context_msg = ChatMessage(
-                role=ChatRole.SYSTEM,
-                content="System is still initializing. Face recognition not yet available."
-            )
-            chat_ctx.messages.insert(0, context_msg)
-            return chat_ctx
-            
-        # Use thread-safe FRESH people getter (most recent detection)
-        fresh = agent.face_monitor.get_fresh_people()
-        
-        # Categorize
-        known = [p for p in fresh if p != "Unknown"]
-        unknown_count = sum(1 for p in fresh if p == "Unknown")
-        
+        # 1. Clean up any previously injected dynamic system messages to prevent duplication
+        # We identify them by their specific prefixes
+        chat_ctx.messages = [
+            m for m in chat_ctx.messages
+            if not (m.role == "system" and (
+                m.content.startswith("System is still initializing") or 
+                m.content.startswith("CURRENT") or 
+                m.content.startswith("No one is visible") or
+                m.content.startswith("Here is a quick summary") or
+                m.content.startswith("There are currently no events") or
+                m.content.startswith("Event database not found") or
+                m.content.startswith("Failed to load events")
+            ))
+        ]
+
         from livekit.agents.llm import ChatMessage, ChatRole
         
-        # Debug: log what we're injecting
-        print(f"🎯 Context injection - Fresh: {fresh}, Known: {known}")
-        
-        if known:
-            names = ", ".join(known)
-            if unknown_count:
-                context_msg = ChatMessage(
-                    role=ChatRole.SYSTEM,
-                    content=f"CURRENT PERSON IN FRONT OF YOU: {names}. There's also someone you don't recognize. When asked 'who am I', answer with: {names}"
-                )
-            else:
-                context_msg = ChatMessage(
-                    role=ChatRole.SYSTEM,
-                    content=f"CURRENT PERSON IN FRONT OF YOU: {names}. When asked 'who am I', answer with: {names}"
-                )
-        elif unknown_count:
-            context_msg = ChatMessage(
+        dynamic_messages = []
+
+        # 2. Prepare Person Context
+        if not _is_ready or agent.face_monitor is None:
+            dynamic_messages.append(ChatMessage(
                 role=ChatRole.SYSTEM,
-                content="CURRENT: Unknown person. You don't recognize them. Ask for their name."
-            )
+                content="System is still initializing. Face recognition not yet available."
+            ))
         else:
-            context_msg = ChatMessage(
-                role=ChatRole.SYSTEM,
-                content="No one is visible right now."
-            )
+            fresh = agent.face_monitor.get_fresh_people()
+            known = [p for p in fresh if p != "Unknown"]
+            unknown_count = sum(1 for p in fresh if p == "Unknown")
+            
+            print(f"🎯 Context injection - Fresh: {fresh}, Known: {known}")
+            
+            if known:
+                names = ", ".join(known)
+                if unknown_count:
+                    dynamic_messages.append(ChatMessage(
+                        role=ChatRole.SYSTEM,
+                        content=f"CURRENT PERSON IN FRONT OF YOU: {names}. There's also someone you don't recognize. When asked 'who am I', answer with: {names}"
+                    ))
+                else:
+                    dynamic_messages.append(ChatMessage(
+                        role=ChatRole.SYSTEM,
+                        content=f"CURRENT PERSON IN FRONT OF YOU: {names}. When asked 'who am I', answer with: {names}"
+                    ))
+            elif unknown_count:
+                dynamic_messages.append(ChatMessage(
+                    role=ChatRole.SYSTEM,
+                    content="CURRENT: Unknown person. You don't recognize them. Ask for their name."
+                ))
+            else:
+                dynamic_messages.append(ChatMessage(
+                    role=ChatRole.SYSTEM,
+                    content="No one is visible right now."
+                ))
         
-        chat_ctx.messages.insert(0, context_msg)
-        
-        # Inject Event Summary
-        if hasattr(agent, "event_summary"):
-            event_msg = ChatMessage(
+        # 3. Prepare Event Summary Context
+        if hasattr(agent, "event_summary") and agent.event_summary:
+            dynamic_messages.append(ChatMessage(
                 role=ChatRole.SYSTEM,
                 content=agent.event_summary
-            )
-            chat_ctx.messages.insert(0, event_msg)
+            ))
+
+        # 4. Insert dynamic messages immediately AFTER the main system prompt 
+        # (which is usually the first message at index 0)
+        # This gives them high precedence without overriding the persona
+        insert_idx = 1 if len(chat_ctx.messages) > 0 and chat_ctx.messages[0].role == "system" else 0
+        
+        for i, msg in enumerate(dynamic_messages):
+            chat_ctx.messages.insert(insert_idx + i, msg)
             
         return chat_ctx
         
