@@ -578,16 +578,11 @@ export function KioskView() {
                       </button>
                     </div>
                     {/* Event details below image */}
-                    <div className="flex-shrink-0 p-5 bg-white/60 dark:bg-black/40 backdrop-blur-lg border-t border-white/20 dark:border-white/5">
-                      <p className="text-on-surface font-semibold text-[16px] leading-snug mb-1">
+                    <div className="flex-shrink-0 max-h-[45%] overflow-y-auto p-5 bg-white/60 dark:bg-black/40 backdrop-blur-lg border-t border-white/20 dark:border-white/5 scrollbar-thin scrollbar-thumb-gray-400/50 scrollbar-track-transparent">
+                      <p className="text-on-surface font-semibold text-[18px] leading-snug mb-3">
                         {focusedEvent.message}
                       </p>
-                      {focusedEvent.description && (
-                        <p className="text-on-surface/75 text-[13px] leading-relaxed line-clamp-3 mb-3">
-                          {focusedEvent.description}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 mb-4">
                         {focusedEvent.extracted_date && (
                           <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full text-[11px] font-semibold">
                             📅 {focusedEvent.extracted_date}
@@ -599,6 +594,11 @@ export function KioskView() {
                           </span>
                         )}
                       </div>
+                      {focusedEvent.description && (
+                        <div className="text-on-surface/80 text-[14px] leading-relaxed whitespace-pre-wrap pb-2 border-t border-black/5 dark:border-white/5 pt-3">
+                          {focusedEvent.description}
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (
