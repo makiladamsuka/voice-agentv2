@@ -51,7 +51,7 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
   const blurFilter = useMotionTemplate`blur(${blurAmount}px)`;
 
   return (
-    <div ref={posterScrollRef} className="relative w-full h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400/50 scrollbar-track-transparent">
+    <div ref={posterScrollRef} className="relative w-full h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {/* Sticky Back Button */}
       <div className="sticky top-0 z-30 pointer-events-none p-3 w-full flex justify-start">
         <button
