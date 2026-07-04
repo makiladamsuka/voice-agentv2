@@ -45,7 +45,7 @@ def index_posters(assets_dir: Path):
                             {
                                 "role": "user",
                                 "content": [
-                                    {"type": "text", "text": "Extract details from this poster/image. Return JSON with keys: title, date, time, location, description. Do your best to extract any relevant information."},
+                                    {"type": "text", "text": "Extract details from this poster/image. Return JSON with keys: title, date, time, location, description. For the 'description' field, generate a comprehensive, scrollable summary of ALL the key points and information on the poster, using well-formatted paragraphs or bullet points (using standard markdown-like bullets: -, \u2022) so the user can easily see what the event is about. Be thorough but concise."},
                                     {
                                         "type": "image_url",
                                         "image_url": {
