@@ -229,11 +229,17 @@ class CampusGreetingAgent(Agent):
                     "type": "navigation",
                     "destination": result["destination"],
                     "floor": result.get("floor", "floor_1"),
-                    "path": result["path_coords"],
+                    "path": result["path_coords"],           # legacy key (kept for compat)
+                    "path_coords": result["path_coords"],   # explicit alias
+                    "path_ids": result.get("path_ids", []), # ← NEW: floor-aware path tracing
+                    "directions": result.get("directions", ""),  # ← NEW: turn-by-turn text
+                    "distance_m": result.get("distance_m", 0),
+                    "time_min": result.get("time_min", 0),
                     "nodes": [{
                         "id": n["id"],
                         "label": n["label"],
                         "type": n.get("type", "room"),
+                        "floor": n.get("floor", "floor_1"),
                         "world": n["world"],
                         "building": n.get("building"),
                         "size": n.get("size", [1, 1, 1])
@@ -243,7 +249,7 @@ class CampusGreetingAgent(Agent):
                 await self.room.local_participant.publish_data(
                     json.dumps(nav_data).encode()
                 )
-                print(f"   📡 Published navigation data to kiosk")
+                print(f"   📡 Published navigation data to kiosk (path_ids: {len(result.get('path_ids', []))} nodes, {len(result.get('path_coords', []))} coords)")
             except Exception as e:
                 print(f"   ⚠️ Failed to publish navigation data: {e}")
         
@@ -764,12 +770,22 @@ async def entrypoint(ctx: agents.JobContext):
             except Exception as e:
                 print(f"⚠️ agent_false_interruption error: {e}")
 
-        # DATA RECEIVED — kiosk tapped a news card, frontend sends event context
+        # DATA RECEIVED — kiosk sends event context or navigation requests
         @ctx.room.on("data_received")
         def on_data_received(packet):
             try:
                 payload = packet.data.decode("utf-8")
                 data = json.loads(payload)
+
+                # navigate_request: sent by the frontend locations modal / map node click
+                if data.get("type") == "navigate_request":
+                    destination = data.get("destination", "")
+                    if destination:
+                        print(f"🗺️ navigate_request received for: {destination}")
+                        intro = f"A visitor just tapped the navigation button for '{destination}'. Please use your get_directions tool to give them directions to '{destination}'."
+                        asyncio.ensure_future(session.generate_reply(user_input=intro))
+                    return
+
                 if data.get("type") == "event_focus":
                     event = data.get("event", {})
                     title = event.get("title", "this event")
