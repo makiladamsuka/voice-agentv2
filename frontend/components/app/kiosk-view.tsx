@@ -19,7 +19,7 @@ import React, {
   useCallback,
   Suspense,
 } from "react";
-import { motion, AnimatePresence, useScroll, useTransform } from "motion/react";
+import { motion, AnimatePresence, useScroll, useTransform, useMotionTemplate } from "motion/react";
 import { ChatTranscript } from "@/components/app/chat-transcript";
 import { ScrollArea } from "@/components/livekit/scroll-area/scroll-area";
 import { ThemeToggle } from "@/components/app/theme-toggle";
@@ -42,8 +42,16 @@ const NavigationMap = dynamic(() => import("@/components/app/isometric-map"), {
 });
 
 function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClose: () => void }) {
+  const posterScrollRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ container: posterScrollRef });
+  
+  // Apple Music style blur effect as text scrolls over it
+  const blurAmount = useTransform(scrollYProgress, [0, 0.4], [0, 30]);
+  const imageOpacity = useTransform(scrollYProgress, [0, 0.4], [1, 0.4]);
+  const blurFilter = useMotionTemplate`blur(${blurAmount}px)`;
+
   return (
-    <div className="relative w-full h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400/50 scrollbar-track-transparent">
+    <div ref={posterScrollRef} className="relative w-full h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400/50 scrollbar-track-transparent">
       {/* Sticky Back Button */}
       <div className="sticky top-0 z-30 pointer-events-none p-3 w-full flex justify-start">
         <button
@@ -57,8 +65,14 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
         </button>
       </div>
 
-      {/* Static Image Container */}
-      <div className="relative w-full h-[65vh] -mt-[48px] flex flex-col justify-center bg-black/5 dark:bg-black/40 overflow-hidden">
+      {/* Sticky Image Container (Blur Effect on Scroll) */}
+      <motion.div 
+        className="sticky top-0 w-full h-[85vh] -mt-[48px] flex flex-col justify-center bg-black/5 dark:bg-black/40 overflow-hidden -z-10"
+        style={{
+          filter: blurFilter,
+          opacity: imageOpacity
+        }}
+      >
         {/* Blurred ambient background to fill empty space */}
         <img
           src={focusedEvent.full_picture}
@@ -73,7 +87,7 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
             className="max-w-full max-h-full object-contain rounded-[24px]"
           />
         </div>
-      </div>
+      </motion.div>
 
       {/* Scrollable Event Details */}
       <div className="relative z-20 p-6 bg-white/95 dark:bg-[#202020]/95 backdrop-blur-2xl border-t border-black/10 dark:border-white/10 min-h-[50vh] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] rounded-t-[32px] -mt-6">
