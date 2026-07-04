@@ -41,6 +41,86 @@ const NavigationMap = dynamic(() => import("@/components/app/isometric-map"), {
   ssr: false,
 });
 
+function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClose: () => void }) {
+  const posterScrollRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ container: posterScrollRef });
+  
+  // Material You Expressive Parallax Transforms
+  const imageScale = useTransform(scrollYProgress, [0, 0.5], [1, 0.85]);
+  const imageY = useTransform(scrollYProgress, [0, 0.5], [0, 100]);
+  const imageOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0.3]);
+
+  return (
+    <div 
+      ref={posterScrollRef}
+      className="relative w-full h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400/50 scrollbar-track-transparent"
+    >
+      {/* Sticky Back Button */}
+      <div className="sticky top-0 z-30 pointer-events-none p-3 w-full flex justify-start">
+        <button
+          onClick={onClose}
+          className="pointer-events-auto bg-black/50 hover:bg-black/70 text-white rounded-full px-3 py-1.5 text-[12px] font-bold flex items-center gap-1.5 transition-colors backdrop-blur-sm shadow-md"
+        >
+          <span className="material-symbols-outlined text-[16px]">
+            arrow_back
+          </span>
+          Back
+        </button>
+      </div>
+
+      {/* Parallax Image Container (Hardware Accelerated) */}
+      <motion.div 
+        className="sticky top-0 w-full h-[65vh] -mt-[48px] flex flex-col justify-center bg-black/5 dark:bg-black/40 -z-10 origin-top overflow-hidden"
+        style={{ 
+          scale: imageScale,
+          y: imageY,
+          opacity: imageOpacity
+        }}
+      >
+        <img
+          src={focusedEvent.full_picture}
+          alt={focusedEvent.message}
+          className="w-full h-full object-contain pt-[48px]"
+        />
+      </motion.div>
+
+      {/* Scrollable Event Details */}
+      <div className="relative z-20 p-6 bg-white/95 dark:bg-[#202020]/95 backdrop-blur-2xl border-t border-black/10 dark:border-white/10 min-h-[50vh] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] rounded-t-[32px] -mt-6">
+        <p className="text-on-surface font-semibold text-[22px] leading-snug mb-3">
+          {focusedEvent.message}
+        </p>
+        <div className="flex flex-wrap gap-2 mb-5">
+          {focusedEvent.extracted_date && (
+            <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-full text-[12px] font-semibold">
+              📅 {focusedEvent.extracted_date}
+            </span>
+          )}
+          {focusedEvent.extracted_location && (
+            <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-full text-[12px] font-semibold">
+              📍 {focusedEvent.extracted_location}
+            </span>
+          )}
+        </div>
+        {focusedEvent.description && (
+          <div className="text-on-surface/85 text-[15px] leading-relaxed pb-6 border-t border-black/5 dark:border-white/5 pt-4 prose prose-sm dark:prose-invert max-w-none">
+            <ReactMarkdown
+              components={{
+                p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
+                ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
+                ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-3 space-y-1" {...props} />,
+                li: ({node, ...props}) => <li className="" {...props} />,
+                strong: ({node, ...props}) => <strong className="font-bold text-on-surface" {...props} />,
+              }}
+            >
+              {focusedEvent.description.replace(/(?:\s*)•\s*/g, '\n\n- ').trim()}
+            </ReactMarkdown>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function KioskView() {
   const [glowingSection, setGlowingSection] = useState<'where-to' | 'chat' | 'mic' | 'news' | null>(null);
   const session = useSessionContext();
@@ -50,13 +130,6 @@ export function KioskView() {
 
   // Focused event state — set when a news card is tapped
   const [focusedEvent, setFocusedEvent] = useState<any | null>(null);
-  const posterScrollRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ container: posterScrollRef });
-  
-  // Material You Expressive Parallax Transforms
-  const imageScale = useTransform(scrollYProgress, [0, 0.5], [1, 0.85]);
-  const imageY = useTransform(scrollYProgress, [0, 0.5], [0, 100]);
-  const imageOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0.3]);
   const pendingEventRef = useRef<any | null>(null);
   const transcriptions = useTranscriptions();
   const [navData, setNavData] = useState<any | null>(null);
@@ -565,76 +638,10 @@ export function KioskView() {
                 <SiriGlow active={glowingSection === 'news'} />
                 <div className="z-10 bg-[#ffe7e3] dark:bg-[#33201e] rounded-[32px] h-full flex flex-col min-h-0 overflow-hidden relative">
                 {focusedEvent ? (
-                  /* Full poster view - Parallax scroll */
-                  <div 
-                    ref={posterScrollRef}
-                    className="relative w-full h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400/50 scrollbar-track-transparent"
-                  >
-                    {/* Sticky Back Button */}
-                    <div className="sticky top-0 z-30 pointer-events-none p-3 w-full flex justify-start">
-                      <button
-                        onClick={() => {
-                          setFocusedEvent(null);
-                        }}
-                        className="pointer-events-auto bg-black/50 hover:bg-black/70 text-white rounded-full px-3 py-1.5 text-[12px] font-bold flex items-center gap-1.5 transition-colors backdrop-blur-sm shadow-md"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">
-                          arrow_back
-                        </span>
-                        Back
-                      </button>
-                    </div>
-
-                    {/* Parallax Image Container (Hardware Accelerated) */}
-                    <motion.div 
-                      className="sticky top-0 w-full h-[65vh] -mt-[48px] flex flex-col justify-center bg-black/5 dark:bg-black/40 -z-10 origin-top overflow-hidden"
-                      style={{ 
-                        scale: imageScale,
-                        y: imageY,
-                        opacity: imageOpacity
-                      }}
-                    >
-                      <img
-                        src={focusedEvent.full_picture}
-                        alt={focusedEvent.message}
-                        className="w-full h-full object-contain pt-[48px]"
-                      />
-                    </motion.div>
-
-                    {/* Scrollable Event Details */}
-                    <div className="relative z-20 p-6 bg-white/95 dark:bg-[#202020]/95 backdrop-blur-2xl border-t border-black/10 dark:border-white/10 min-h-[50vh] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] rounded-t-[32px] -mt-6">
-                      <p className="text-on-surface font-semibold text-[22px] leading-snug mb-3">
-                        {focusedEvent.message}
-                      </p>
-                      <div className="flex flex-wrap gap-2 mb-5">
-                        {focusedEvent.extracted_date && (
-                          <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-full text-[12px] font-semibold">
-                            📅 {focusedEvent.extracted_date}
-                          </span>
-                        )}
-                        {focusedEvent.extracted_location && (
-                          <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-full text-[12px] font-semibold">
-                            📍 {focusedEvent.extracted_location}
-                          </span>
-                        )}
-                      </div>
-                      {focusedEvent.description && (
-                        <div className="text-on-surface/85 text-[15px] leading-relaxed pb-6 border-t border-black/5 dark:border-white/5 pt-4 prose prose-sm dark:prose-invert max-w-none">
-                          <ReactMarkdown
-                            components={{
-                              p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
-                              ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
-                              ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-3 space-y-1" {...props} />,
-                              li: ({node, ...props}) => <li className="" {...props} />,
-                              strong: ({node, ...props}) => <strong className="font-bold text-on-surface" {...props} />,
-                            }}
-                          >
-                            {focusedEvent.description.replace(/(?:\s*)•\s*/g, '\n\n- ').trim()}
-                          </ReactMarkdown>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <FocusedEventView 
+                    focusedEvent={focusedEvent} 
+                    onClose={() => setFocusedEvent(null)} 
+                  />
                 ) : (
                   /* Normal news list */
                   <>
