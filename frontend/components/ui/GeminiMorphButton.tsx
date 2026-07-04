@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Shape generation (M3 Polar Math) ──────────────────────────────────────────
 const POINTS = 120; // 120 points is more than enough for perfectly smooth anti-aliased SVGs
@@ -130,51 +131,56 @@ export function GeminiMorphButton({
     };
   }, [isAnimating]);
 
-  // ── Render: animating state ───────────────────────────────────────────────
-  if (isAnimating) {
-    return (
-      <div
-        onClick={onClick}
-        className="relative z-10 w-[64px] h-[64px] rounded-full flex items-center justify-center cursor-pointer hover:scale-105 transition-transform active:scale-95"
-      >
-        <svg
-          viewBox="0 0 80 80"
-          width={80}
-          height={80}
-          className="absolute fill-black dark:fill-white animate-[spin_12s_linear_infinite]"
-          style={{
-            top: -8,
-            left: -8,
-            overflow: "visible",
-            zIndex: -1,
-          }}
-        >
-          {/* Main morphing shape */}
-          <path
-            ref={mainRef}
-            d={buildPath(SHAPES.scallop8, 38, 40, 40)}
-          />
-        </svg>
-        <span className="material-symbols-outlined text-3xl text-white dark:text-black relative z-10">
-          mic
-        </span>
-      </div>
-    );
-  }
-
-  // ── Render: idle / connected state ────────────────────────────────────────
+  // ── Render with Framer Motion Elastic Pop ──────────────────────────────
   return (
-    <button
-      onClick={onClick}
-      className={`relative z-10 w-[64px] h-[64px] rounded-full flex items-center justify-center hover:scale-105 transition-transform active:scale-95 border-none ${
-        isConnected
-          ? "bg-red-600 text-white"
-          : "bg-black dark:bg-white text-white dark:text-black"
-      }`}
-    >
-      <span className="material-symbols-outlined text-3xl fill-current">
-        {isConnected ? "mic_off" : "mic"}
-      </span>
-    </button>
+    <AnimatePresence mode="wait">
+      {isAnimating ? (
+        <motion.div
+          key="animating-blob"
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 900, damping: 25 }}
+          onClick={onClick}
+          className="relative z-10 w-[64px] h-[64px] rounded-full flex items-center justify-center cursor-pointer hover:scale-105 transition-transform active:scale-95"
+        >
+          <svg
+            viewBox="0 0 80 80"
+            width={80}
+            height={80}
+            className="absolute fill-black dark:fill-white animate-[spin_12s_linear_infinite]"
+            style={{
+              top: -8,
+              left: -8,
+              overflow: "visible",
+              zIndex: -1,
+            }}
+          >
+            <path ref={mainRef} d={buildPath(SHAPES.scallop8, 38, 40, 40)} />
+          </svg>
+          <span className="material-symbols-outlined text-3xl text-white dark:text-black relative z-10">
+            mic
+          </span>
+        </motion.div>
+      ) : (
+        <motion.button
+          key={isConnected ? "connected-red" : "idle-black"}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.5, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 900, damping: 22 }}
+          onClick={onClick}
+          className={`relative z-10 w-[64px] h-[64px] rounded-full flex items-center justify-center hover:scale-105 transition-all active:scale-95 border-none shadow-lg ${
+            isConnected
+              ? "bg-red-600 text-white"
+              : "bg-black dark:bg-white text-white dark:text-black"
+          }`}
+        >
+          <span className="material-symbols-outlined text-3xl fill-current">
+            {isConnected ? "mic_off" : "mic"}
+          </span>
+        </motion.button>
+      )}
+    </AnimatePresence>
   );
 }

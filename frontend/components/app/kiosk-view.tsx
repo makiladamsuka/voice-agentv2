@@ -537,14 +537,14 @@ export function KioskView() {
 
   return (
     <div
-      className="relative text-on-background w-full h-screen overflow-hidden flex flex-col select-none bg-[#f4f7fb] dark:bg-[#131314]"
+      className="relative text-on-background w-full h-screen overflow-hidden flex flex-col select-none bg-[#f4f7fb] dark:bg-black"
       style={{ fontFamily: "Inter, sans-serif" }}
     >
       {/* Subtle Material You Premium Background */}
       <div className="absolute inset-0 -z-20 pointer-events-none overflow-hidden">
-        {/* Ambient Glowing Blobs */}
-        <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-primary-container/40 dark:bg-primary-container/10 rounded-full blur-[140px] pointer-events-none" />
-        <div className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-tertiary-container/40 dark:bg-tertiary-container/10 rounded-full blur-[140px] pointer-events-none" />
+        {/* Ambient Glowing Blobs - Hidden in true dark mode */}
+        <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-primary-container/40 dark:hidden rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute -bottom-[20%] -right-[10%] w-[60%] h-[60%] bg-tertiary-container/40 dark:hidden rounded-full blur-[140px] pointer-events-none" />
       </div>
 
       {/* Main Content Wrapper (must be above background) */}
@@ -605,7 +605,7 @@ export function KioskView() {
             >
               {/* Clock & Weather Card */}
               {!focusedEvent && (
-                <div className="bg-[#d3e3fd] text-[#041e49] dark:bg-[#004a77] dark:text-[#c2e7ff] rounded-[32px] p-6 pt-10 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0 transition-transform hover:scale-[1.02]">
+                <div className="bg-[#d3e3fd] text-[#041e49] dark:bg-[#0a0a0a] dark:text-white rounded-[32px] px-8 py-10 pt-12 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0 transition-transform hover:scale-[1.02]">
                 {weather ? (
                   <div className="absolute top-3 right-4 flex items-center opacity-80 text-primary">
                     <span className="material-symbols-outlined text-[24px] fill-current">
@@ -617,10 +617,10 @@ export function KioskView() {
                     light_mode
                   </span>
                 )}
-                <div className="text-[44px] 2xl:text-[52px] leading-none tracking-[-0.04em] font-black whitespace-nowrap">
+                <div className="text-[64px] 2xl:text-[80px] leading-none tracking-[-0.04em] font-black whitespace-nowrap">
                   {time || "10:42"}
                 </div>
-                <div className="text-[14px] leading-[20px] mt-1 font-semibold opacity-80">
+                <div className="text-[16px] leading-[20px] mt-1 font-semibold opacity-80">
                   {dateStr || "Thursday, June 4"}
                 </div>
                 </div>
@@ -628,7 +628,7 @@ export function KioskView() {
 
               <div className="relative h-full flex flex-col min-h-0">
                 <SiriGlow active={glowingSection === 'news'} />
-                <div className={`z-10 rounded-[32px] h-full flex flex-col min-h-0 overflow-hidden relative ${focusedEvent ? 'bg-[#f0f4f9] dark:bg-[#121212]' : 'bg-[#ffe7e3] dark:bg-[#33201e]'}`}>
+                <div className={`z-10 rounded-[32px] h-full flex flex-col min-h-0 overflow-hidden relative ${focusedEvent ? 'bg-[#f0f4f9] dark:bg-[#121212]' : 'bg-[#ffe7e3] dark:bg-[#050505]'}`}>
                 {focusedEvent ? (
                   <FocusedEventView 
                     focusedEvent={focusedEvent} 
@@ -724,7 +724,7 @@ export function KioskView() {
 
             {/* Middle Column: Events Carousel & Microphone — flex-1 fills freed space */}
             <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.1 }} className="flex-1 h-full min-h-0 flex flex-col gap-2 min-w-0">
-              <div className="bg-[#e6f4ea] dark:bg-[#182a1d] rounded-[32px] flex-1 overflow-hidden relative flex flex-col min-h-0">
+              <div className="bg-[#e6f4ea] dark:bg-[#050505] rounded-[32px] flex-1 overflow-hidden relative flex flex-col min-h-0">
                 {navData ? (
                   <div className="flex-1 flex flex-col relative h-full bg-surface-container rounded-[32px] overflow-hidden">
                     <div className="absolute top-4 left-6 right-6 z-20 flex justify-between items-center bg-surface-container-highest border-none rounded-full px-6 py-3">
@@ -810,34 +810,6 @@ export function KioskView() {
                               <h3 className="text-[20px] font-normal leading-tight mb-2 line-clamp-3 opacity-90">
                                 {post.message}
                               </h3>
-
-                              {post.description && (
-                                <p className="text-[14px] opacity-80 mb-2 line-clamp-2">
-                                  {post.description}
-                                </p>
-                              )}
-
-                              {post.extracted_date && (
-                                <p className="text-[13px] font-semibold text-indigo-300 mb-1">
-                                  📅 {post.extracted_date}{" "}
-                                  {post.extracted_time
-                                    ? `• ${post.extracted_time}`
-                                    : ""}
-                                </p>
-                              )}
-
-                              {post.extracted_location && (
-                                <p className="text-[13px] font-semibold text-purple-300 mb-3">
-                                  📍 {post.extracted_location}
-                                </p>
-                              )}
-
-                              <p className="text-[11px] opacity-60">
-                                Posted on:{" "}
-                                {new Date(
-                                  post.created_time,
-                                ).toLocaleDateString()}
-                              </p>
                             </div>
                           ))
                         ) : (
@@ -942,7 +914,7 @@ export function KioskView() {
               {/* Where to? Card — with embedded 3D map (Material Secondary Tint) */}
               <div className="relative flex-1 flex flex-col min-h-0">
                 <SiriGlow active={glowingSection === 'where-to'} />
-                <div className="z-10 bg-[#f3edf7] dark:bg-[#211a2a] rounded-[32px] p-5 flex-1 flex flex-col relative overflow-hidden min-h-0">
+                <div className="z-10 bg-[#f3edf7] dark:bg-[#050505] rounded-[32px] p-5 flex-1 flex flex-col relative overflow-hidden min-h-0">
                 <h2 className="text-[24px] leading-[32px] tracking-[-0.02em] text-on-surface mb-2 font-bold flex-shrink-0">
                   Where to?
                 </h2>
