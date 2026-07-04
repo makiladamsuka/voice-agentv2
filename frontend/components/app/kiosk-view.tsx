@@ -80,7 +80,7 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
         <img
           src={focusedEvent.full_picture}
           alt={focusedEvent.message}
-          className="w-full h-full object-contain pt-[48px]"
+          className="w-full h-full object-cover object-top"
         />
       </motion.div>
 
