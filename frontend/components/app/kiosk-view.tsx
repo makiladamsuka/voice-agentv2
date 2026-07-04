@@ -606,7 +606,7 @@ export function KioskView() {
                               strong: ({node, ...props}) => <strong className="font-bold text-on-surface" {...props} />,
                             }}
                           >
-                            {focusedEvent.description}
+                            {focusedEvent.description.replace(/(?:\s*)•\s*/g, '\n\n- ').trim()}
                           </ReactMarkdown>
                         </div>
                       )}
