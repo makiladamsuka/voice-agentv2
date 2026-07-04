@@ -30,6 +30,7 @@ import LoadingOverlay from "@/components/ui/LoadingOverlay";
 import { GeminiMorphButton } from "@/components/ui/GeminiMorphButton";
 import { SiriGlow } from "@/components/ui/SiriGlow";
 import { ImageDisplay } from "@/components/app/image-display";
+import ReactMarkdown from "react-markdown";
 
 // Lazy load 3D map to avoid SSR issues with Three.js
 const CampusMapEmbed = dynamic(
@@ -595,8 +596,18 @@ export function KioskView() {
                         )}
                       </div>
                       {focusedEvent.description && (
-                        <div className="text-on-surface/80 text-[14px] leading-relaxed whitespace-pre-wrap pb-2 border-t border-black/5 dark:border-white/5 pt-3">
-                          {focusedEvent.description}
+                        <div className="text-on-surface/80 text-[14px] leading-relaxed pb-2 border-t border-black/5 dark:border-white/5 pt-3 prose prose-sm dark:prose-invert max-w-none">
+                          <ReactMarkdown
+                            components={{
+                              p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                              ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-2" {...props} />,
+                              ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-2" {...props} />,
+                              li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                              strong: ({node, ...props}) => <strong className="font-bold text-on-surface" {...props} />,
+                            }}
+                          >
+                            {focusedEvent.description}
+                          </ReactMarkdown>
                         </div>
                       )}
                     </div>
