@@ -19,7 +19,7 @@ import React, {
   useCallback,
   Suspense,
 } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useScroll, useTransform } from "motion/react";
 import { ChatTranscript } from "@/components/app/chat-transcript";
 import { ScrollArea } from "@/components/livekit/scroll-area/scroll-area";
 import { ThemeToggle } from "@/components/app/theme-toggle";
@@ -50,7 +50,13 @@ export function KioskView() {
 
   // Focused event state — set when a news card is tapped
   const [focusedEvent, setFocusedEvent] = useState<any | null>(null);
-  const [focusedEventScroll, setFocusedEventScroll] = useState(0);
+  const posterScrollRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ container: posterScrollRef });
+  
+  // Material You Expressive Parallax Transforms
+  const imageScale = useTransform(scrollYProgress, [0, 0.5], [1, 0.85]);
+  const imageY = useTransform(scrollYProgress, [0, 0.5], [0, 100]);
+  const imageOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0.3]);
   const pendingEventRef = useRef<any | null>(null);
   const transcriptions = useTranscriptions();
   const [navData, setNavData] = useState<any | null>(null);
@@ -561,20 +567,14 @@ export function KioskView() {
                 {focusedEvent ? (
                   /* Full poster view - Parallax scroll */
                   <div 
+                    ref={posterScrollRef}
                     className="relative w-full h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400/50 scrollbar-track-transparent"
-                    onScroll={(e) => {
-                       const target = e.currentTarget;
-                       // Calculate scroll progress up to ~300px
-                       const progress = Math.min(target.scrollTop / 300, 1);
-                       setFocusedEventScroll(progress);
-                    }}
                   >
                     {/* Sticky Back Button */}
                     <div className="sticky top-0 z-30 pointer-events-none p-3 w-full flex justify-start">
                       <button
                         onClick={() => {
                           setFocusedEvent(null);
-                          setFocusedEventScroll(0);
                         }}
                         className="pointer-events-auto bg-black/50 hover:bg-black/70 text-white rounded-full px-3 py-1.5 text-[12px] font-bold flex items-center gap-1.5 transition-colors backdrop-blur-sm shadow-md"
                       >
@@ -585,12 +585,13 @@ export function KioskView() {
                       </button>
                     </div>
 
-                    {/* Parallax Image Container */}
-                    <div 
+                    {/* Parallax Image Container (Hardware Accelerated) */}
+                    <motion.div 
                       className="sticky top-0 w-full h-[65vh] -mt-[48px] flex flex-col justify-center bg-black/5 dark:bg-black/40 -z-10 origin-top overflow-hidden"
                       style={{ 
-                        transform: `scale(${1 - focusedEventScroll * 0.15}) translateY(${focusedEventScroll * 50}px)`,
-                        opacity: 1 - focusedEventScroll * 0.6
+                        scale: imageScale,
+                        y: imageY,
+                        opacity: imageOpacity
                       }}
                     >
                       <img
@@ -598,10 +599,10 @@ export function KioskView() {
                         alt={focusedEvent.message}
                         className="w-full h-full object-contain pt-[48px]"
                       />
-                    </div>
+                    </motion.div>
 
                     {/* Scrollable Event Details */}
-                    <div className="relative z-20 p-6 bg-white/90 dark:bg-[#202020]/90 backdrop-blur-xl border-t border-black/10 dark:border-white/10 min-h-[50vh] shadow-[0_-10px_30px_rgba(0,0,0,0.1)] rounded-t-[32px] -mt-6">
+                    <div className="relative z-20 p-6 bg-white/95 dark:bg-[#202020]/95 backdrop-blur-2xl border-t border-black/10 dark:border-white/10 min-h-[50vh] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] rounded-t-[32px] -mt-6">
                       <p className="text-on-surface font-semibold text-[22px] leading-snug mb-3">
                         {focusedEvent.message}
                       </p>
