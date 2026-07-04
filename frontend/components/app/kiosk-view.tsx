@@ -77,10 +77,17 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
           opacity: imageOpacity
         }}
       >
+        {/* Blurred ambient background to fill empty space */}
+        <img
+          src={focusedEvent.full_picture}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-50 scale-110"
+        />
+        {/* Uncropped foreground poster */}
         <img
           src={focusedEvent.full_picture}
           alt={focusedEvent.message}
-          className="w-full h-full object-cover object-top"
+          className="relative z-10 w-full h-full object-contain pt-[56px] pb-8 drop-shadow-[0_10px_30px_rgba(0,0,0,0.4)]"
         />
       </motion.div>
 
