@@ -80,7 +80,7 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
           className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-50 scale-110"
         />
         {/* Uncropped foreground poster */}
-        <div className="relative z-10 w-full h-full pt-[48px] pb-4 px-2 flex items-center justify-center drop-shadow-[0_15px_40px_rgba(0,0,0,0.4)]">
+        <div className="relative z-10 w-full h-full p-4 flex items-center justify-center drop-shadow-[0_15px_40px_rgba(0,0,0,0.4)]">
           <img
             src={focusedEvent.full_picture}
             alt={focusedEvent.message}
