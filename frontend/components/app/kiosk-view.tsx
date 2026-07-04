@@ -636,7 +636,7 @@ export function KioskView() {
 
               <div className="relative h-full flex flex-col min-h-0">
                 <SiriGlow active={glowingSection === 'news'} />
-                <div className="z-10 bg-[#ffe7e3] dark:bg-[#33201e] rounded-[32px] h-full flex flex-col min-h-0 overflow-hidden relative">
+                <div className={`z-10 rounded-[32px] h-full flex flex-col min-h-0 overflow-hidden relative ${focusedEvent ? 'bg-[#f0f4f9] dark:bg-[#121212]' : 'bg-[#ffe7e3] dark:bg-[#33201e]'}`}>
                 {focusedEvent ? (
                   <FocusedEventView 
                     focusedEvent={focusedEvent} 
