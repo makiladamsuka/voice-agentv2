@@ -67,7 +67,7 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
 
       {/* Sticky Image Container (Blur Effect on Scroll) */}
       <motion.div 
-        className="sticky top-0 w-full h-[85vh] -mt-[48px] flex flex-col justify-center bg-black/5 dark:bg-black/40 overflow-hidden -z-10"
+        className="sticky top-0 w-full h-[75vh] -mt-[48px] flex flex-col justify-center bg-black/5 dark:bg-black/40 overflow-hidden -z-10"
         style={{
           filter: blurFilter,
           opacity: imageOpacity
@@ -80,7 +80,7 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
           className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-50 scale-110"
         />
         {/* Uncropped foreground poster */}
-        <div className="relative z-10 w-full h-full pt-[56px] pb-10 px-6 flex items-center justify-center drop-shadow-[0_15px_40px_rgba(0,0,0,0.4)]">
+        <div className="relative z-10 w-full h-full pt-[48px] pb-4 px-2 flex items-center justify-center drop-shadow-[0_15px_40px_rgba(0,0,0,0.4)]">
           <img
             src={focusedEvent.full_picture}
             alt={focusedEvent.message}
