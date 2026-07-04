@@ -817,7 +817,31 @@ async def entrypoint(ctx: agents.JobContext):
             # Chain: Surprised -> Happy (Wake up effect)
             display_manager.start_emotion("surprised", duration=0.6, chain="joy")
         try:
-            await session.say("I'm ready! How can I help you today?")
+            fresh_people = agent.face_monitor.get_fresh_people() if agent.face_monitor else []
+            known_people = [p for p in fresh_people if p != "Unknown"]
+            
+            if known_people:
+                names = " and ".join(known_people)
+                options = [
+                    f"Hi {names}! How can I help you?",
+                    f"Hello {names}! I'm ready, what can I do for you?",
+                    f"Hey {names}! I'm online and ready to assist you."
+                ]
+                await session.say(random.choice(options))
+            elif fresh_people:
+                options = [
+                    "Hi there! How can I help you?",
+                    "Hello! I'm ready, what can I do for you?",
+                    "Hey! I'm online and ready to assist."
+                ]
+                await session.say(random.choice(options))
+            else:
+                options = [
+                    "I'm ready! How can I help you today?",
+                    "I'm online and ready.",
+                    "System initialized. I am ready to help."
+                ]
+                await session.say(random.choice(options))
         except RuntimeError:
             print("⚠️ Session closed before readiness announcement")
         

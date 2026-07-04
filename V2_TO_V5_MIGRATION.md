@@ -26,3 +26,10 @@ For each set of changes, a new entry will be added with the file paths and a des
 - **Fixed System Prompt Duplication & Precedence:**
   - Cleaned up old dynamic system messages (events and person context) on each turn to prevent the context array from growing infinitely with duplicates.
   - Re-ordered the injection so that the dynamic person context and event summary are inserted *after* the main system prompt (index 1 and 2). This ensures LLMs (like `gpt-4o-mini`) prioritize the events and current person data over the lengthy background persona instructions.
+## 3. Dynamic Startup Greeting
+
+### Backend Changes (`backend/voice_agent.py`)
+- **Dynamic Face-Aware Readiness Greeting:**
+  - Replaced the static "I'm ready! How can I help you today?" startup message with dynamic greetings.
+  - The agent now checks if someone is standing in front of the camera using `face_monitor` right after initialization.
+  - It randomly selects a natural greeting based on whether it recognizes the person, sees a stranger, or sees no one at all.
