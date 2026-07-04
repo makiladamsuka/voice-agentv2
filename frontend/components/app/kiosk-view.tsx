@@ -52,22 +52,24 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
 
   return (
     <div ref={posterScrollRef} className="relative w-full h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      {/* Sticky Back Button */}
-      <div className="sticky top-0 z-30 pointer-events-none p-3 w-full flex justify-start">
-        <button
-          onClick={onClose}
-          className="pointer-events-auto bg-black/50 hover:bg-black/70 text-white rounded-full px-3 py-1.5 text-[12px] font-bold flex items-center gap-1.5 transition-colors backdrop-blur-sm shadow-md"
-        >
-          <span className="material-symbols-outlined text-[16px]">
-            arrow_back
-          </span>
-          Back
-        </button>
+      {/* Sticky Back Button (Zero-height so it doesn't push content down) */}
+      <div className="sticky top-0 z-30 pointer-events-none w-full h-0">
+        <div className="p-3 flex justify-start">
+          <button
+            onClick={onClose}
+            className="pointer-events-auto bg-black/50 hover:bg-black/70 text-white rounded-full px-3 py-1.5 text-[12px] font-bold flex items-center gap-1.5 transition-colors backdrop-blur-sm shadow-md"
+          >
+            <span className="material-symbols-outlined text-[16px]">
+              arrow_back
+            </span>
+            Back
+          </button>
+        </div>
       </div>
 
       {/* Sticky Image Container (Blur Effect on Scroll) */}
       <motion.div 
-        className="sticky top-0 w-full h-[75vh] -mt-[48px] flex flex-col justify-center bg-black/5 dark:bg-black/40 overflow-hidden -z-10"
+        className="sticky top-0 w-full h-[75vh] flex flex-col justify-center bg-black/5 dark:bg-black/40 overflow-hidden -z-10"
         style={{
           filter: blurFilter,
           opacity: imageOpacity
