@@ -90,7 +90,7 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
       </motion.div>
 
       {/* Scrollable Event Details */}
-      <div className="relative z-20 p-6 bg-white/95 dark:bg-[#202020]/95 backdrop-blur-2xl border-t border-black/10 dark:border-white/10 min-h-[50vh] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] rounded-t-[32px] -mt-6">
+      <div className="relative z-20 p-6 bg-white/95 dark:bg-[#202020]/95 backdrop-blur-2xl min-h-[50vh] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] rounded-t-[32px] -mt-6">
         <p className="text-on-surface font-semibold text-[22px] leading-snug mb-3">
           {focusedEvent.message}
         </p>
