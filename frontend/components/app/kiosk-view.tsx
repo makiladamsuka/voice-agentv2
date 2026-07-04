@@ -50,6 +50,7 @@ export function KioskView() {
 
   // Focused event state — set when a news card is tapped
   const [focusedEvent, setFocusedEvent] = useState<any | null>(null);
+  const [focusedEventScroll, setFocusedEventScroll] = useState(0);
   const pendingEventRef = useRef<any | null>(null);
   const transcriptions = useTranscriptions();
   const [navData, setNavData] = useState<any | null>(null);
@@ -558,19 +559,24 @@ export function KioskView() {
                 <SiriGlow active={glowingSection === 'news'} />
                 <div className="z-10 bg-[#ffe7e3] dark:bg-[#33201e] rounded-[32px] h-full flex flex-col min-h-0 overflow-hidden relative">
                 {focusedEvent ? (
-                  /* Full poster view */
-                  <>
-                    {/* Poster image fills top */}
-                    <div className="relative flex-1 min-h-0">
-                      <img
-                        src={focusedEvent.full_picture}
-                        alt={focusedEvent.message}
-                        className="w-full h-full object-contain bg-black/5 dark:bg-black/40"
-                      />
-                      {/* Back button */}
+                  /* Full poster view - Parallax scroll */
+                  <div 
+                    className="relative w-full h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400/50 scrollbar-track-transparent"
+                    onScroll={(e) => {
+                       const target = e.currentTarget;
+                       // Calculate scroll progress up to ~300px
+                       const progress = Math.min(target.scrollTop / 300, 1);
+                       setFocusedEventScroll(progress);
+                    }}
+                  >
+                    {/* Sticky Back Button */}
+                    <div className="sticky top-0 z-30 pointer-events-none p-3 w-full flex justify-start">
                       <button
-                        onClick={() => setFocusedEvent(null)}
-                        className="absolute top-3 left-3 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full px-3 py-1.5 text-[12px] font-bold flex items-center gap-1.5 transition-colors backdrop-blur-sm"
+                        onClick={() => {
+                          setFocusedEvent(null);
+                          setFocusedEventScroll(0);
+                        }}
+                        className="pointer-events-auto bg-black/50 hover:bg-black/70 text-white rounded-full px-3 py-1.5 text-[12px] font-bold flex items-center gap-1.5 transition-colors backdrop-blur-sm shadow-md"
                       >
                         <span className="material-symbols-outlined text-[16px]">
                           arrow_back
@@ -578,31 +584,47 @@ export function KioskView() {
                         Back
                       </button>
                     </div>
-                    {/* Event details below image */}
-                    <div className="flex-shrink-0 max-h-[45%] overflow-y-auto p-5 bg-white/60 dark:bg-black/40 backdrop-blur-lg border-t border-white/20 dark:border-white/5 scrollbar-thin scrollbar-thumb-gray-400/50 scrollbar-track-transparent">
-                      <p className="text-on-surface font-semibold text-[18px] leading-snug mb-3">
+
+                    {/* Parallax Image Container */}
+                    <div 
+                      className="sticky top-0 w-full h-[65vh] -mt-[48px] flex flex-col justify-center bg-black/5 dark:bg-black/40 -z-10 origin-top overflow-hidden"
+                      style={{ 
+                        transform: `scale(${1 - focusedEventScroll * 0.15}) translateY(${focusedEventScroll * 50}px)`,
+                        opacity: 1 - focusedEventScroll * 0.6
+                      }}
+                    >
+                      <img
+                        src={focusedEvent.full_picture}
+                        alt={focusedEvent.message}
+                        className="w-full h-full object-contain pt-[48px]"
+                      />
+                    </div>
+
+                    {/* Scrollable Event Details */}
+                    <div className="relative z-20 p-6 bg-white/90 dark:bg-[#202020]/90 backdrop-blur-xl border-t border-black/10 dark:border-white/10 min-h-[50vh] shadow-[0_-10px_30px_rgba(0,0,0,0.1)] rounded-t-[32px] -mt-6">
+                      <p className="text-on-surface font-semibold text-[22px] leading-snug mb-3">
                         {focusedEvent.message}
                       </p>
-                      <div className="flex flex-wrap gap-2 mb-4">
+                      <div className="flex flex-wrap gap-2 mb-5">
                         {focusedEvent.extracted_date && (
-                          <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full text-[11px] font-semibold">
+                          <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-full text-[12px] font-semibold">
                             📅 {focusedEvent.extracted_date}
                           </span>
                         )}
                         {focusedEvent.extracted_location && (
-                          <span className="bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full text-[11px] font-semibold">
+                          <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-full text-[12px] font-semibold">
                             📍 {focusedEvent.extracted_location}
                           </span>
                         )}
                       </div>
                       {focusedEvent.description && (
-                        <div className="text-on-surface/80 text-[14px] leading-relaxed pb-2 border-t border-black/5 dark:border-white/5 pt-3 prose prose-sm dark:prose-invert max-w-none">
+                        <div className="text-on-surface/85 text-[15px] leading-relaxed pb-6 border-t border-black/5 dark:border-white/5 pt-4 prose prose-sm dark:prose-invert max-w-none">
                           <ReactMarkdown
                             components={{
-                              p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                              ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-2" {...props} />,
-                              ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-2" {...props} />,
-                              li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                              p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
+                              ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
+                              ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-3 space-y-1" {...props} />,
+                              li: ({node, ...props}) => <li className="" {...props} />,
                               strong: ({node, ...props}) => <strong className="font-bold text-on-surface" {...props} />,
                             }}
                           >
@@ -611,7 +633,7 @@ export function KioskView() {
                         </div>
                       )}
                     </div>
-                  </>
+                  </div>
                 ) : (
                   /* Normal news list */
                   <>
