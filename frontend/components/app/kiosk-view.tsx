@@ -96,33 +96,18 @@ function FocusedEventView({ focusedEvent, onClose }: { focusedEvent: any; onClos
         <p className="text-on-surface font-semibold text-[22px] leading-snug mb-3">
           {focusedEvent.message}
         </p>
-        <div className="flex flex-wrap gap-2 mb-5">
-          {focusedEvent.extracted_date && (
+        <div className="flex flex-wrap gap-2">
+          {focusedEvent.extracted_date && !focusedEvent.extracted_date.includes("null") && (
             <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-full text-[12px] font-semibold">
               📅 {focusedEvent.extracted_date}
             </span>
           )}
-          {focusedEvent.extracted_location && (
+          {focusedEvent.extracted_location && !focusedEvent.extracted_location.includes("null") && (
             <span className="bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-full text-[12px] font-semibold">
               📍 {focusedEvent.extracted_location}
             </span>
           )}
         </div>
-        {focusedEvent.description && (
-          <div className="text-on-surface/85 text-[15px] leading-relaxed pb-6 border-t border-black/5 dark:border-white/5 pt-4 prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown
-              components={{
-                p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
-                ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
-                ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-3 space-y-1" {...props} />,
-                li: ({node, ...props}) => <li className="" {...props} />,
-                strong: ({node, ...props}) => <strong className="font-bold text-on-surface" {...props} />,
-              }}
-            >
-              {focusedEvent.description.replace(/(?:\s*)•\s*/g, '\n\n- ').trim()}
-            </ReactMarkdown>
-          </div>
-        )}
       </div>
     </div>
   );

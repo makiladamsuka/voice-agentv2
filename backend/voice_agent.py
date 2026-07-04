@@ -490,7 +490,9 @@ async def entrypoint(ctx: agents.JobContext):
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY"),
             # Switched to gpt-4o-mini for ultra-low latency response
-            model="openai/gpt-4o-mini"
+            model="openai/gpt-4o-mini",
+            max_completion_tokens=1000,
+            extra_body={"max_tokens": 1000}
         ),
     )
     
@@ -837,9 +839,9 @@ async def entrypoint(ctx: agents.JobContext):
                 await session.say(random.choice(options))
             else:
                 options = [
-                    "I'm ready! How can I help you today?",
-                    "I'm online and ready.",
-                    "System initialized. I am ready to help."
+                    "Hello! I'm here and ready to help you.",
+                    "Hi there! What can I do for you today?",
+                    "Hey! Feel free to ask me anything."
                 ]
                 await session.say(random.choice(options))
         except RuntimeError:
